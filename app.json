@@ -31,8 +31,11 @@
         "backgroundColor": "#0a0a0f"
       },
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ],
       "screenOrientation": "landscape"
     },
@@ -51,6 +54,11 @@
       ],
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "61fc099f-2081-4f30-8791-b01c20b0c5a5"
+      }
+    }
   }
 }
