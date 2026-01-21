@@ -1,0 +1,49 @@
+workflows:
+  android-workflow:
+    name: Android Workflow
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      node: latest
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Install Expo CLI
+        script: npm install -g expo-cli
+      - name: Build Android Bundle (AAB)
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/**/*.aab
+      - android/app/build/outputs/apk/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+      scripts:
+        - echo "Build finished successfully"
+
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      node: latest
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Install Pods
+        script: |
+          cd ios
+          pod install
+      - name: Build iOS IPA
+        script: |
+          xcodebuild -workspace ios/TravelSphere.xcworkspace -scheme TravelSphere -sdk iphoneos -configuration Release archive -archivePath $HOME/build/TravelSphere.xcarchive
+          xcodebuild -exportArchive -archivePath $HOME/build/TravelSphere.xcarchive -exportOptionsPlist ios/exportOptions.plist -exportPath $HOME/build/ios-build
+    artifacts:
+      - $HOME/build/ios-build/*.ipa
