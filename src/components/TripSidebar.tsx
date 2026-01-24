@@ -11,6 +11,7 @@ import {
     ScrollView,
     Animated,
     Dimensions,
+    Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ interface TripSidebarProps {
     onClose: () => void;
     onTripSelect: (trip: Trip) => void;
     onTripView: (trip: Trip) => void;
+    onDelete: (tripId: string) => void;
 }
 
 const SIDEBAR_WIDTH = 280;
@@ -32,6 +34,7 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
     onClose,
     onTripSelect,
     onTripView,
+    onDelete,
 }) => {
     const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -71,6 +74,20 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
     }, [visible, slideAnim, fadeAnim]);
 
 
+    const handleDeleteRequest = (trip: Trip) => {
+        Alert.alert(
+            'Elimina Viaggio',
+            `Sei sicuro di voler eliminare "${trip.title}"?`,
+            [
+                { text: 'Annulla', style: 'cancel' },
+                {
+                    text: 'Elimina',
+                    style: 'destructive',
+                    onPress: () => onDelete(trip.id)
+                }
+            ]
+        );
+    }
 
     if (!shouldRender) {
         return null;
@@ -158,7 +175,16 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
                                             >
                                                 <Ionicons name="eye" size={18} color="#60A5FA" />
                                             </TouchableOpacity>
-                                            <Ionicons name="chevron-forward" size={20} color="#4B5563" />
+
+                                            <TouchableOpacity
+                                                style={styles.deleteButton}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteRequest(trip);
+                                                }}
+                                            >
+                                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -280,6 +306,12 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: 'rgba(96, 165, 250, 0.15)',
     },
+    deleteButton: {
+        padding: 6,
+        borderRadius: 8,
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    },
 });
 
 export default TripSidebar;
+

@@ -18,6 +18,7 @@ import EarthGlobe from './src/components/EarthGlobe';
 import TripForm from './src/components/TripForm';
 import MemoryViewer from './src/components/MemoryViewer';
 import TripSidebar from './src/components/TripSidebar';
+import ErrorBoundary from './src/components/ErrorBoundary'; // Imported ErrorBoundary
 import StorageService from './src/services/StorageService';
 import { Trip } from './src/types';
 
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [focusLocation, setFocusLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true); // Rotation state
 
   // Lock to landscape orientation
   useEffect(() => {
@@ -167,110 +169,131 @@ const App: React.FC = () => {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
-      <View style={styles.container}>
-        {/* 3D Globe */}
-        <View style={styles.globeContainer}>
-          <Suspense fallback={<LoadingFallback />}>
-            <EarthGlobe
-              trips={trips}
-              onPinClick={handlePinPress}
-              targetCoordinates={focusLocation ? { latitude: focusLocation.lat, longitude: focusLocation.lon } : null}
-            />
-          </Suspense>
-        </View>
-
-        {/* Header Overlay */}
-        <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
-          <View style={styles.header}>
-            {/* Hamburger menu button */}
-            <TouchableOpacity
-              style={styles.hamburgerButton}
-              onPress={() => setSidebarOpen(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="menu" size={28} color="#60A5FA" />
-            </TouchableOpacity>
-            <View>
-              <Text style={[styles.logo, dynamicStyles.logo]}>TRAVELSPHERE</Text>
-              <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
-                Diario di Viaggio Immersivo
-              </Text>
-            </View>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
+        <View style={styles.container}>
+          {/* 3D Globe */}
+          <View style={styles.globeContainer}>
+            <Suspense fallback={<LoadingFallback />}>
+              <EarthGlobe
+                trips={trips}
+                onPinClick={handlePinPress}
+                targetCoordinates={focusLocation ? { latitude: focusLocation.lat, longitude: focusLocation.lon } : null}
+                autoRotate={autoRotate}
+              />
+            </Suspense>
           </View>
-        </SafeAreaView>
 
-        {/* Trip Counter */}
-        <View style={styles.counterContainer}>
-          <BlurView intensity={40} style={[styles.tripCounter, dynamicStyles.counterPadding]} tint="dark">
-            <Ionicons name="pin" size={isSmallPhone ? 14 : 16} color="#60A5FA" />
-            <Text style={[styles.tripCounterText, isSmallPhone && { fontSize: 12 }]}>
-              {trips.length} {trips.length === 1 ? 'viaggio' : 'viaggi'}
-            </Text>
-          </BlurView>
-        </View>
+          {/* Header Overlay */}
+          <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
+            <View style={styles.header}>
+              {/* Hamburger menu button */}
+              <TouchableOpacity
+                style={styles.hamburgerButton}
+                onPress={() => setSidebarOpen(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="menu" size={28} color="#60A5FA" />
+              </TouchableOpacity>
+              <View>
+                <Text style={[styles.logo, dynamicStyles.logo]}>TRAVELSPHERE</Text>
+                <Text style={[styles.subtitle, dynamicStyles.subtitle]}>
+                  Diario di Viaggio Immersivo
+                </Text>
+              </View>
+            </View>
+          </SafeAreaView>
 
-        {/* Add Trip Button */}
-        <View style={styles.addButtonContainer}>
-          <TouchableOpacity
-            style={[styles.addButton, dynamicStyles.addButton]}
-            onPress={() => setShowForm(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={isSmallPhone ? 24 : 28} color="#fff" />
-            <Text style={[styles.addButtonText, dynamicStyles.addButtonText]}>
-              {isSmallPhone ? 'Aggiungi' : 'Aggiungi Viaggio'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Instructions Hint */}
-        {!isSmallPhone && (
-          <View style={styles.hintContainer}>
-            <BlurView intensity={30} style={styles.hint} tint="dark">
-              <Ionicons name="hand-left-outline" size={16} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.hintText}>
-                Ruota e zooma il globo • Tocca i pin per vedere le memorie
+          {/* Trip Counter */}
+          <View style={styles.counterContainer}>
+            <BlurView intensity={40} style={[styles.tripCounter, dynamicStyles.counterPadding]} tint="dark">
+              <Ionicons name="pin" size={isSmallPhone ? 14 : 16} color="#60A5FA" />
+              <Text style={[styles.tripCounterText, isSmallPhone && { fontSize: 12 }]}>
+                {trips.length} {trips.length === 1 ? 'viaggio' : 'viaggi'}
               </Text>
             </BlurView>
           </View>
-        )}
 
-        {/* Trip Form Modal */}
-        <TripForm
-          visible={showForm}
-          onClose={() => setShowForm(false)}
-          onSave={handleAddTrip}
-        />
+          {/* Rotation Toggle Button */}
+          <View style={styles.rotationControlContainer}>
+            <BlurView intensity={30} style={styles.rotationBlur} tint="dark">
+              <TouchableOpacity
+                style={styles.rotationButton}
+                onPress={() => setAutoRotate(!autoRotate)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={autoRotate ? "pause" : "play"}
+                  size={24}
+                  color="rgba(255,255,255,0.8)"
+                />
+              </TouchableOpacity>
+            </BlurView>
+          </View>
 
-        {/* Memory Viewer Modal */}
-        <MemoryViewer
-          trip={selectedTrip}
-          visible={!!selectedTrip}
-          onClose={handleCloseMemory}
-          onDelete={handleDeleteTrip}
-        />
+          {/* Add Trip Button */}
+          <View style={styles.addButtonContainer}>
+            <TouchableOpacity
+              style={[styles.addButton, dynamicStyles.addButton]}
+              onPress={() => setShowForm(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={isSmallPhone ? 24 : 28} color="#fff" />
+              <Text style={[styles.addButtonText, dynamicStyles.addButtonText]}>
+                {isSmallPhone ? 'Aggiungi' : 'Aggiungi Viaggio'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Trip Sidebar */}
-        <TripSidebar
-          trips={trips}
-          visible={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          onTripSelect={(trip) => {
-            setFocusLocation({
-              lat: trip.latitude,
-              lon: trip.longitude,
-            });
-            setTimeout(() => setFocusLocation(null), 3000);
-          }}
-          onTripView={(trip) => {
-            setSelectedTrip(trip);
-            setSidebarOpen(false);
-          }}
-        />
-      </View>
-    </SafeAreaProvider>
+          {/* Instructions Hint */}
+          {!isSmallPhone && (
+            <View style={styles.hintContainer}>
+              <BlurView intensity={30} style={styles.hint} tint="dark">
+                <Ionicons name="hand-left-outline" size={16} color="rgba(255,255,255,0.5)" />
+                <Text style={styles.hintText}>
+                  Ruota e zooma il globo • Tocca i pin per vedere le memorie
+                </Text>
+              </BlurView>
+            </View>
+          )}
+
+          {/* Trip Form Modal */}
+          <TripForm
+            visible={showForm}
+            onClose={() => setShowForm(false)}
+            onSave={handleAddTrip}
+          />
+
+          {/* Memory Viewer Modal */}
+          <MemoryViewer
+            trip={selectedTrip}
+            visible={!!selectedTrip}
+            onClose={handleCloseMemory}
+            onDelete={handleDeleteTrip}
+          />
+
+          {/* Trip Sidebar */}
+          <TripSidebar
+            trips={trips}
+            visible={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onTripSelect={(trip) => {
+              setFocusLocation({
+                lat: trip.latitude,
+                lon: trip.longitude,
+              });
+              setTimeout(() => setFocusLocation(null), 3000);
+            }}
+            onTripView={(trip) => {
+              setSelectedTrip(trip);
+              setSidebarOpen(false);
+            }}
+            onDelete={handleDeleteTrip} // Passed onDelete
+          />
+        </View>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 };
 
@@ -364,6 +387,23 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  rotationControlContainer: {
+    position: 'absolute',
+    bottom: 28,
+    right: 200, // Positioned to the left of the Add Button
+  },
+  rotationBlur: {
+    borderRadius: 50,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  rotationButton: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   hintContainer: {
     position: 'absolute',
