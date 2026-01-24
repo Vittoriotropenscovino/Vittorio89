@@ -17,7 +17,6 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "requiresFullScreen": true,
       "bundleIdentifier": "com.travelsphere.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to find places on the globe.",
@@ -36,8 +35,7 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO"
-      ],
-      "screenOrientation": "landscape"
+      ]
     },
     "web": {
       "bundler": "metro",
