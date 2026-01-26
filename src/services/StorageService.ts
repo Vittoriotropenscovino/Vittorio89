@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { Trip } from '../types';
+import logger from '../utils/logger';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
 const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
@@ -18,7 +19,7 @@ export const StorageService = {
             const jsonValue = JSON.stringify(trips);
             await AsyncStorage.setItem(TRIPS_STORAGE_KEY, jsonValue);
         } catch (error) {
-            console.error('Error saving trips:', error);
+            logger.error('Error saving trips:', error);
             throw error;
         }
     },
@@ -57,7 +58,7 @@ export const StorageService = {
             }
             return [];
         } catch (error) {
-            console.error('Error loading trips:', error);
+            logger.error('Error loading trips:', error);
             return [];
         }
     },
@@ -75,7 +76,7 @@ export const StorageService = {
                     try {
                         await FileSystem.deleteAsync(media.uri, { idempotent: true });
                     } catch (error) {
-                        console.error('Error deleting media file:', error);
+                        logger.error('Error deleting media file:', error);
                     }
                 }
             }
@@ -98,7 +99,7 @@ export const StorageService = {
                 await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
             }
         } catch (error) {
-            console.error('Error clearing storage:', error);
+            logger.error('Error clearing storage:', error);
             throw error;
         }
     },
@@ -127,7 +128,7 @@ export const StorageService = {
                 mediaSize,
             };
         } catch (error) {
-            console.error('Error getting storage info:', error);
+            logger.error('Error getting storage info:', error);
             return { tripCount: 0, mediaSize: 0 };
         }
     },

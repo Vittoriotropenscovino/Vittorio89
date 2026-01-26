@@ -12,13 +12,24 @@ import {
     Image,
     useWindowDimensions,
     Platform,
+    FlatList,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { TripFormProps, MediaItem } from '../types';
+import logger from '../utils/logger';
+
+// Interface for geocoding results
+interface GeocodingSearchResult {
+    lat: string;
+    lon: string;
+    display_name: string;
+    place_id: number;
+}
 
 // Directory for persistent media storage
 const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
@@ -37,6 +48,8 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         longitude: number;
         displayName: string;
     } | null>(null);
+    const [searchResults, setSearchResults] = useState<GeocodingSearchResult[]>([]);
+    const [showResults, setShowResults] = useState(false);
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [media, setMedia] = useState<MediaItem[]>([]);
@@ -45,6 +58,8 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
     const resetForm = () => {
         setLocationQuery('');
         setFoundLocation(null);
+        setSearchResults([]);
+        setShowResults(false);
         setTitle('');
         setDate('');
         setMedia([]);
@@ -59,13 +74,10 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
     };
 
     // Geocode location using Nominatim (OpenStreetMap) - works on all platforms
-    const geocodeWithNominatim = async (query: string): Promise<Array<{
-        lat: string;
-        lon: string;
-        display_name: string;
-    }>> => {
+    // Now returns multiple results for user selection
+    const geocodeWithNominatim = async (query: string): Promise<GeocodingSearchResult[]> => {
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=it`,
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=it`,
             {
                 headers: {
                     'User-Agent': 'TravelSphere/1.0',
@@ -86,27 +98,15 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
 
         setIsSearching(true);
         setFoundLocation(null);
+        setSearchResults([]);
+        setShowResults(false);
 
         try {
             const results = await geocodeWithNominatim(locationQuery);
 
             if (results && results.length > 0) {
-                const place = results[0];
-
-                // Extract a cleaner display name (city, region, country)
-                const nameParts = place.display_name.split(', ');
-                const displayName = nameParts.slice(0, 3).join(', ');
-
-                setFoundLocation({
-                    latitude: parseFloat(place.lat),
-                    longitude: parseFloat(place.lon),
-                    displayName,
-                });
-
-                // Auto-fill title if empty
-                if (!title) {
-                    setTitle(locationQuery);
-                }
+                setSearchResults(results);
+                setShowResults(true);
             } else {
                 Alert.alert(
                     'Luogo non trovato',
@@ -115,7 +115,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                 );
             }
         } catch (error) {
-            console.error('Geocoding error:', error);
+            logger.error('Geocoding error:', error);
             Alert.alert(
                 'Errore',
                 'Si è verificato un errore durante la ricerca. Controlla la connessione e riprova.',
@@ -123,6 +123,25 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
             );
         } finally {
             setIsSearching(false);
+        }
+    };
+
+    // Handle selection of a geocoding result
+    const handleSelectLocation = (result: GeocodingSearchResult) => {
+        const nameParts = result.display_name.split(', ');
+        const displayName = nameParts.slice(0, 3).join(', ');
+
+        setFoundLocation({
+            latitude: parseFloat(result.lat),
+            longitude: parseFloat(result.lon),
+            displayName,
+        });
+
+        setShowResults(false);
+
+        // Auto-fill title if empty
+        if (!title) {
+            setTitle(nameParts[0]);
         }
     };
 
@@ -135,7 +154,26 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         }
     };
 
+    // Compress image for storage optimization
+    const compressImage = async (uri: string): Promise<string> => {
+        try {
+            const result = await ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 1920 } }], // Max width 1920px, maintains aspect ratio
+                {
+                    compress: 0.7, // 70% quality
+                    format: ImageManipulator.SaveFormat.JPEG,
+                }
+            );
+            return result.uri;
+        } catch (error) {
+            logger.warn('Image compression failed, using original:', error);
+            return uri;
+        }
+    };
+
     // Copy media to persistent storage (native only, web uses original URIs)
+    // Now includes image compression for optimization
     const copyMediaToPersistentStorage = async (items: MediaItem[]): Promise<MediaItem[]> => {
         // On web, just return original items - FileSystem is not fully supported
         if (Platform.OS === 'web') {
@@ -157,8 +195,15 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
             const newUri = MEDIA_DIR + filename;
 
             try {
+                let sourceUri = item.uri;
+
+                // Compress images before saving
+                if (item.type === 'image') {
+                    sourceUri = await compressImage(item.uri);
+                }
+
                 await FileSystem.copyAsync({
-                    from: item.uri,
+                    from: sourceUri,
                     to: newUri,
                 });
 
@@ -167,7 +212,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                     uri: newUri,
                 });
             } catch (error) {
-                console.error('Error copying media:', error);
+                logger.error('Error copying media:', error);
                 // Keep original URI if copy fails
                 copiedMedia.push(item);
             }
@@ -207,7 +252,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                 setMedia((prev) => [...prev, ...newMedia]);
             }
         } catch (error) {
-            console.error('Image picker error:', error);
+            logger.error('Image picker error:', error);
             Alert.alert('Errore', 'Impossibile selezionare le immagini.');
         }
     };
@@ -246,7 +291,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
 
             resetForm();
         } catch (error) {
-            console.error('Save error:', error);
+            logger.error('Save error:', error);
             Alert.alert('Errore', 'Impossibile salvare il viaggio. Riprova.');
             setIsSaving(false);
         }
@@ -326,12 +371,43 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                                     </TouchableOpacity>
                                 </View>
 
+                                {/* Search Results List */}
+                                {showResults && searchResults.length > 0 && (
+                                    <View style={styles.resultsContainer}>
+                                        <Text style={styles.resultsTitle}>
+                                            Seleziona un luogo ({searchResults.length} risultati):
+                                        </Text>
+                                        {searchResults.map((result) => (
+                                            <TouchableOpacity
+                                                key={result.place_id}
+                                                style={styles.resultItem}
+                                                onPress={() => handleSelectLocation(result)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name="location-outline" size={16} color="#60A5FA" />
+                                                <Text style={styles.resultText} numberOfLines={2}>
+                                                    {result.display_name}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+
                                 {foundLocation && (
                                     <View style={styles.foundLocation}>
                                         <Ionicons name="checkmark-circle" size={18} color="#10B981" />
                                         <Text style={styles.foundText} numberOfLines={2}>
                                             {foundLocation.displayName}
                                         </Text>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setFoundLocation(null);
+                                                setShowResults(true);
+                                            }}
+                                            style={styles.changeLocationBtn}
+                                        >
+                                            <Text style={styles.changeLocationText}>Cambia</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
@@ -524,6 +600,42 @@ const styles = StyleSheet.create({
     },
     foundText: {
         color: '#10B981',
+        fontSize: 13,
+        flex: 1,
+    },
+    changeLocationBtn: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    changeLocationText: {
+        color: '#60A5FA',
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    resultsContainer: {
+        marginTop: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        borderRadius: 12,
+        padding: 10,
+        maxHeight: 150,
+    },
+    resultsTitle: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        marginBottom: 8,
+    },
+    resultItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        backgroundColor: 'rgba(96, 165, 250, 0.1)',
+        marginBottom: 6,
+    },
+    resultText: {
+        color: '#E5E7EB',
         fontSize: 13,
         flex: 1,
     },

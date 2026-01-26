@@ -21,6 +21,10 @@ import TripSidebar from './src/components/TripSidebar';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import StorageService from './src/services/StorageService';
 import { Trip } from './src/types';
+import logger from './src/utils/logger';
+
+// Type for new trip data (without id and createdAt)
+type NewTripData = Omit<Trip, 'id' | 'createdAt'>;
 
 const App: React.FC = () => {
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -46,7 +50,7 @@ const App: React.FC = () => {
         const savedTrips = await StorageService.loadTrips();
         setTrips(savedTrips);
       } catch (error) {
-        console.error('Error loading trips:', error);
+        logger.error('Error loading trips:', error);
       } finally {
         setIsLoading(false);
       }
@@ -58,11 +62,21 @@ const App: React.FC = () => {
     return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
   }, []);
 
-  const handleAddTrip = useCallback((tripData: any) => {
-    const newTrip = { ...tripData, id: generateId(), createdAt: Date.now() };
-    setTrips((prev) => [...prev, newTrip]);
+  const handleAddTrip = useCallback(async (tripData: NewTripData) => {
+    const newTrip: Trip = { ...tripData, id: generateId(), createdAt: Date.now() };
+    const updatedTrips = [...trips, newTrip];
+    setTrips(updatedTrips);
     setShowForm(false);
-  }, [generateId]);
+
+    // Persist to storage
+    try {
+      await StorageService.saveTrips(updatedTrips);
+      logger.info('Trip saved successfully:', newTrip.title);
+    } catch (error) {
+      logger.error('Error saving trip:', error);
+      Alert.alert('Errore', 'Impossibile salvare il viaggio. Riprova.');
+    }
+  }, [generateId, trips]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
     const updatedTrips = await StorageService.deleteTrip(tripId, trips);

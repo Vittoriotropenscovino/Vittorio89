@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
+import logger from '../utils/logger';
 
 interface Props {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    logger.error("Uncaught error:", error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -33,7 +34,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       await Updates.reloadAsync();
     } catch (e) {
       // Fallback if expo-updates is not available (e.g. dev mode)
-      console.log('Reload not supported in dev client, please shake to reload');
+      logger.info('Reload not supported in dev client, please shake to reload');
     }
   };
 

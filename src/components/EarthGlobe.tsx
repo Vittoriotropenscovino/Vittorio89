@@ -69,6 +69,7 @@ function Earth({
     ]);
 
     // Configura le texture per alta qualità al caricamento
+    // Includes cleanup to prevent memory leaks
     useEffect(() => {
         const textures = [colorMap, normalMap, specularMap, cloudsMap];
         textures.forEach((texture) => {
@@ -83,6 +84,15 @@ function Earth({
                 texture.needsUpdate = true;
             }
         });
+
+        // Cleanup function to dispose textures and prevent memory leaks
+        return () => {
+            textures.forEach((texture) => {
+                if (texture) {
+                    texture.dispose();
+                }
+            });
+        };
     }, [colorMap, normalMap, specularMap, cloudsMap]);
 
     // Effetto per gestire la rotazione verso le coordinate target
@@ -186,16 +196,20 @@ function Earth({
     }, []);
 
     // Geometria sfera con segmenti adattivi
+    // Each geometry is memoized and will be recreated when segments change
     const earthGeometry = useMemo(() => {
-        return new THREE.SphereGeometry(radius, currentSegments, currentSegments);
+        const geometry = new THREE.SphereGeometry(radius, currentSegments, currentSegments);
+        return geometry;
     }, [radius, currentSegments]);
 
     const cloudsGeometry = useMemo(() => {
-        return new THREE.SphereGeometry(radius * 1.015, currentSegments, currentSegments);
+        const geometry = new THREE.SphereGeometry(radius * 1.015, currentSegments, currentSegments);
+        return geometry;
     }, [radius, currentSegments]);
 
     const atmosphereGeometry = useMemo(() => {
-        return new THREE.SphereGeometry(radius * 1.05, Math.max(32, currentSegments / 2), Math.max(32, currentSegments / 2));
+        const geometry = new THREE.SphereGeometry(radius * 1.05, Math.max(32, currentSegments / 2), Math.max(32, currentSegments / 2));
+        return geometry;
     }, [radius, currentSegments]);
 
     // Crea le linee di griglia
@@ -226,6 +240,19 @@ function Earth({
 
         return lines;
     }, [radius]);
+
+    // Cleanup geometries and materials on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            earthGeometry.dispose();
+            cloudsGeometry.dispose();
+            atmosphereGeometry.dispose();
+            earthMaterial.dispose();
+            cloudsMaterial.dispose();
+            atmosphereMaterial.dispose();
+            gridLines.forEach((line) => line.dispose());
+        };
+    }, [earthGeometry, cloudsGeometry, atmosphereGeometry, earthMaterial, cloudsMaterial, atmosphereMaterial, gridLines]);
 
     return (
         <group ref={earthRef}>
