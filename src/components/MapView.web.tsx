@@ -6,8 +6,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix leaflet icons
+// @ts-ignore
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+// @ts-ignore
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
+// @ts-ignore
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
 // Type hack for Leaflet icon prototype
