@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, ErrorInfo } from 'react';
 import {
   View,
   Text,
@@ -7,24 +7,94 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import EarthGlobe from './src/components/EarthGlobe';
 import TripForm from './src/components/TripForm';
 import MemoryViewer from './src/components/MemoryViewer';
 import TripSidebar from './src/components/TripSidebar';
-import ErrorBoundary from './src/components/ErrorBoundary';
 import StorageService from './src/services/StorageService';
 import { Trip } from './src/types';
 import logger from './src/utils/logger';
 
+// Lazy load EarthGlobe to catch errors
+let EarthGlobe: React.ComponentType<any> | null = null;
+let globeLoadError: string | null = null;
+
+try {
+  EarthGlobe = require('./src/components/EarthGlobe').default;
+} catch (error: any) {
+  globeLoadError = error?.message || 'Failed to load 3D Globe';
+  logger.error('Failed to load EarthGlobe:', error);
+}
+
 // Type for new trip data (without id and createdAt)
 type NewTripData = Omit<Trip, 'id' | 'createdAt'>;
+
+// Simple Error Boundary component
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null; errorInfo: ErrorInfo | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    this.setState({ errorInfo });
+    logger.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={errorStyles.container}>
+          <Text style={errorStyles.title}>⚠️ App Error</Text>
+          <ScrollView style={errorStyles.scrollView}>
+            <Text style={errorStyles.errorText}>
+              {this.state.error?.toString()}
+            </Text>
+            <Text style={errorStyles.stackText}>
+              {this.state.error?.stack}
+            </Text>
+            {this.state.errorInfo && (
+              <Text style={errorStyles.stackText}>
+                Component Stack:{'\n'}
+                {this.state.errorInfo.componentStack}
+              </Text>
+            )}
+          </ScrollView>
+          <TouchableOpacity
+            style={errorStyles.button}
+            onPress={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+          >
+            <Text style={errorStyles.buttonText}>Riprova</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const errorStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#1a1a2e', padding: 20, justifyContent: 'center' },
+  title: { fontSize: 24, color: '#ff6b6b', fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  scrollView: { maxHeight: 400, backgroundColor: '#0d0d1a', borderRadius: 10, padding: 15, marginBottom: 20 },
+  errorText: { color: '#ff6b6b', fontSize: 14, marginBottom: 10 },
+  stackText: { color: '#888', fontSize: 11, fontFamily: 'monospace' },
+  button: { backgroundColor: '#3B82F6', padding: 15, borderRadius: 10, alignItems: 'center' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+});
 
 const App: React.FC = () => {
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -92,16 +162,38 @@ const App: React.FC = () => {
     );
   }
 
+  // Render fallback if globe failed to load
+  const renderGlobe = () => {
+    if (globeLoadError || !EarthGlobe) {
+      return (
+        <View style={styles.globeFallback}>
+          <Ionicons name="globe-outline" size={100} color="#3B82F6" />
+          <Text style={styles.fallbackTitle}>TravelSphere</Text>
+          <Text style={styles.fallbackText}>
+            {globeLoadError || '3D Globe non disponibile'}
+          </Text>
+          <Text style={styles.fallbackHint}>
+            Puoi comunque aggiungere e visualizzare i tuoi viaggi
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <EarthGlobe
+        trips={trips}
+        onPinClick={(trip: Trip) => setSelectedTrip(trip)}
+        targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
+      />
+    );
+  };
+
   return (
-    <ErrorBoundary>
+    <AppErrorBoundary>
       <SafeAreaProvider>
         <StatusBar style="light" translucent backgroundColor="transparent" />
         <View style={styles.container}>
-          <EarthGlobe
-            trips={trips}
-            onPinClick={(trip) => setSelectedTrip(trip)}
-            targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
-          />
+          {renderGlobe()}
 
           <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
             <View style={styles.header}>
@@ -129,15 +221,16 @@ const App: React.FC = () => {
             onDelete={handleDeleteTrip} />
         </View>
       </SafeAreaProvider>
-    </ErrorBoundary>
+    </AppErrorBoundary>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050510' },
-  globePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 20 },
-  placeholderText: { color: '#60A5FA', fontSize: 24, fontWeight: 'bold' },
-  placeholderSubtext: { color: '#9CA3AF', fontSize: 16 },
+  globeFallback: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a1a' },
+  fallbackTitle: { fontSize: 32, fontWeight: 'bold', color: '#60A5FA', marginTop: 20 },
+  fallbackText: { fontSize: 14, color: '#ff6b6b', marginTop: 10, textAlign: 'center', paddingHorizontal: 40 },
+  fallbackHint: { fontSize: 12, color: '#666', marginTop: 10 },
   headerContainer: { position: 'absolute', top: 0, left: 0, padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hamburgerButton: { padding: 8, borderRadius: 8, backgroundColor: 'rgba(96, 165, 250, 0.1)' },
