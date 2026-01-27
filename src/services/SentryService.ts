@@ -1,15 +1,15 @@
 /**
- * Sentry Error Reporting Service
- * Provides centralized error tracking and analytics
+ * Sentry Error Reporting Service (Stub)
+ *
+ * This is a placeholder service. To enable Sentry:
+ * 1. npm install @sentry/react-native
+ * 2. Add the Sentry plugin to app.json
+ * 3. Replace this file with the full implementation
  */
 
-import * as Sentry from '@sentry/react-native';
 import logger from '../utils/logger';
 
-// Configuration constants
-// Replace with your actual Sentry DSN from https://sentry.io
-const SENTRY_DSN = process.env.SENTRY_DSN || '';
-const IS_PRODUCTION = !__DEV__;
+type SeverityLevel = 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug';
 
 interface SentryConfig {
     dsn: string;
@@ -20,122 +20,67 @@ interface SentryConfig {
     tracesSampleRate: number;
 }
 
-const defaultConfig: SentryConfig = {
-    dsn: SENTRY_DSN,
-    environment: IS_PRODUCTION ? 'production' : 'development',
-    debug: !IS_PRODUCTION,
-    enableAutoSessionTracking: true,
-    sessionTrackingIntervalMillis: 30000,
-    tracesSampleRate: IS_PRODUCTION ? 0.2 : 1.0, // 20% in prod, 100% in dev
-};
-
 /**
- * Initialize Sentry error reporting
- * Call this in App.tsx before rendering
+ * Initialize Sentry error reporting (stub - does nothing)
  */
-export const initSentry = (config: Partial<SentryConfig> = {}): void => {
-    const finalConfig = { ...defaultConfig, ...config };
-
-    if (!finalConfig.dsn) {
-        logger.warn('Sentry DSN not configured. Error reporting disabled.');
-        return;
-    }
-
-    try {
-        Sentry.init({
-            dsn: finalConfig.dsn,
-            environment: finalConfig.environment,
-            debug: finalConfig.debug,
-            enableAutoSessionTracking: finalConfig.enableAutoSessionTracking,
-            sessionTrackingIntervalMillis: finalConfig.sessionTrackingIntervalMillis,
-            tracesSampleRate: finalConfig.tracesSampleRate,
-            // Performance monitoring
-            integrations: [
-                Sentry.reactNativeTracingIntegration(),
-            ],
-        });
-
-        logger.info('Sentry initialized successfully');
-    } catch (error) {
-        logger.error('Failed to initialize Sentry:', error);
-    }
+export const initSentry = (_config: Partial<SentryConfig> = {}): void => {
+    logger.debug('Sentry not configured - error reporting disabled');
 };
 
 /**
- * Capture an exception manually
+ * Capture an exception manually (stub - logs only)
  */
 export const captureException = (error: Error, context?: Record<string, unknown>): void => {
-    if (context) {
-        Sentry.withScope((scope) => {
-            Object.entries(context).forEach(([key, value]) => {
-                scope.setExtra(key, value);
-            });
-            Sentry.captureException(error);
-        });
-    } else {
-        Sentry.captureException(error);
-    }
+    logger.error('Exception captured:', error, context);
 };
 
 /**
- * Capture a message (for non-error events)
+ * Capture a message (stub - logs only)
  */
-export const captureMessage = (
-    message: string,
-    level: Sentry.SeverityLevel = 'info'
-): void => {
-    Sentry.captureMessage(message, level);
+export const captureMessage = (message: string, level: SeverityLevel = 'info'): void => {
+    logger.info(`[${level}] ${message}`);
 };
 
 /**
- * Set user information for error tracking
+ * Set user information (stub - does nothing)
  */
-export const setUser = (user: { id?: string; email?: string; username?: string } | null): void => {
-    Sentry.setUser(user);
+export const setUser = (_user: { id?: string; email?: string; username?: string } | null): void => {
+    // No-op
 };
 
 /**
- * Add breadcrumb for tracking user actions
+ * Add breadcrumb (stub - does nothing)
  */
 export const addBreadcrumb = (
-    category: string,
-    message: string,
-    data?: Record<string, unknown>
+    _category: string,
+    _message: string,
+    _data?: Record<string, unknown>
 ): void => {
-    Sentry.addBreadcrumb({
-        category,
-        message,
-        data,
-        level: 'info',
-    });
+    // No-op
 };
 
 /**
- * Set a tag for filtering errors
+ * Set a tag (stub - does nothing)
  */
-export const setTag = (key: string, value: string): void => {
-    Sentry.setTag(key, value);
+export const setTag = (_key: string, _value: string): void => {
+    // No-op
 };
 
 /**
- * Track a trip-related event
+ * Track a trip-related event (stub - logs only)
  */
 export const trackTripEvent = (
     action: 'created' | 'deleted' | 'viewed',
     tripId: string,
     tripTitle?: string
 ): void => {
-    addBreadcrumb('trip', `Trip ${action}`, {
-        tripId,
-        tripTitle,
-        action,
-    });
+    logger.debug(`Trip ${action}:`, { tripId, tripTitle });
 };
 
 /**
- * Wrap a component with Sentry error boundary
+ * Wrap a component (stub - returns component unchanged)
  */
-export const withSentryErrorBoundary = Sentry.wrap;
+export const withSentryErrorBoundary = <T>(component: T): T => component;
 
 export default {
     init: initSentry,

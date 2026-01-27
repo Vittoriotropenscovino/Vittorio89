@@ -53,14 +53,7 @@
         }
       ],
       "expo-asset",
-      "expo-font",
-      [
-        "@sentry/react-native/expo",
-        {
-          "organization": "your-org",
-          "project": "travelsphere"
-        }
-      ]
+      "expo-font"
     ],
     "extra": {
       "eas": {
