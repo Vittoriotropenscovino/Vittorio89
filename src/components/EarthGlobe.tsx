@@ -1,13 +1,12 @@
 /**
  * TravelSphere - EarthGlobe Component
- * Componente principale per il globo 3D interattivo
- * Con zoom adattivo e texture ad alta risoluzione
+ * Globo 3D stilizzato senza texture esterne (compatibile Android)
  */
 
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useFrame, useThree, Canvas } from '@react-three/fiber';
-import { Stars, OrbitControls, useTexture } from '@react-three/drei';
+import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { Trip, Coordinates, DEFAULT_GLOBE_CONFIG } from '../types';
 import { latLonToVector3, getGlobeRotationForCoords, lerp } from '../utils/coordinates';
@@ -23,14 +22,12 @@ interface EarthGlobeProps {
 // Calcola il numero di segmenti in base alla distanza della camera
 function calculateSegments(cameraDistance: number): number {
     const { zoomMin, zoomMax, segmentsMin, segmentsMax } = DEFAULT_GLOBE_CONFIG;
-    // Normalizza la distanza tra 0 e 1 (invertito: più vicino = 1, più lontano = 0)
     const normalized = 1 - (cameraDistance - zoomMin) / (zoomMax - zoomMin);
     const clamped = Math.max(0, Math.min(1, normalized));
-    // Interpola tra min e max segmenti
     return Math.round(segmentsMin + clamped * (segmentsMax - segmentsMin));
 }
 
-// Componente interno per la Terra con geometria adattiva
+// Componente interno per la Terra stilizzata
 function Earth({
     trips,
     onPinClick,
@@ -39,61 +36,16 @@ function Earth({
 }: EarthGlobeProps) {
     const earthRef = useRef<THREE.Group>(null);
     const globeRef = useRef<THREE.Mesh>(null);
-    const cloudsRef = useRef<THREE.Mesh>(null);
     const targetRotation = useRef<[number, number, number] | null>(null);
     const isAnimating = useRef(false);
     const animationProgress = useRef(0);
     const startRotation = useRef<[number, number, number]>([0, 0, 0]);
 
-    // Stato per il livello di dettaglio adattivo
     const [currentSegments, setCurrentSegments] = useState(DEFAULT_GLOBE_CONFIG.segments);
     const lastSegmentUpdate = useRef(0);
 
-    // Accesso alla camera Three.js
     const { camera } = useThree();
-
-    // Configurazione del globo
     const { radius, rotationSpeed } = DEFAULT_GLOBE_CONFIG;
-
-    // Caricamento texture ad alta risoluzione 
-    // Blue Marble 4K dalla libreria three-globe + texture originali three.js per normali/specular
-    const [colorMap, normalMap, specularMap, cloudsMap] = useTexture([
-        // Texture colore 4K Blue Marble
-        'https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg',
-        // Normali originali three.js
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_normal_2048.jpg',
-        // Specular originali three.js  
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg',
-        // Nuvole originali three.js
-        'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png',
-    ]);
-
-    // Configura le texture per alta qualità al caricamento
-    // Includes cleanup to prevent memory leaks
-    useEffect(() => {
-        const textures = [colorMap, normalMap, specularMap, cloudsMap];
-        textures.forEach((texture) => {
-            if (texture) {
-                // Anisotropic filtering per texture nitide agli angoli
-                texture.anisotropy = 16;
-                // Filtering di alta qualità
-                texture.minFilter = THREE.LinearMipmapLinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                // Genera mipmaps per zoom fluido
-                texture.generateMipmaps = true;
-                texture.needsUpdate = true;
-            }
-        });
-
-        // Cleanup function to dispose textures and prevent memory leaks
-        return () => {
-            textures.forEach((texture) => {
-                if (texture) {
-                    texture.dispose();
-                }
-            });
-        };
-    }, [colorMap, normalMap, specularMap, cloudsMap]);
 
     // Effetto per gestire la rotazione verso le coordinate target
     useEffect(() => {
@@ -110,20 +62,13 @@ function Earth({
         }
     }, [targetCoordinates]);
 
-    // Animazione frame-by-frame con aggiornamento LOD
+    // Animazione frame-by-frame
     useFrame((state, delta) => {
         if (!earthRef.current) return;
 
-        // Animazione nuvole (sempre attiva)
-        if (cloudsRef.current) {
-            cloudsRef.current.rotation.y += delta * 0.05;
-        }
-
-        // Calcola la distanza della camera e aggiorna i segmenti
         const cameraDistance = camera.position.length();
         const now = state.clock.elapsedTime;
 
-        // Aggiorna i segmenti solo ogni 0.5 secondi per evitare lag
         if (now - lastSegmentUpdate.current > 0.5) {
             const newSegments = calculateSegments(cameraDistance);
             if (newSegments !== currentSegments) {
@@ -132,87 +77,55 @@ function Earth({
             lastSegmentUpdate.current = now;
         }
 
-        // Animazione verso le coordinate target
         if (isAnimating.current && targetRotation.current) {
             animationProgress.current += delta * 0.5;
-
             const t = Math.min(animationProgress.current, 1);
             const smoothT = t * t * (3 - 2 * t);
 
-            earthRef.current.rotation.x = lerp(
-                startRotation.current[0],
-                targetRotation.current[0],
-                smoothT
-            );
-            earthRef.current.rotation.y = lerp(
-                startRotation.current[1],
-                targetRotation.current[1],
-                smoothT
-            );
+            earthRef.current.rotation.x = lerp(startRotation.current[0], targetRotation.current[0], smoothT);
+            earthRef.current.rotation.y = lerp(startRotation.current[1], targetRotation.current[1], smoothT);
 
             if (t >= 1) {
                 isAnimating.current = false;
                 targetRotation.current = null;
             }
-        }
-        // Auto-rotazione quando non sta animando
-        else if (autoRotate && !isAnimating.current) {
+        } else if (autoRotate && !isAnimating.current) {
             earthRef.current.rotation.y += rotationSpeed;
         }
     });
 
-    // Materiale Earth con texture ad alta qualità
+    // Materiale Earth stilizzato (gradiente blu-verde)
     const earthMaterial = useMemo(() => {
         return new THREE.MeshPhongMaterial({
-            map: colorMap,
-            normalMap: normalMap,
-            specularMap: specularMap,
-            specular: new THREE.Color(0x333333),
-            shininess: 15,
+            color: new THREE.Color('#1a4a7a'),
+            emissive: new THREE.Color('#0a2040'),
+            emissiveIntensity: 0.3,
+            specular: new THREE.Color('#4a9eff'),
+            shininess: 30,
         });
-    }, [colorMap, normalMap, specularMap]);
-
-    // Materiale per le nuvole
-    const cloudsMaterial = useMemo(() => {
-        return new THREE.MeshPhongMaterial({
-            map: cloudsMap,
-            transparent: true,
-            opacity: 0.8,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending,
-        });
-    }, [cloudsMap]);
+    }, []);
 
     // Materiale per l'atmosfera
     const atmosphereMaterial = useMemo(() => {
         return new THREE.MeshBasicMaterial({
             color: new THREE.Color('#4a9eff'),
             transparent: true,
-            opacity: 0.1,
+            opacity: 0.15,
             side: THREE.BackSide,
             blending: THREE.AdditiveBlending,
         });
     }, []);
 
-    // Geometria sfera con segmenti adattivi
-    // Each geometry is memoized and will be recreated when segments change
+    // Geometrie
     const earthGeometry = useMemo(() => {
-        const geometry = new THREE.SphereGeometry(radius, currentSegments, currentSegments);
-        return geometry;
-    }, [radius, currentSegments]);
-
-    const cloudsGeometry = useMemo(() => {
-        const geometry = new THREE.SphereGeometry(radius * 1.015, currentSegments, currentSegments);
-        return geometry;
+        return new THREE.SphereGeometry(radius, currentSegments, currentSegments);
     }, [radius, currentSegments]);
 
     const atmosphereGeometry = useMemo(() => {
-        const geometry = new THREE.SphereGeometry(radius * 1.05, Math.max(32, currentSegments / 2), Math.max(32, currentSegments / 2));
-        return geometry;
-    }, [radius, currentSegments]);
+        return new THREE.SphereGeometry(radius * 1.08, 32, 32);
+    }, [radius]);
 
-    // Crea le linee di griglia
+    // Crea le linee di griglia (continenti stilizzati)
     const gridLines = useMemo(() => {
         const lines: THREE.BufferGeometry[] = [];
 
@@ -220,56 +133,45 @@ function Earth({
         for (let lat = -60; lat <= 60; lat += 30) {
             const points: THREE.Vector3[] = [];
             for (let lon = 0; lon <= 360; lon += 5) {
-                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.015);
+                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.01);
                 points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
             }
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            lines.push(geometry);
+            lines.push(new THREE.BufferGeometry().setFromPoints(points));
         }
 
         // Meridiani (longitudine)
         for (let lon = 0; lon < 360; lon += 30) {
             const points: THREE.Vector3[] = [];
             for (let lat = -90; lat <= 90; lat += 5) {
-                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.015);
+                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.01);
                 points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
             }
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            lines.push(geometry);
+            lines.push(new THREE.BufferGeometry().setFromPoints(points));
         }
 
         return lines;
     }, [radius]);
 
-    // Cleanup geometries and materials on unmount to prevent memory leaks
+    // Cleanup
     useEffect(() => {
         return () => {
             earthGeometry.dispose();
-            cloudsGeometry.dispose();
             atmosphereGeometry.dispose();
             earthMaterial.dispose();
-            cloudsMaterial.dispose();
             atmosphereMaterial.dispose();
             gridLines.forEach((line) => line.dispose());
         };
-    }, [earthGeometry, cloudsGeometry, atmosphereGeometry, earthMaterial, cloudsMaterial, atmosphereMaterial, gridLines]);
+    }, [earthGeometry, atmosphereGeometry, earthMaterial, atmosphereMaterial, gridLines]);
 
     return (
         <group ref={earthRef}>
-            {/* Globo principale con geometria adattiva */}
+            {/* Globo principale */}
             <mesh ref={globeRef} geometry={earthGeometry} material={earthMaterial} />
 
-            {/* Livello Nuvole */}
-            <mesh ref={cloudsRef} geometry={cloudsGeometry} material={cloudsMaterial} />
-
-            {/* Griglia del globo (Tech Layer) */}
+            {/* Griglia del globo */}
             {gridLines.map((geometry, index) => (
                 <lineLoop key={`grid-${index}`} geometry={geometry}>
-                    <lineBasicMaterial
-                        color="#60A5FA"
-                        transparent
-                        opacity={0.15}
-                    />
+                    <lineBasicMaterial color="#60A5FA" transparent opacity={0.25} />
                 </lineLoop>
             ))}
 
@@ -282,7 +184,7 @@ function Earth({
                 <meshBasicMaterial
                     color="#1e90ff"
                     transparent
-                    opacity={0.05}
+                    opacity={0.08}
                     side={THREE.BackSide}
                     blending={THREE.AdditiveBlending}
                 />
@@ -304,34 +206,14 @@ function Earth({
 function GlobeScene(props: EarthGlobeProps) {
     return (
         <>
-            {/* Illuminazione */}
-            <ambientLight intensity={0.5} />
-            <directionalLight
-                position={[5, 3, 5]}
-                intensity={1.5}
-                color="#ffffff"
-            />
-            <pointLight
-                position={[-10, -10, -5]}
-                intensity={0.5}
-                color="#4da6ff"
-            />
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[5, 3, 5]} intensity={1.2} color="#ffffff" />
+            <pointLight position={[-10, -10, -5]} intensity={0.4} color="#4da6ff" />
 
-            {/* Stelle di sfondo */}
-            <Stars
-                radius={100}
-                depth={50}
-                count={5000}
-                factor={4}
-                saturation={0}
-                fade
-                speed={0.5}
-            />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
 
-            {/* Terra */}
             <Earth {...props} />
 
-            {/* Controlli orbitali con smooth zoom */}
             <OrbitControls
                 enablePan={false}
                 minDistance={DEFAULT_GLOBE_CONFIG.zoomMin}
@@ -345,17 +227,12 @@ function GlobeScene(props: EarthGlobeProps) {
     );
 }
 
-// Componente Scene completo
 export default function EarthGlobe(props: EarthGlobeProps) {
     return (
         <View style={styles.container}>
             <Canvas
                 camera={{ position: [0, 0, 8], fov: 45 }}
-                gl={{
-                    antialias: true,
-                    // Abilita alta qualità rendering
-                    powerPreference: 'high-performance',
-                }}
+                gl={{ antialias: true, powerPreference: 'high-performance' }}
             >
                 <GlobeScene {...props} />
             </Canvas>
