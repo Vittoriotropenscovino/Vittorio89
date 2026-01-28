@@ -1,22 +1,36 @@
 /**
  * TravelSphere - EarthGlobe Component
- * Globo 3D stilizzato senza texture esterne (compatibile Android)
+ * Globo 3D realistico con texture locali (compatibile Android)
  */
 
 import React, { useRef, useMemo, useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useFrame, useThree, Canvas } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { Asset } from 'expo-asset';
 import { Trip, Coordinates, DEFAULT_GLOBE_CONFIG } from '../types';
 import { latLonToVector3, getGlobeRotationForCoords, lerp } from '../utils/coordinates';
 import TripPin from './TripPin';
+
+// Import texture assets
+const earthTextureAsset = require('../../assets/textures/earth-blue-marble.jpg');
+const earthNormalAsset = require('../../assets/textures/earth_normal.jpg');
+const earthSpecularAsset = require('../../assets/textures/earth_specular.jpg');
+const cloudsTextureAsset = require('../../assets/textures/earth_clouds.png');
 
 interface EarthGlobeProps {
     trips: Trip[];
     onPinClick: (trip: Trip) => void;
     targetCoordinates?: Coordinates | null;
     autoRotate?: boolean;
+}
+
+interface TextureURIs {
+    earth: string | null;
+    normal: string | null;
+    specular: string | null;
+    clouds: string | null;
 }
 
 // Calcola il numero di segmenti in base alla distanza della camera
@@ -27,14 +41,98 @@ function calculateSegments(cameraDistance: number): number {
     return Math.round(segmentsMin + clamped * (segmentsMax - segmentsMin));
 }
 
-// Componente interno per la Terra stilizzata
+// Hook per caricare le texture
+function useEarthTextures(): { textures: { [key: string]: THREE.Texture | null }, loading: boolean } {
+    const [textures, setTextures] = useState<{ [key: string]: THREE.Texture | null }>({
+        earth: null,
+        normal: null,
+        specular: null,
+        clouds: null,
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadTextures() {
+            try {
+                const textureLoader = new THREE.TextureLoader();
+
+                // Load assets with expo-asset
+                const [earthAsset, normalAsset, specularAsset, cloudsAsset] = await Promise.all([
+                    Asset.fromModule(earthTextureAsset).downloadAsync(),
+                    Asset.fromModule(earthNormalAsset).downloadAsync(),
+                    Asset.fromModule(earthSpecularAsset).downloadAsync(),
+                    Asset.fromModule(cloudsTextureAsset).downloadAsync(),
+                ]);
+
+                if (!mounted) return;
+
+                const loadedTextures: { [key: string]: THREE.Texture | null } = {
+                    earth: null,
+                    normal: null,
+                    specular: null,
+                    clouds: null,
+                };
+
+                // Load each texture from local URI
+                const loadTexture = (uri: string | null): Promise<THREE.Texture | null> => {
+                    return new Promise((resolve) => {
+                        if (!uri) {
+                            resolve(null);
+                            return;
+                        }
+                        textureLoader.load(
+                            uri,
+                            (texture) => resolve(texture),
+                            undefined,
+                            () => resolve(null)
+                        );
+                    });
+                };
+
+                const [earthTex, normalTex, specularTex, cloudsTex] = await Promise.all([
+                    loadTexture(earthAsset.localUri || earthAsset.uri),
+                    loadTexture(normalAsset.localUri || normalAsset.uri),
+                    loadTexture(specularAsset.localUri || specularAsset.uri),
+                    loadTexture(cloudsAsset.localUri || cloudsAsset.uri),
+                ]);
+
+                if (!mounted) return;
+
+                loadedTextures.earth = earthTex;
+                loadedTextures.normal = normalTex;
+                loadedTextures.specular = specularTex;
+                loadedTextures.clouds = cloudsTex;
+
+                setTextures(loadedTextures);
+                setLoading(false);
+            } catch (error) {
+                console.warn('Failed to load textures:', error);
+                if (mounted) setLoading(false);
+            }
+        }
+
+        loadTextures();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    return { textures, loading };
+}
+
+// Componente interno per la Terra con texture
 function Earth({
     trips,
     onPinClick,
     targetCoordinates,
     autoRotate = true,
-}: EarthGlobeProps) {
+    textures,
+}: EarthGlobeProps & { textures: { [key: string]: THREE.Texture | null } }) {
     const earthRef = useRef<THREE.Group>(null);
+    const cloudsRef = useRef<THREE.Mesh>(null);
     const globeRef = useRef<THREE.Mesh>(null);
     const targetRotation = useRef<[number, number, number] | null>(null);
     const isAnimating = useRef(false);
@@ -92,10 +190,25 @@ function Earth({
         } else if (autoRotate && !isAnimating.current) {
             earthRef.current.rotation.y += rotationSpeed;
         }
+
+        // Rotate clouds slightly faster
+        if (cloudsRef.current) {
+            cloudsRef.current.rotation.y += rotationSpeed * 1.1;
+        }
     });
 
-    // Materiale Earth stilizzato (gradiente blu-verde)
+    // Materiale Earth con texture
     const earthMaterial = useMemo(() => {
+        if (textures.earth) {
+            return new THREE.MeshPhongMaterial({
+                map: textures.earth,
+                normalMap: textures.normal || undefined,
+                specularMap: textures.specular || undefined,
+                specular: new THREE.Color('#333333'),
+                shininess: 25,
+            });
+        }
+        // Fallback se texture non disponibili
         return new THREE.MeshPhongMaterial({
             color: new THREE.Color('#1a4a7a'),
             emissive: new THREE.Color('#0a2040'),
@@ -103,7 +216,20 @@ function Earth({
             specular: new THREE.Color('#4a9eff'),
             shininess: 30,
         });
-    }, []);
+    }, [textures]);
+
+    // Materiale per le nuvole
+    const cloudsMaterial = useMemo(() => {
+        if (textures.clouds) {
+            return new THREE.MeshPhongMaterial({
+                map: textures.clouds,
+                transparent: true,
+                opacity: 0.4,
+                depthWrite: false,
+            });
+        }
+        return null;
+    }, [textures]);
 
     // Materiale per l'atmosfera
     const atmosphereMaterial = useMemo(() => {
@@ -121,59 +247,35 @@ function Earth({
         return new THREE.SphereGeometry(radius, currentSegments, currentSegments);
     }, [radius, currentSegments]);
 
-    const atmosphereGeometry = useMemo(() => {
-        return new THREE.SphereGeometry(radius * 1.08, 32, 32);
+    const cloudsGeometry = useMemo(() => {
+        return new THREE.SphereGeometry(radius * 1.01, 48, 48);
     }, [radius]);
 
-    // Crea le linee di griglia (continenti stilizzati)
-    const gridLines = useMemo(() => {
-        const lines: THREE.BufferGeometry[] = [];
-
-        // Paralleli (latitudine)
-        for (let lat = -60; lat <= 60; lat += 30) {
-            const points: THREE.Vector3[] = [];
-            for (let lon = 0; lon <= 360; lon += 5) {
-                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.01);
-                points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
-            }
-            lines.push(new THREE.BufferGeometry().setFromPoints(points));
-        }
-
-        // Meridiani (longitudine)
-        for (let lon = 0; lon < 360; lon += 30) {
-            const points: THREE.Vector3[] = [];
-            for (let lat = -90; lat <= 90; lat += 5) {
-                const pos = latLonToVector3({ latitude: lat, longitude: lon }, radius + 0.01);
-                points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
-            }
-            lines.push(new THREE.BufferGeometry().setFromPoints(points));
-        }
-
-        return lines;
+    const atmosphereGeometry = useMemo(() => {
+        return new THREE.SphereGeometry(radius * 1.08, 32, 32);
     }, [radius]);
 
     // Cleanup
     useEffect(() => {
         return () => {
             earthGeometry.dispose();
+            cloudsGeometry.dispose();
             atmosphereGeometry.dispose();
             earthMaterial.dispose();
+            cloudsMaterial?.dispose();
             atmosphereMaterial.dispose();
-            gridLines.forEach((line) => line.dispose());
         };
-    }, [earthGeometry, atmosphereGeometry, earthMaterial, atmosphereMaterial, gridLines]);
+    }, [earthGeometry, cloudsGeometry, atmosphereGeometry, earthMaterial, cloudsMaterial, atmosphereMaterial]);
 
     return (
         <group ref={earthRef}>
-            {/* Globo principale */}
+            {/* Globo principale con texture */}
             <mesh ref={globeRef} geometry={earthGeometry} material={earthMaterial} />
 
-            {/* Griglia del globo */}
-            {gridLines.map((geometry, index) => (
-                <lineLoop key={`grid-${index}`} geometry={geometry}>
-                    <lineBasicMaterial color="#60A5FA" transparent opacity={0.25} />
-                </lineLoop>
-            ))}
+            {/* Strato nuvole */}
+            {cloudsMaterial && (
+                <mesh ref={cloudsRef} geometry={cloudsGeometry} material={cloudsMaterial} />
+            )}
 
             {/* Atmosfera glow */}
             <mesh geometry={atmosphereGeometry} material={atmosphereMaterial} />
@@ -203,12 +305,12 @@ function Earth({
     );
 }
 
-function GlobeScene(props: EarthGlobeProps) {
+function GlobeScene(props: EarthGlobeProps & { textures: { [key: string]: THREE.Texture | null } }) {
     return (
         <>
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[5, 3, 5]} intensity={1.2} color="#ffffff" />
-            <pointLight position={[-10, -10, -5]} intensity={0.4} color="#4da6ff" />
+            <ambientLight intensity={0.4} />
+            <directionalLight position={[5, 3, 5]} intensity={1.5} color="#ffffff" />
+            <pointLight position={[-10, -10, -5]} intensity={0.3} color="#4da6ff" />
 
             <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
 
@@ -228,13 +330,15 @@ function GlobeScene(props: EarthGlobeProps) {
 }
 
 export default function EarthGlobe(props: EarthGlobeProps) {
+    const { textures, loading } = useEarthTextures();
+
     return (
         <View style={styles.container}>
             <Canvas
                 camera={{ position: [0, 0, 8], fov: 45 }}
                 gl={{ antialias: true, powerPreference: 'high-performance' }}
             >
-                <GlobeScene {...props} />
+                <GlobeScene {...props} textures={textures} />
             </Canvas>
         </View>
     );
