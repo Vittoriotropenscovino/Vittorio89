@@ -1,15 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import { Trip, HomeLocation, Itinerary } from '../types';
-import { extractCountryFromLocationName } from '../utils/geocoding';
+import { Platform } from 'react-native';
+import { Trip, Itinerary } from '../types';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
-const HOME_LOCATION_KEY = '@travelsphere_home';
-const ITINERARIES_KEY = '@travelsphere_itineraries';
+const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
 const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+const isWeb = Platform.OS === 'web';
 
 /**
- * Storage service for persisting trips, home location, and itineraries
+ * Storage service for persisting trips data
+ * Uses AsyncStorage for trip metadata and FileSystem for media files
  */
 export const StorageService = {
     /**
@@ -26,7 +27,7 @@ export const StorageService = {
     },
 
     /**
-     * Load all trips from persistent storage with country migration
+     * Load all trips from persistent storage
      */
     loadTrips: async (): Promise<Trip[]> => {
         try {
@@ -34,22 +35,17 @@ export const StorageService = {
             if (jsonValue !== null) {
                 const trips = JSON.parse(jsonValue) as Trip[];
 
-                // Migrate: backfill country field for existing trips
-                let needsSave = false;
-                const migratedTrips = trips.map(trip => {
-                    if (!trip.country) {
-                        needsSave = true;
-                        return {
-                            ...trip,
-                            country: extractCountryFromLocationName(trip.locationName),
-                        };
-                    }
-                    return trip;
-                });
+                // On web, FileSystem is not fully supported - skip media verification
+                if (isWeb) {
+                    return trips.map((trip) => ({
+                        ...trip,
+                        notes: trip.notes || '',
+                    }));
+                }
 
-                // Verify media files still exist
+                // Verify media files still exist (native only)
                 const verifiedTrips = await Promise.all(
-                    migratedTrips.map(async (trip) => {
+                    trips.map(async (trip) => {
                         const verifiedMedia = await Promise.all(
                             trip.media.map(async (item) => {
                                 try {
@@ -65,16 +61,11 @@ export const StorageService = {
                         );
                         return {
                             ...trip,
+                            notes: trip.notes || '',
                             media: verifiedMedia.filter((m) => m !== null) as typeof trip.media,
                         };
                     })
                 );
-
-                // Save migrated data if needed
-                if (needsSave) {
-                    await StorageService.saveTrips(verifiedTrips);
-                }
-
                 return verifiedTrips;
             }
             return [];
@@ -90,8 +81,8 @@ export const StorageService = {
     deleteTrip: async (tripId: string, trips: Trip[]): Promise<Trip[]> => {
         const tripToDelete = trips.find((t) => t.id === tripId);
 
-        // Delete associated media files
-        if (tripToDelete) {
+        // Delete associated media files (native only)
+        if (tripToDelete && !isWeb) {
             for (const media of tripToDelete.media) {
                 if (media.uri.startsWith(MEDIA_DIR)) {
                     try {
@@ -109,39 +100,31 @@ export const StorageService = {
     },
 
     /**
-     * Save home location
+     * Clear all data (for debugging/reset)
      */
-    saveHomeLocation: async (home: HomeLocation): Promise<void> => {
+    clearAll: async (): Promise<void> => {
         try {
-            await AsyncStorage.setItem(HOME_LOCATION_KEY, JSON.stringify(home));
+            await AsyncStorage.removeItem(TRIPS_STORAGE_KEY);
+            // Also clear media directory (native only)
+            if (!isWeb) {
+                const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+                if (dirInfo.exists) {
+                    await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
+                }
+            }
         } catch (error) {
-            console.error('Error saving home location:', error);
+            console.error('Error clearing storage:', error);
             throw error;
         }
     },
 
     /**
-     * Load home location
-     */
-    loadHomeLocation: async (): Promise<HomeLocation | null> => {
-        try {
-            const jsonValue = await AsyncStorage.getItem(HOME_LOCATION_KEY);
-            if (jsonValue !== null) {
-                return JSON.parse(jsonValue) as HomeLocation;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error loading home location:', error);
-            return null;
-        }
-    },
-
-    /**
-     * Save itineraries
+     * Save itineraries to persistent storage
      */
     saveItineraries: async (itineraries: Itinerary[]): Promise<void> => {
         try {
-            await AsyncStorage.setItem(ITINERARIES_KEY, JSON.stringify(itineraries));
+            const jsonValue = JSON.stringify(itineraries);
+            await AsyncStorage.setItem(ITINERARIES_STORAGE_KEY, jsonValue);
         } catch (error) {
             console.error('Error saving itineraries:', error);
             throw error;
@@ -149,11 +132,11 @@ export const StorageService = {
     },
 
     /**
-     * Load itineraries
+     * Load itineraries from persistent storage
      */
     loadItineraries: async (): Promise<Itinerary[]> => {
         try {
-            const jsonValue = await AsyncStorage.getItem(ITINERARIES_KEY);
+            const jsonValue = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
             if (jsonValue !== null) {
                 return JSON.parse(jsonValue) as Itinerary[];
             }
@@ -165,22 +148,6 @@ export const StorageService = {
     },
 
     /**
-     * Clear all data (for debugging/reset)
-     */
-    clearAll: async (): Promise<void> => {
-        try {
-            await AsyncStorage.multiRemove([TRIPS_STORAGE_KEY, HOME_LOCATION_KEY, ITINERARIES_KEY]);
-            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-            if (dirInfo.exists) {
-                await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
-            }
-        } catch (error) {
-            console.error('Error clearing storage:', error);
-            throw error;
-        }
-    },
-
-    /**
      * Get storage info (for debugging)
      */
     getStorageInfo: async (): Promise<{ tripCount: number; mediaSize: number }> => {
@@ -188,13 +155,15 @@ export const StorageService = {
             const trips = await StorageService.loadTrips();
             let mediaSize = 0;
 
-            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-            if (dirInfo.exists) {
-                const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
-                for (const file of files) {
-                    const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
-                    if (fileInfo.exists && 'size' in fileInfo) {
-                        mediaSize += fileInfo.size || 0;
+            if (!isWeb) {
+                const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+                if (dirInfo.exists) {
+                    const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+                    for (const file of files) {
+                        const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
+                        if (fileInfo.exists && 'size' in fileInfo) {
+                            mediaSize += fileInfo.size || 0;
+                        }
                     }
                 }
             }

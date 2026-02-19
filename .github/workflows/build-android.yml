@@ -1,0 +1,56 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+
+      - name: Setup Expo & EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build APK on EAS
+        run: |
+          eas build --platform android --profile preview --non-interactive --json > build-result.json
+          cat build-result.json
+          echo "Build submitted to EAS. Check Expo dashboard for download link."
+
+      - name: Extract APK URL
+        id: apk_url
+        run: |
+          APK_URL=$(cat build-result.json | python3 -c "import sys,json; data=json.load(sys.stdin); print(data[0].get('artifacts',{}).get('buildUrl','') if isinstance(data,list) else data.get('artifacts',{}).get('buildUrl',''))" 2>/dev/null || echo "")
+          echo "url=$APK_URL" >> $GITHUB_OUTPUT
+          if [ -n "$APK_URL" ]; then
+            echo "APK download URL: $APK_URL"
+          fi
+
+      - name: Download APK
+        if: steps.apk_url.outputs.url != ''
+        run: curl -L -o TravelSphere.apk "${{ steps.apk_url.outputs.url }}"
+
+      - name: Upload APK artifact
+        if: steps.apk_url.outputs.url != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: TravelSphere-APK
+          path: TravelSphere.apk
+          retention-days: 30

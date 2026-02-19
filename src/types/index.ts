@@ -1,24 +1,12 @@
+// Trip Tags
+export type TripTag = 'sea' | 'mountain' | 'city' | 'adventure' | 'culture' | 'food' | 'nature' | 'romantic';
+
 // Trip Media Item
 export interface MediaItem {
     uri: string;
     type: 'image' | 'video';
     width?: number;
     height?: number;
-}
-
-// Home Location
-export interface HomeLocation {
-    latitude: number;
-    longitude: number;
-    locationName: string;
-}
-
-// Itinerary grouping
-export interface Itinerary {
-    id: string;
-    name: string;
-    tripIds: string[];
-    createdAt: number;
 }
 
 // Trip/Memory Data
@@ -29,13 +17,23 @@ export interface Trip {
     latitude: number;
     longitude: number;
     date: string;
+    notes: string;
     media: MediaItem[];
     createdAt: number;
-    // Optional fields for itinerary and country grouping
-    itineraryId?: string;
-    itineraryOrder?: number;
+    isFavorite?: boolean;
+    tags?: TripTag[];
     country?: string;
     countryCode?: string;
+    itineraryId?: string;
+    itineraryOrder?: number;
+}
+
+// Itinerary - connects multiple trips
+export interface Itinerary {
+    id: string;
+    name: string;
+    tripIds: string[];
+    createdAt: number;
 }
 
 // Geocoding Result
@@ -45,26 +43,11 @@ export interface GeocodingResult {
     name?: string;
 }
 
-// Globe Pin Props
-export interface PinProps {
-    trip: Trip;
-    onPress: (trip: Trip) => void;
-    isSelected: boolean;
-}
-
-// Home Pin Props
-export interface HomePinProps {
-    homeLocation: HomeLocation;
-    radius: number;
-}
-
-// Globe Line Props
-export interface GlobeLineProps {
-    from: Coordinates;
-    to: Coordinates;
-    radius: number;
-    color?: string;
-    opacity?: number;
+// Home Location
+export interface HomeLocation {
+    latitude: number;
+    longitude: number;
+    name: string;
 }
 
 // Earth Globe Props
@@ -77,15 +60,12 @@ export interface EarthGlobeProps {
     itineraries?: Itinerary[];
 }
 
-// Trip Form Props
+// Trip Form Props - supports both create and edit mode
 export interface TripFormProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (trip: Omit<Trip, 'id' | 'createdAt'>, itineraryInfo?: {
-        itineraryId?: string;
-        newItineraryName?: string;
-    }) => void;
-    itineraries?: Itinerary[];
+    onSave: (trip: Omit<Trip, 'id' | 'createdAt'>) => void;
+    editTrip?: Trip | null;
 }
 
 // Memory Viewer Props
@@ -94,23 +74,7 @@ export interface MemoryViewerProps {
     visible: boolean;
     onClose: () => void;
     onDelete?: (tripId: string) => void;
-    onShare?: (trip: Trip) => void;
-}
-
-// Share Modal Props
-export interface ShareModalProps {
-    trip: Trip | null;
-    visible: boolean;
-    onClose: () => void;
-}
-
-// Settings Screen Props
-export interface SettingsScreenProps {
-    visible: boolean;
-    onClose: () => void;
-    homeLocation: HomeLocation | null;
-    onSetHome: (home: HomeLocation) => void;
-    onClearData: () => void;
+    onEdit?: (trip: Trip) => void;
 }
 
 export interface Coordinates {
@@ -118,12 +82,14 @@ export interface Coordinates {
     longitude: number;
 }
 
-export const DEFAULT_GLOBE_CONFIG = {
-    radius: 2,
-    segments: 64,
-    segmentsMin: 32,
-    segmentsMax: 192,
-    rotationSpeed: 0.0003,
-    zoomMin: 1.2,
-    zoomMax: 12,
+// Tag metadata
+export const TAG_CONFIG: Record<TripTag, { icon: string; color: string }> = {
+    sea: { icon: 'water-outline', color: '#06B6D4' },
+    mountain: { icon: 'trail-sign-outline', color: '#10B981' },
+    city: { icon: 'business-outline', color: '#8B5CF6' },
+    adventure: { icon: 'compass-outline', color: '#F59E0B' },
+    culture: { icon: 'library-outline', color: '#EC4899' },
+    food: { icon: 'restaurant-outline', color: '#EF4444' },
+    nature: { icon: 'leaf-outline', color: '#22C55E' },
+    romantic: { icon: 'heart-outline', color: '#F43F5E' },
 };

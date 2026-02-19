@@ -1,369 +1,485 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  useWindowDimensions,
-  Alert,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  Platform, Animated, Easing, BackHandler, Alert, Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppProvider, useApp } from './src/contexts/AppContext';
 import EarthGlobe from './src/components/EarthGlobe';
 import TripForm from './src/components/TripForm';
 import MemoryViewer from './src/components/MemoryViewer';
 import TripSidebar from './src/components/TripSidebar';
-import ShareModal from './src/components/ShareModal';
-import SettingsScreen from './src/components/SettingsScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import OnboardingScreen from './src/components/OnboardingScreen';
+import GDPRConsent from './src/components/GDPRConsent';
+import SettingsScreen from './src/components/SettingsScreen';
+import PrivacyPolicy from './src/components/PrivacyPolicy';
+import TermsOfService from './src/components/TermsOfService';
+import StatsScreen from './src/components/StatsScreen';
+import CalendarView from './src/components/CalendarView';
+import SaveConfirmation from './src/components/SaveConfirmation';
+import OfflineBanner from './src/components/OfflineBanner';
 import StorageService from './src/services/StorageService';
-import { Trip, HomeLocation, Itinerary } from './src/types';
+import { Trip, Itinerary } from './src/types';
 
-const App: React.FC = () => {
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const isTablet = SCREEN_WIDTH >= 768;
+const AppContent: React.FC = () => {
+  const { t, settings, updateSettings, isSettingsLoaded } = useApp();
 
-  // Core state
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // UI state
   const [showForm, setShowForm] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [shareTrip, setShareTrip] = useState<Trip | null>(null);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
 
+  // Modal visibility states
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+
+  // Save confirmation
+  const [saveMsg, setSaveMsg] = useState('');
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  // Pulse animation
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Stats
+  const stats = useMemo(() => {
+    const totalMedia = trips.reduce((sum, tr) => sum + tr.media.length, 0);
+    const uniqueLocations = new Set(trips.map((tr) => tr.locationName.split(',').pop()?.trim())).size;
+    return { totalMedia, uniqueLocations };
+  }, [trips]);
+
+  // Pulse animation for empty state
   useEffect(() => {
-    const lockOrientation = async () => {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-    };
-    lockOrientation();
+    if (trips.length === 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [trips.length, pulseAnim]);
+
+  // Lock orientation + fullscreen immersive mode
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+      NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
+      NavigationBar.setBackgroundColorAsync('transparent').catch(() => {});
+    }
   }, []);
 
-  // Load all data on startup
+  // Load trips and itineraries
   useEffect(() => {
-    const loadData = async () => {
+    (async () => {
       try {
-        const [savedTrips, savedHome, savedItineraries] = await Promise.all([
+        const [savedTrips, savedItineraries] = await Promise.all([
           StorageService.loadTrips(),
-          StorageService.loadHomeLocation(),
           StorageService.loadItineraries(),
         ]);
         setTrips(savedTrips);
-        setHomeLocation(savedHome);
         setItineraries(savedItineraries);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
         setIsLoading(false);
       }
-    };
-    loadData();
+    })();
   }, []);
 
-  // Auto-save trips when they change
+  // Save trips when changed
   useEffect(() => {
-    if (!isLoading && trips.length >= 0) {
-      StorageService.saveTrips(trips).catch(err =>
-        console.error('Error saving trips:', err)
-      );
+    if (!isLoading) {
+      StorageService.saveTrips(trips).catch((error) => console.error('Error saving trips:', error));
     }
   }, [trips, isLoading]);
+
+  // Save itineraries when changed
+  useEffect(() => {
+    if (!isLoading) {
+      StorageService.saveItineraries(itineraries).catch((error) => console.error('Error saving itineraries:', error));
+    }
+  }, [itineraries, isLoading]);
+
+  // Biometric auth on startup
+  useEffect(() => {
+    if (!isSettingsLoaded) return;
+    if (!settings.biometricEnabled) { setAuthenticated(true); return; }
+    (async () => {
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: t('biometricPrompt') as string,
+        });
+        setAuthenticated(result.success);
+      } catch {
+        setAuthenticated(true);
+      }
+    })();
+  }, [isSettingsLoaded, settings.biometricEnabled, t]);
 
   const generateId = useCallback((): string => {
     return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
   }, []);
 
-  const handleAddTrip = useCallback((tripData: any, itineraryInfo?: { itineraryId?: string; newItineraryName?: string }) => {
-    const newTrip: Trip = { ...tripData, id: generateId(), createdAt: Date.now() };
-
-    // Handle itinerary assignment
-    if (itineraryInfo) {
-      if (itineraryInfo.itineraryId) {
-        // Add to existing itinerary
-        newTrip.itineraryId = itineraryInfo.itineraryId;
-        setItineraries(prev => {
-          const updated = prev.map(itin => {
-            if (itin.id === itineraryInfo.itineraryId) {
-              newTrip.itineraryOrder = itin.tripIds.length;
-              return { ...itin, tripIds: [...itin.tripIds, newTrip.id] };
-            }
-            return itin;
-          });
-          StorageService.saveItineraries(updated);
-          return updated;
-        });
-      } else if (itineraryInfo.newItineraryName) {
-        // Create new itinerary
-        const newItinerary: Itinerary = {
-          id: generateId(),
-          name: itineraryInfo.newItineraryName,
-          tripIds: [newTrip.id],
-          createdAt: Date.now(),
-        };
-        newTrip.itineraryId = newItinerary.id;
-        newTrip.itineraryOrder = 0;
-        setItineraries(prev => {
-          const updated = [...prev, newItinerary];
-          StorageService.saveItineraries(updated);
-          return updated;
-        });
-      }
+  const handleSaveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>) => {
+    let tripId: string;
+    if (editingTrip) {
+      tripId = editingTrip.id;
+      setTrips((prev) => prev.map((tr) => tr.id === editingTrip.id ? { ...tr, ...tripData } : tr));
+      setEditingTrip(null);
+    } else {
+      tripId = generateId();
+      const newTrip: Trip = { ...tripData, id: tripId, createdAt: Date.now() };
+      setTrips((prev) => [...prev, newTrip]);
     }
-
-    setTrips(prev => [...prev, newTrip]);
+    // Update itinerary membership
+    if (tripData.itineraryId) {
+      setItineraries((prev) => prev.map((it) => {
+        if (it.id === tripData.itineraryId) {
+          const ids = it.tripIds.includes(tripId) ? it.tripIds : [...it.tripIds, tripId];
+          return { ...it, tripIds: ids };
+        }
+        // Remove from other itineraries
+        return { ...it, tripIds: it.tripIds.filter((id) => id !== tripId) };
+      }));
+    } else {
+      // Remove from all itineraries
+      setItineraries((prev) => prev.map((it) => ({
+        ...it, tripIds: it.tripIds.filter((id) => id !== tripId),
+      })));
+    }
     setShowForm(false);
-  }, [generateId]);
+    setSaveMsg(t('saved') as string);
+    setShowSaveConfirm(true);
+  }, [editingTrip, generateId, t]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
     const updatedTrips = await StorageService.deleteTrip(tripId, trips);
     setTrips(updatedTrips);
     setSelectedTrip(null);
-
-    // Remove trip from itineraries
-    setItineraries(prev => {
-      const updated = prev
-        .map(itin => ({
-          ...itin,
-          tripIds: itin.tripIds.filter(id => id !== tripId),
-        }))
-        .filter(itin => itin.tripIds.length > 0);
-      StorageService.saveItineraries(updated);
-      return updated;
-    });
   }, [trips]);
 
-  const handleSetHome = useCallback(async (home: HomeLocation) => {
-    setHomeLocation(home);
-    await StorageService.saveHomeLocation(home);
+  const handleToggleFavorite = useCallback((tripId: string) => {
+    setTrips((prev) => prev.map((tr) =>
+      tr.id === tripId ? { ...tr, isFavorite: !tr.isFavorite } : tr
+    ));
   }, []);
 
-  const handleClearData = useCallback(async () => {
-    try {
-      await StorageService.clearAll();
-      setTrips([]);
-      setHomeLocation(null);
-      setItineraries([]);
-      setShowSettings(false);
-      Alert.alert('Fatto', 'Tutti i dati sono stati cancellati.');
-    } catch (error) {
-      Alert.alert('Errore', 'Impossibile cancellare i dati.');
+  const handleEditTrip = useCallback((trip: Trip) => {
+    setEditingTrip(trip);
+    setShowForm(true);
+  }, []);
+
+  const handleCloseForm = useCallback(() => {
+    setShowForm(false);
+    setEditingTrip(null);
+  }, []);
+
+  const handleCreateItinerary = useCallback(() => {
+    Alert.prompt
+      ? Alert.prompt(
+          t('newItinerary') as string,
+          t('itineraryNamePlaceholder') as string,
+          (name: string) => {
+            if (name?.trim()) {
+              const newIt: Itinerary = { id: generateId(), name: name.trim(), tripIds: [], createdAt: Date.now() };
+              setItineraries((prev) => [...prev, newIt]);
+              setSaveMsg(t('saved') as string);
+              setShowSaveConfirm(true);
+            }
+          }
+        )
+      : Alert.alert(
+          t('newItinerary') as string,
+          t('itineraryNamePlaceholder') as string,
+          [
+            { text: t('cancel') as string, style: 'cancel' },
+            { text: t('confirm') as string, onPress: () => {
+              const newIt: Itinerary = { id: generateId(), name: `${t('itineraries')} ${itineraries.length + 1}`, tripIds: [], createdAt: Date.now() };
+              setItineraries((prev) => [...prev, newIt]);
+              setSaveMsg(t('saved') as string);
+              setShowSaveConfirm(true);
+            }},
+          ]
+        );
+  }, [t, generateId, itineraries.length]);
+
+  const handleOnboardingComplete = useCallback(() => {
+    updateSettings({ hasSeenOnboarding: true });
+  }, [updateSettings]);
+
+  const handleGDPRAccept = useCallback(() => {
+    updateSettings({ hasAcceptedGDPR: true });
+  }, [updateSettings]);
+
+  const handleExitApp = useCallback(() => {
+    Alert.alert(
+      t('exitApp') as string,
+      t('exitConfirm') as string,
+      [
+        { text: t('no') as string, style: 'cancel' },
+        { text: t('yes') as string, onPress: () => BackHandler.exitApp() },
+      ]
+    );
+  }, [t]);
+
+  const handleCastScreen = useCallback(() => {
+    if (Platform.OS === 'android') {
+      Linking.sendIntent('android.settings.CAST_SETTINGS').catch(() => {
+        Linking.openSettings().catch(() => {});
+      });
     }
   }, []);
 
-  const handleShare = useCallback((trip: Trip) => {
-    setShareTrip(trip);
-  }, []);
-
-  if (isLoading) {
+  // Loading state
+  if (!isSettingsLoaded || isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#60A5FA" />
-        <Text style={styles.loadingText}>Caricamento...</Text>
       </View>
     );
   }
 
+  // Biometric gate
+  if (settings.biometricEnabled && !authenticated) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="lock-closed" size={48} color="#00d4ff" />
+        <Text style={{ color: '#9CA3AF', marginTop: 16 }}>{t('biometricPrompt')}</Text>
+      </View>
+    );
+  }
+
+  // Onboarding
+  if (!settings.hasSeenOnboarding) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
   return (
-    <ErrorBoundary>
-      <SafeAreaProvider>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
-        <View style={styles.container}>
-          {/* 3D Globe */}
-          <EarthGlobe
-            trips={trips}
-            onPinClick={(trip) => setSelectedTrip(trip)}
-            targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
-            homeLocation={homeLocation}
-            itineraries={itineraries}
-          />
+    <View style={styles.container}>
+      {/* GDPR Consent */}
+      {!settings.hasAcceptedGDPR && (
+        <GDPRConsent
+          visible={!settings.hasAcceptedGDPR}
+          onAccept={handleGDPRAccept}
+          onShowPrivacy={() => setShowPrivacy(true)}
+        />
+      )}
 
-          {/* Header */}
-          <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
-            <View style={styles.header}>
-              <TouchableOpacity style={styles.headerBtn} onPress={() => setSidebarOpen(true)}>
-                <Ionicons name="menu" size={26} color="#60A5FA" />
-              </TouchableOpacity>
-              <View style={styles.logoContainer}>
-                <Text style={styles.logo}>TRAVELSPHERE</Text>
-                <Text style={styles.subtitle}>Diario di Viaggio Immersivo</Text>
-              </View>
-            </View>
-          </SafeAreaView>
+      {/* Layer 0: Globe */}
+      <EarthGlobe
+        trips={trips}
+        onPinClick={(trip) => setSelectedTrip(trip)}
+        targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
+        homeLocation={settings.homeLocation || null}
+        itineraries={itineraries}
+      />
 
-          {/* Settings button (top-right) */}
-          <SafeAreaView style={styles.settingsContainer} edges={['top', 'right']}>
-            <TouchableOpacity style={styles.headerBtn} onPress={() => setShowSettings(true)}>
-              <Ionicons name="settings-outline" size={24} color="#60A5FA" />
+      {/* Layer 1: UI overlay */}
+      <View style={styles.uiOverlay} pointerEvents="box-none">
+        <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)}>
+              <Ionicons name="menu" size={28} color="#60A5FA" />
             </TouchableOpacity>
-          </SafeAreaView>
-
-          {/* Trip counter badge */}
-          {trips.length > 0 && (
-            <View style={styles.tripCountBadge}>
-              <Ionicons name="airplane" size={14} color="#60A5FA" />
-              <Text style={styles.tripCountText}>{trips.length}</Text>
+            <View>
+              <Text style={styles.logo}>{t('appName')}</Text>
+              <Text style={styles.logoSubtitle}>{t('appSubtitle')}</Text>
             </View>
-          )}
+          </View>
+        </SafeAreaView>
 
-          {/* Add Trip button */}
-          <View style={styles.addButtonContainer}>
+        {/* Offline banner */}
+        <OfflineBanner />
+
+        {/* Top-right buttons */}
+        <View style={styles.topRightButtons}>
+          <TouchableOpacity style={styles.topButton} onPress={handleCastScreen}>
+            <Ionicons name="tv-outline" size={16} color="#00d4ff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.topButton, styles.exitButton]} onPress={handleExitApp}>
+            <Ionicons name="power" size={16} color="#EF4444" />
+          </TouchableOpacity>
+          <View style={styles.statusIndicatorInline}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>{t('version')}</Text>
+          </View>
+        </View>
+
+        {/* Bottom-left stats */}
+        <View style={styles.statsBar}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="airplane" size={13} color="#00d4ff" />
+              <Text style={styles.statValue}>{trips.length}</Text>
+              <Text style={styles.statLabel}>{trips.length === 1 ? t('trip_s') : t('trips_p')}</Text>
+            </View>
+            {trips.length > 0 && (
+              <>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Ionicons name="images-outline" size={13} color="#00d4ff" />
+                  <Text style={styles.statValue}>{stats.totalMedia}</Text>
+                  <Text style={styles.statLabel}>{t('media')}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Ionicons name="flag-outline" size={13} color="#00d4ff" />
+                  <Text style={styles.statValue}>{stats.uniqueLocations}</Text>
+                  <Text style={styles.statLabel}>{stats.uniqueLocations === 1 ? t('country_s') : t('countries_p')}</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* Welcome overlay */}
+        {trips.length === 0 && (
+          <View style={styles.welcomeOverlay} pointerEvents="box-none">
+            <View style={styles.welcomeCard}>
+              <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
+              <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
+              <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
+              <View style={styles.welcomeArrow}><Ionicons name="arrow-forward" size={16} color="rgba(0,212,255,0.5)" /></View>
+            </View>
+          </View>
+        )}
+
+        {/* Add buttons */}
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity style={styles.itineraryButton} onPress={handleCreateItinerary}>
+            <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
+          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
               <Ionicons name="add" size={28} color="#fff" />
-              <Text style={styles.addButtonText}>Aggiungi Viaggio</Text>
+              <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Modals */}
-          <TripForm
-            visible={showForm}
-            onClose={() => setShowForm(false)}
-            onSave={handleAddTrip}
-            itineraries={itineraries}
-          />
-
-          <MemoryViewer
-            trip={selectedTrip}
-            visible={!!selectedTrip}
-            onClose={() => setSelectedTrip(null)}
-            onDelete={handleDeleteTrip}
-            onShare={handleShare}
-          />
-
-          <TripSidebar
-            trips={trips}
-            visible={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            onTripSelect={(trip) => { setSelectedTrip(trip); setSidebarOpen(false); }}
-            onTripView={(trip) => { setSelectedTrip(trip); setSidebarOpen(false); }}
-            onDelete={handleDeleteTrip}
-          />
-
-          <ShareModal
-            trip={shareTrip}
-            visible={!!shareTrip}
-            onClose={() => setShareTrip(null)}
-          />
-
-          <SettingsScreen
-            visible={showSettings}
-            onClose={() => setShowSettings(false)}
-            homeLocation={homeLocation}
-            onSetHome={handleSetHome}
-            onClearData={handleClearData}
-          />
+          </Animated.View>
         </View>
-      </SafeAreaProvider>
-    </ErrorBoundary>
+      </View>
+
+      {/* Save confirmation toast */}
+      <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={() => setShowSaveConfirm(false)} />
+
+      {/* Layer 2: Modals */}
+      <TripForm visible={showForm} onClose={handleCloseForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
+      <MemoryViewer trip={selectedTrip} visible={!!selectedTrip}
+        onClose={() => setSelectedTrip(null)} onDelete={handleDeleteTrip} onEdit={handleEditTrip} />
+      <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
+        onTripSelect={(trip) => setSelectedTrip(trip)} onDelete={handleDeleteTrip}
+        onToggleFavorite={handleToggleFavorite}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenStats={() => setShowStats(true)}
+        onOpenCalendar={() => setShowCalendar(true)} />
+
+      {/* Settings & screens */}
+      <SettingsScreen visible={showSettings} onClose={() => setShowSettings(false)}
+        trips={trips} onTripsUpdate={setTrips}
+        onShowPrivacy={() => setShowPrivacy(true)} onShowTerms={() => setShowTerms(true)} />
+      <PrivacyPolicy visible={showPrivacy} onClose={() => setShowPrivacy(false)} />
+      <TermsOfService visible={showTerms} onClose={() => setShowTerms(false)} />
+      <StatsScreen visible={showStats} onClose={() => setShowStats(false)} trips={trips} />
+      <CalendarView visible={showCalendar} onClose={() => setShowCalendar(false)}
+        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setShowCalendar(false); }} />
+    </View>
   );
 };
 
+const App: React.FC = () => (
+  <ErrorBoundary>
+    <AppProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
+        <AppContent />
+      </SafeAreaProvider>
+    </AppProvider>
+  </ErrorBoundary>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050510',
+  loadingContainer: { flex: 1, backgroundColor: '#050510', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#050510' },
+  uiOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10, elevation: 10 },
+  headerContainer: { position: 'absolute', top: 0, left: 0, padding: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hamburgerButton: {
+    padding: 14, borderRadius: 14, backgroundColor: 'rgba(96,165,250,0.15)',
+    borderWidth: 1, borderColor: 'rgba(0,212,255,0.25)',
+    ...Platform.select({ android: { elevation: 12 } }),
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#050510',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
+  logo: { fontWeight: '900', fontSize: 28, color: '#60A5FA', letterSpacing: 2 },
+  logoSubtitle: { fontSize: 10, color: 'rgba(0,212,255,0.5)', letterSpacing: 3, textTransform: 'uppercase', marginTop: -2 },
+  topRightButtons: {
+    position: 'absolute', top: 24, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8,
+    ...Platform.select({ android: { elevation: 12 } }),
   },
-  loadingText: {
-    color: '#60A5FA',
-    fontSize: 16,
-    fontWeight: '500',
+  topButton: {
+    backgroundColor: 'rgba(5,5,20,0.7)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',
+    borderRadius: 20, width: 36, height: 36, justifyContent: 'center', alignItems: 'center',
   },
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    padding: 20,
+  exitButton: {
+    borderColor: 'rgba(239,68,68,0.2)',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  statusIndicatorInline: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(5,5,20,0.5)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
   },
-  headerBtn: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.15)',
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
+  statusText: { color: 'rgba(156,163,175,0.6)', fontSize: 10, fontWeight: '500', letterSpacing: 1 },
+  statsBar: {
+    position: 'absolute', bottom: 20, left: 20, backgroundColor: 'rgba(5,5,20,0.7)',
+    borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 8,
+    ...Platform.select({ android: { elevation: 12 } }),
   },
-  logoContainer: {
-    gap: 2,
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statValue: { color: '#F0F0F0', fontSize: 13, fontWeight: '700' },
+  statLabel: { color: 'rgba(156,163,175,0.8)', fontSize: 11 },
+  statDivider: { width: 1, height: 14, backgroundColor: 'rgba(0,212,255,0.2)' },
+  welcomeOverlay: { position: 'absolute', bottom: 100, right: 20, alignItems: 'flex-end' },
+  welcomeCard: {
+    backgroundColor: 'rgba(5,5,20,0.75)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
+    borderRadius: 16, paddingHorizontal: 20, paddingVertical: 16, maxWidth: 260,
+    ...Platform.select({ android: { elevation: 12 } }),
   },
-  logo: {
-    fontWeight: '900',
-    fontSize: 26,
-    color: '#60A5FA',
-    letterSpacing: 1,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '400',
-    letterSpacing: 0.5,
-  },
-  settingsContainer: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    padding: 20,
-  },
-  tripCountBadge: {
-    position: 'absolute',
-    top: 20,
-    right: 70,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.15)',
-  },
-  tripCountText: {
-    color: '#60A5FA',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  addButtonContainer: {
-    position: 'absolute',
-    bottom: 28,
-    right: 20,
+  welcomeIconRow: { marginBottom: 8 },
+  welcomeTitle: { color: '#F0F0F0', fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  welcomeText: { color: 'rgba(156,163,175,0.9)', fontSize: 12, lineHeight: 18 },
+  welcomeArrow: { alignItems: 'flex-end', marginTop: 8 },
+  addButtonContainer: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itineraryButton: {
+    backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 50, width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+    ...Platform.select({ android: { elevation: 12 } }),
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#3B82F6',
-    borderRadius: 50,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#3B82F6',
+    borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24,
+    borderWidth: 1, borderColor: 'rgba(0,212,255,0.3)',
+    ...Platform.select({ android: { elevation: 12 } }),
   },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
+  addButtonText: { color: '#fff', fontWeight: '600' },
 });
 
 export default App;

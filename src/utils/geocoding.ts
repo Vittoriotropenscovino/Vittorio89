@@ -16,9 +16,9 @@ export interface NominatimResult {
     };
 }
 
-export const geocodeWithNominatim = async (query: string): Promise<NominatimResult[]> => {
+export const geocodeWithNominatim = async (query: string, language = 'it'): Promise<NominatimResult[]> => {
     const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=it&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language}&addressdetails=1`,
         {
             headers: {
                 'User-Agent': 'TravelSphere/1.0',
@@ -29,6 +29,24 @@ export const geocodeWithNominatim = async (query: string): Promise<NominatimResu
         throw new Error('Geocoding request failed');
     }
     return response.json();
+};
+
+export const reverseGeocodeCountry = async (lat: number, lon: number): Promise<{ country: string; countryCode: string } | null> => {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=3&addressdetails=1`,
+            { headers: { 'User-Agent': 'TravelSphere/1.0' } }
+        );
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data?.address) {
+            return {
+                country: data.address.country || 'Sconosciuto',
+                countryCode: data.address.country_code?.toUpperCase() || '',
+            };
+        }
+    } catch { /* ignore */ }
+    return null;
 };
 
 export const extractCountryFromLocationName = (locationName: string): string => {

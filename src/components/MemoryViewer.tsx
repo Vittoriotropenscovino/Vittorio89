@@ -1,233 +1,197 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-    View,
-    Text,
-    Modal,
-    StyleSheet,
-    TouchableOpacity,
-    Image,
-    FlatList,
-    useWindowDimensions,
-    Alert,
-    ViewToken,
+    View, Text, Modal, StyleSheet, TouchableOpacity, Image,
+    FlatList, useWindowDimensions, Alert, Platform, Share,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { MemoryViewerProps, MediaItem } from '../types';
+import { useApp } from '../contexts/AppContext';
 
-const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onShare }) => {
-    const flatListRef = useRef<FlatList>(null);
-    const [activeIndex, setActiveIndex] = useState(0);
-
+const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
+    const { t } = useApp();
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const mainListRef = useRef<FlatList>(null);
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
-    const isTablet = SCREEN_WIDTH >= 768;
-    const isSmallPhone = SCREEN_WIDTH < 400;
-
-    // Track visible item for video playback
-    const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
-    const onViewableItemsChanged = useRef(
-        ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-            if (viewableItems.length > 0 && viewableItems[0].index != null) {
-                setActiveIndex(viewableItems[0].index);
-            }
-        }
-    ).current;
 
     if (!trip) return null;
 
-    const mediaWidth = isTablet ? SCREEN_WIDTH * 0.7 : SCREEN_WIDTH * 0.9;
-    const mediaHeight = SCREEN_HEIGHT * 0.65;
+    // Main viewer dimensions - 90% of screen
+    const viewerWidth = SCREEN_WIDTH * 0.92;
+    const viewerHeight = SCREEN_HEIGHT * 0.68;
+    const thumbSize = 56;
 
-    const renderMediaItem = ({ item, index }: { item: MediaItem; index: number }) => {
-        const isActive = index === activeIndex;
-
-        return (
-            <View style={[styles.mediaContainer, { width: mediaWidth, height: mediaHeight }]}>
-                {item.type === 'video' ? (
-                    isActive ? (
-                        <Video
-                            source={{ uri: item.uri }}
-                            style={styles.media}
-                            resizeMode={ResizeMode.CONTAIN}
-                            useNativeControls
-                            shouldPlay={false}
-                            isLooping={false}
-                            isMuted={false}
-                        />
-                    ) : (
-                        <View style={styles.videoPlaceholder}>
-                            <Ionicons name="play-circle" size={64} color="rgba(255,255,255,0.7)" />
-                            <Text style={styles.videoPlaceholderText}>Video</Text>
-                        </View>
-                    )
-                ) : (
-                    <Image
-                        source={{ uri: item.uri }}
-                        style={styles.media}
-                        resizeMode="contain"
-                    />
-                )}
-            </View>
-        );
+    const handleShare = async () => {
+        try {
+            const message = `${trip.title}\n${trip.locationName}\n${trip.date}${trip.notes ? '\n\n' + trip.notes : ''}\n\n— TravelSphere`;
+            await Share.share({ message, title: trip.title });
+        } catch (e) {
+            console.error('Share error:', e);
+        }
     };
-
-    const renderEmptyState = () => (
-        <View style={styles.emptyState}>
-            <Ionicons name="images-outline" size={isSmallPhone ? 60 : 80} color="rgba(255,255,255,0.2)" />
-            <Text style={[styles.emptyText, isSmallPhone && { fontSize: 18 }]}>Nessuna foto aggiunta</Text>
-            <Text style={styles.emptySubtext}>
-                Aggiungi foto a questo viaggio per visualizzarle qui
-            </Text>
-        </View>
-    );
 
     const handleDelete = () => {
         if (!trip || !onDelete) return;
         Alert.alert(
-            'Elimina Viaggio',
-            `Sei sicuro di voler eliminare "${trip.title}"? Questa azione non può essere annullata.`,
+            t('deleteTrip') as string,
+            `${t('deleteConfirm')} "${trip.title}"? ${t('deleteWarning')}`,
             [
-                { text: 'Annulla', style: 'cancel' },
+                { text: t('cancel') as string, style: 'cancel' },
                 {
-                    text: 'Elimina',
-                    style: 'destructive',
+                    text: t('delete') as string, style: 'destructive',
                     onPress: () => {
-                        onDelete(trip.id);
-                        onClose();
+                        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        onDelete(trip.id); onClose();
                     },
                 },
             ]
         );
     };
 
-    const handleShare = () => {
-        if (!trip || !onShare) return;
-        onShare(trip);
+    const goToIndex = (index: number) => {
+        setCurrentIndex(index);
+        mainListRef.current?.scrollToIndex({ index, animated: true });
     };
 
-    return (
-        <Modal
-            visible={visible}
-            animationType="fade"
-            transparent
-            statusBarTranslucent
-            onRequestClose={onClose}
+    const handleMainScroll = (event: any) => {
+        const offset = event.nativeEvent.contentOffset.x;
+        const index = Math.round(offset / viewerWidth);
+        if (index !== currentIndex && index >= 0 && index < (trip.media?.length || 0)) {
+            setCurrentIndex(index);
+        }
+    };
+
+    const renderMainItem = ({ item, index }: { item: MediaItem; index: number }) => (
+        <View style={[styles.mainMediaContainer, { width: viewerWidth, height: viewerHeight }]}>
+            {item.type === 'video' ? (
+                <Video
+                    source={{ uri: item.uri }}
+                    style={styles.media}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                    shouldPlay={index === currentIndex}
+                    isLooping={false}
+                />
+            ) : (
+                <Image source={{ uri: item.uri }} style={styles.media} resizeMode="contain" />
+            )}
+        </View>
+    );
+
+    const renderThumbnail = ({ item, index }: { item: MediaItem; index: number }) => (
+        <TouchableOpacity
+            onPress={() => goToIndex(index)}
+            style={[
+                styles.thumbnailContainer,
+                { width: thumbSize, height: thumbSize },
+                currentIndex === index && styles.thumbnailActive,
+            ]}
         >
+            {item.type === 'video' ? (
+                <View style={styles.videoThumbBg}>
+                    <Ionicons name="videocam" size={22} color="#00d4ff" />
+                </View>
+            ) : (
+                <Image source={{ uri: item.uri }} style={styles.thumbImage} />
+            )}
+        </TouchableOpacity>
+    );
+
+    const renderEmptyState = () => (
+        <View style={styles.emptyState}>
+            <Ionicons name="images-outline" size={80} color="rgba(255,255,255,0.15)" />
+            <Text style={styles.emptyText}>{t('noPhotos')}</Text>
+            <Text style={styles.emptySubtext}>{t('addPhotosHint')}</Text>
+        </View>
+    );
+
+    const hasMedia = trip.media && trip.media.length > 0;
+
+    return (
+        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={onClose}>
             <View style={styles.overlay}>
-                {/* Header Overlay */}
-                <BlurView intensity={60} style={styles.headerOverlay} tint="dark">
-                    <View style={styles.headerContent}>
+                {/* Header */}
+                <View style={styles.headerBar}>
+                    <View style={styles.tripInfoRow}>
                         <View style={styles.tripInfo}>
-                            <Text
-                                style={[styles.tripTitle, isSmallPhone && { fontSize: 24 }]}
-                                numberOfLines={1}
-                            >
-                                {trip.title}
-                            </Text>
+                            <Text style={styles.tripTitle} numberOfLines={1}>{trip.title}</Text>
                             <View style={styles.tripMeta}>
-                                <View style={styles.metaItem}>
-                                    <Ionicons name="location" size={isSmallPhone ? 14 : 16} color="#60A5FA" />
-                                    <Text style={[styles.metaText, isSmallPhone && { fontSize: 13 }]}>
-                                        {trip.locationName.split(',')[0]}
-                                    </Text>
-                                </View>
-                                {trip.date && (
-                                    <View style={styles.metaItem}>
-                                        <Ionicons name="calendar" size={isSmallPhone ? 14 : 16} color="#60A5FA" />
-                                        <Text style={[styles.metaText, isSmallPhone && { fontSize: 13 }]}>{trip.date}</Text>
-                                    </View>
-                                )}
+                                <Ionicons name="location" size={14} color="#00d4ff" />
+                                <Text style={styles.metaText}>{trip.locationName.split(',')[0]}</Text>
+                                {trip.date ? (
+                                    <>
+                                        <Ionicons name="calendar" size={14} color="#00d4ff" style={{ marginLeft: 12 }} />
+                                        <Text style={styles.metaText}>{trip.date}</Text>
+                                    </>
+                                ) : null}
                             </View>
                         </View>
-                        <View style={styles.headerButtons}>
-                            {onShare && (
-                                <TouchableOpacity
-                                    onPress={handleShare}
-                                    style={styles.shareButton}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="share-outline" size={isSmallPhone ? 20 : 22} color="#60A5FA" />
+                        <View style={styles.headerActions}>
+                            <TouchableOpacity onPress={handleShare} style={styles.actionBtn}>
+                                <Ionicons name="share-outline" size={20} color="#00d4ff" />
+                            </TouchableOpacity>
+                            {onEdit && (
+                                <TouchableOpacity onPress={() => { onEdit(trip); onClose(); }} style={styles.actionBtn}>
+                                    <Ionicons name="create-outline" size={20} color="#60A5FA" />
                                 </TouchableOpacity>
                             )}
                             {onDelete && (
-                                <TouchableOpacity
-                                    onPress={handleDelete}
-                                    style={styles.deleteButton}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Ionicons name="trash-outline" size={isSmallPhone ? 20 : 22} color="#EF4444" />
+                                <TouchableOpacity onPress={handleDelete} style={[styles.actionBtn, styles.deleteBtn]}>
+                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
                                 </TouchableOpacity>
                             )}
-                            <TouchableOpacity
-                                onPress={onClose}
-                                style={styles.closeButton}
-                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            >
-                                <Ionicons name="close" size={isSmallPhone ? 24 : 28} color="#fff" />
+                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
                     </View>
-                </BlurView>
+                    {trip.notes ? <Text style={styles.notesText} numberOfLines={1}>{trip.notes}</Text> : null}
+                </View>
 
-                {/* Media Gallery */}
-                <View style={styles.galleryContainer}>
-                    {trip.media && trip.media.length > 0 ? (
+                {/* Main Viewer */}
+                <View style={styles.viewerArea}>
+                    {hasMedia ? (
                         <FlatList
-                            ref={flatListRef}
+                            ref={mainListRef}
                             data={trip.media}
-                            renderItem={renderMediaItem}
-                            keyExtractor={(_, index) => index.toString()}
+                            renderItem={renderMainItem}
+                            extraData={currentIndex}
+                            keyExtractor={(_, index) => `main-${index}`}
                             horizontal
                             pagingEnabled
                             showsHorizontalScrollIndicator={false}
-                            snapToInterval={mediaWidth}
+                            snapToInterval={viewerWidth}
                             snapToAlignment="center"
                             decelerationRate="fast"
-                            onViewableItemsChanged={onViewableItemsChanged}
-                            viewabilityConfig={viewabilityConfig}
+                            onScroll={handleMainScroll}
                             scrollEventThrottle={16}
-                            contentContainerStyle={[
-                                styles.galleryContent,
-                                { paddingHorizontal: (SCREEN_WIDTH - mediaWidth) / 2 }
-                            ]}
+                            contentContainerStyle={{ paddingHorizontal: (SCREEN_WIDTH - viewerWidth) / 2 }}
+                            getItemLayout={(_, index) => ({
+                                length: viewerWidth, offset: viewerWidth * index, index,
+                            })}
                         />
-                    ) : (
-                        renderEmptyState()
-                    )}
+                    ) : renderEmptyState()}
                 </View>
 
-                {/* Page Indicator */}
-                {trip.media && trip.media.length > 1 && (
-                    <View style={styles.pageIndicator}>
-                        {trip.media.map((_, index) => (
-                            <View
-                                key={index}
-                                style={[
-                                    styles.dot,
-                                    activeIndex === index && styles.activeDot
-                                ]}
-                            />
-                        ))}
+                {/* Counter */}
+                {hasMedia && (
+                    <View style={styles.counterBadge}>
+                        <Text style={styles.counterText}>{currentIndex + 1} / {trip.media.length}</Text>
                     </View>
                 )}
 
-                {/* Media Counter */}
-                {trip.media && trip.media.length > 0 && (
-                    <BlurView intensity={40} style={styles.counterOverlay} tint="dark">
-                        <Ionicons name="images" size={isSmallPhone ? 14 : 16} color="#9CA3AF" />
-                        <Text style={[styles.counterText, isSmallPhone && { fontSize: 12 }]}>
-                            {activeIndex + 1} / {trip.media.length}
-                        </Text>
-                    </BlurView>
-                )}
-
-                {/* Navigation Hint */}
-                {trip.media && trip.media.length > 1 && activeIndex === 0 && (
-                    <View style={styles.navHint}>
-                        <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.4)" />
-                        <Text style={styles.navHintText}>Scorri per navigare</Text>
-                        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.4)" />
+                {/* Thumbnail Strip */}
+                {hasMedia && trip.media.length > 1 && (
+                    <View style={styles.thumbStrip}>
+                        <FlatList
+                            data={trip.media}
+                            renderItem={renderThumbnail}
+                            keyExtractor={(_, index) => `thumb-${index}`}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.thumbContent}
+                        />
                     </View>
                 )}
             </View>
@@ -236,183 +200,59 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 };
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(5, 5, 15, 0.95)',
+    overlay: { flex: 1, backgroundColor: 'rgba(3,3,12,0.97)' },
+    headerBar: {
+        paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10,
+        borderBottomWidth: 1, borderBottomColor: 'rgba(0,212,255,0.1)',
+        backgroundColor: 'rgba(8,8,20,0.9)',
     },
-    headerOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 10,
-        paddingTop: 16,
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    tripInfoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    tripInfo: { flex: 1, marginRight: 12 },
+    tripTitle: { fontSize: 22, fontWeight: '800', color: '#F0F0F0', letterSpacing: -0.3 },
+    tripMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+    metaText: { color: '#9CA3AF', fontSize: 13 },
+    notesText: { color: '#6B7280', fontSize: 12, fontStyle: 'italic', marginTop: 4 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    actionBtn: {
+        backgroundColor: 'rgba(0,212,255,0.08)', padding: 8, borderRadius: 12,
+        borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',
     },
-    headerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+    deleteBtn: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.15)' },
+    closeBtn: {
+        backgroundColor: 'rgba(255,255,255,0.08)', padding: 8, borderRadius: 12,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
-    tripInfo: {
-        flex: 1,
-        marginRight: 16,
+    viewerArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    mainMediaContainer: {
+        justifyContent: 'center', alignItems: 'center', borderRadius: 12,
+        overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.4)',
     },
-    tripTitle: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#fff',
-        letterSpacing: -0.5,
-        marginBottom: 6,
+    media: { width: '100%', height: '100%' },
+    counterBadge: {
+        position: 'absolute', top: 80, right: 24,
+        backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16,
+        paddingHorizontal: 12, paddingVertical: 4,
+        borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',
     },
-    tripMeta: {
-        flexDirection: 'row',
-        gap: 16,
-        flexWrap: 'wrap',
+    counterText: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+    thumbStrip: {
+        paddingVertical: 10, borderTopWidth: 1,
+        borderTopColor: 'rgba(0,212,255,0.1)', backgroundColor: 'rgba(8,8,20,0.9)',
     },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
+    thumbContent: { paddingHorizontal: 16, gap: 8 },
+    thumbnailContainer: {
+        borderRadius: 8, overflow: 'hidden', borderWidth: 2,
+        borderColor: 'transparent', opacity: 0.6,
     },
-    metaText: {
-        color: '#D1D5DB',
-        fontSize: 14,
-        fontWeight: '400',
+    thumbnailActive: { borderColor: '#00d4ff', opacity: 1 },
+    thumbImage: { width: '100%', height: '100%' },
+    videoThumbBg: {
+        width: '100%', height: '100%', backgroundColor: 'rgba(0,20,40,0.8)',
+        justifyContent: 'center', alignItems: 'center',
     },
-    headerButtons: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    shareButton: {
-        backgroundColor: 'rgba(96, 165, 250, 0.15)',
-        padding: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(96, 165, 250, 0.3)',
-    },
-    deleteButton: {
-        backgroundColor: 'rgba(239, 68, 68, 0.15)',
-        padding: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-    },
-    closeButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        padding: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    galleryContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 90,
-    },
-    galleryContent: {
-        alignItems: 'center',
-    },
-    mediaContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    media: {
-        width: '100%',
-        height: '100%',
-    },
-    videoPlaceholder: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        width: '100%',
-    },
-    videoPlaceholderText: {
-        color: 'rgba(255, 255, 255, 0.5)',
-        fontSize: 14,
-        marginTop: 8,
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 40,
-    },
-    emptyText: {
-        fontSize: 22,
-        fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.5)',
-        marginTop: 20,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.3)',
-        textAlign: 'center',
-        marginTop: 8,
-    },
-    pageIndicator: {
-        position: 'absolute',
-        bottom: 70,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 8,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    activeDot: {
-        backgroundColor: '#60A5FA',
-        width: 24,
-    },
-    counterOverlay: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        overflow: 'hidden',
-    },
-    counterText: {
-        color: '#9CA3AF',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    navHint: {
-        position: 'absolute',
-        bottom: 24,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 12,
-    },
-    navHintText: {
-        color: 'rgba(255, 255, 255, 0.4)',
-        fontSize: 13,
-    },
+    emptyState: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+    emptyText: { fontSize: 20, fontWeight: '600', color: 'rgba(255,255,255,0.4)', marginTop: 20 },
+    emptySubtext: { fontSize: 13, color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginTop: 8 },
 });
 
 export default MemoryViewer;
