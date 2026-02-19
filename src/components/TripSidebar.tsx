@@ -1,8 +1,8 @@
 /**
- * TripSidebar - Hidden drawer menu for trip list
+ * TripSidebar - Hidden drawer menu for trip list, grouped by country
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -10,12 +10,12 @@ import {
     TouchableOpacity,
     ScrollView,
     Animated,
-    Dimensions,
     Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
+import { getCountryFlag } from '../utils/countryFlags';
 
 interface TripSidebarProps {
     trips: Trip[];
@@ -26,7 +26,38 @@ interface TripSidebarProps {
     onDelete: (tripId: string) => void;
 }
 
-const SIDEBAR_WIDTH = 280;
+interface CountryGroup {
+    country: string;
+    countryCode?: string;
+    trips: Trip[];
+}
+
+const SIDEBAR_WIDTH = 300;
+
+const groupTripsByCountry = (trips: Trip[]): CountryGroup[] => {
+    const grouped: Record<string, { countryCode?: string; trips: Trip[] }> = {};
+
+    for (const trip of trips) {
+        const country = trip.country || extractCountry(trip.locationName);
+        if (!grouped[country]) {
+            grouped[country] = { countryCode: trip.countryCode, trips: [] };
+        }
+        grouped[country].trips.push(trip);
+    }
+
+    return Object.entries(grouped)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([country, data]) => ({
+            country,
+            countryCode: data.countryCode,
+            trips: data.trips.sort((a, b) => a.date.localeCompare(b.date)),
+        }));
+};
+
+const extractCountry = (locationName: string): string => {
+    const parts = locationName.split(',').map(s => s.trim());
+    return parts[parts.length - 1] || 'Sconosciuto';
+};
 
 const TripSidebar: React.FC<TripSidebarProps> = ({
     trips,
@@ -38,8 +69,17 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
 }) => {
     const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
-
     const [shouldRender, setShouldRender] = useState(visible);
+    const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
+
+    const countryGroups = useMemo(() => groupTripsByCountry(trips), [trips]);
+
+    // Auto-expand all countries when there are few
+    useEffect(() => {
+        if (countryGroups.length <= 3) {
+            setExpandedCountries(new Set(countryGroups.map(g => g.country)));
+        }
+    }, [countryGroups]);
 
     useEffect(() => {
         if (visible) {
@@ -73,6 +113,14 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
         }
     }, [visible, slideAnim, fadeAnim]);
 
+    const toggleCountry = (country: string) => {
+        setExpandedCountries(prev => {
+            const next = new Set(prev);
+            if (next.has(country)) next.delete(country);
+            else next.add(country);
+            return next;
+        });
+    };
 
     const handleDeleteRequest = (trip: Trip) => {
         Alert.alert(
@@ -87,7 +135,7 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
                 }
             ]
         );
-    }
+    };
 
     if (!shouldRender) {
         return null;
@@ -129,9 +177,14 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
                         <Text style={styles.countText}>
                             {trips.length} {trips.length === 1 ? 'viaggio' : 'viaggi'} salvati
                         </Text>
+                        {countryGroups.length > 0 && (
+                            <Text style={styles.countCountries}>
+                                {countryGroups.length} {countryGroups.length === 1 ? 'paese' : 'paesi'}
+                            </Text>
+                        )}
                     </View>
 
-                    {/* Trip list */}
+                    {/* Trip list grouped by country */}
                     <ScrollView style={styles.tripList} showsVerticalScrollIndicator={false}>
                         {trips.length === 0 ? (
                             <View style={styles.emptyState}>
@@ -142,54 +195,87 @@ const TripSidebar: React.FC<TripSidebarProps> = ({
                                 </Text>
                             </View>
                         ) : (
-                            trips.map((trip) => (
-                                <TouchableOpacity
-                                    key={trip.id}
-                                    style={styles.tripItem}
-                                    onPress={() => {
-                                        onTripSelect(trip);
-                                        onClose();
-                                    }}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={styles.tripItemContent}>
-                                        <View style={styles.tripInfo}>
-                                            <Text style={styles.tripTitle} numberOfLines={1}>
-                                                {trip.title}
+                            countryGroups.map((group) => {
+                                const isExpanded = expandedCountries.has(group.country);
+                                return (
+                                    <View key={group.country} style={styles.countrySection}>
+                                        {/* Country Header */}
+                                        <TouchableOpacity
+                                            style={styles.countryHeader}
+                                            onPress={() => toggleCountry(group.country)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={styles.countryFlag}>
+                                                {getCountryFlag(group.countryCode)}
                                             </Text>
-                                            <Text style={styles.tripLocation} numberOfLines={1}>
-                                                <Ionicons name="location" size={12} color="#9CA3AF" />{' '}
-                                                {trip.locationName}
+                                            <Text style={styles.countryName} numberOfLines={1}>
+                                                {group.country}
                                             </Text>
-                                            <Text style={styles.tripDate}>
-                                                {trip.date}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.tripActions}>
-                                            <TouchableOpacity
-                                                style={styles.viewButton}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
-                                                    onTripView(trip);
-                                                }}
-                                            >
-                                                <Ionicons name="eye" size={18} color="#60A5FA" />
-                                            </TouchableOpacity>
+                                            <View style={styles.countryBadge}>
+                                                <Text style={styles.countryBadgeText}>
+                                                    {group.trips.length}
+                                                </Text>
+                                            </View>
+                                            <Ionicons
+                                                name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                                                size={16}
+                                                color="#6B7280"
+                                            />
+                                        </TouchableOpacity>
 
+                                        {/* Expanded trip list */}
+                                        {isExpanded && group.trips.map((trip) => (
                                             <TouchableOpacity
-                                                style={styles.deleteButton}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteRequest(trip);
+                                                key={trip.id}
+                                                style={styles.tripItem}
+                                                onPress={() => {
+                                                    onTripSelect(trip);
+                                                    onClose();
                                                 }}
+                                                activeOpacity={0.7}
                                             >
-                                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                                <View style={styles.tripItemContent}>
+                                                    <View style={styles.tripInfo}>
+                                                        <Text style={styles.tripTitle} numberOfLines={1}>
+                                                            {trip.title}
+                                                        </Text>
+                                                        <Text style={styles.tripLocation} numberOfLines={1}>
+                                                            <Ionicons name="location" size={11} color="#9CA3AF" />{' '}
+                                                            {trip.locationName.split(',')[0]}
+                                                        </Text>
+                                                        <Text style={styles.tripDate}>
+                                                            {trip.date}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.tripActions}>
+                                                        <TouchableOpacity
+                                                            style={styles.viewButton}
+                                                            onPress={(e) => {
+                                                                e.stopPropagation();
+                                                                onTripView(trip);
+                                                            }}
+                                                        >
+                                                            <Ionicons name="eye" size={16} color="#60A5FA" />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={styles.deleteButton}
+                                                            onPress={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteRequest(trip);
+                                                            }}
+                                                        >
+                                                            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
                                             </TouchableOpacity>
-                                        </View>
+                                        ))}
                                     </View>
-                                </TouchableOpacity>
-                            ))
+                                );
+                            })
                         )}
+                        {/* Bottom padding for safe scrolling */}
+                        <View style={{ height: 40 }} />
                     </ScrollView>
                 </BlurView>
             </Animated.View>
@@ -245,11 +331,16 @@ const styles = StyleSheet.create({
     countText: {
         color: '#9CA3AF',
         fontSize: 13,
+        flex: 1,
+    },
+    countCountries: {
+        color: '#60A5FA',
+        fontSize: 12,
+        fontWeight: '500',
     },
     tripList: {
         flex: 1,
-        paddingHorizontal: 12,
-        paddingTop: 8,
+        paddingTop: 4,
     },
     emptyState: {
         alignItems: 'center',
@@ -267,29 +358,67 @@ const styles = StyleSheet.create({
         fontSize: 13,
         marginTop: 4,
     },
+    // Country grouping
+    countrySection: {
+        marginBottom: 2,
+    },
+    countryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    countryFlag: {
+        fontSize: 20,
+    },
+    countryName: {
+        flex: 1,
+        color: '#F9FAFB',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    countryBadge: {
+        backgroundColor: 'rgba(96, 165, 250, 0.15)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    countryBadgeText: {
+        color: '#60A5FA',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    // Trip items (indented under country)
     tripItem: {
-        marginBottom: 8,
-        borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        marginLeft: 16,
+        marginRight: 8,
+        marginBottom: 4,
+        marginTop: 4,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
         overflow: 'hidden',
     },
     tripItemContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 14,
+        padding: 12,
     },
     tripInfo: {
         flex: 1,
     },
     tripTitle: {
         color: '#F9FAFB',
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: 3,
     },
     tripLocation: {
         color: '#9CA3AF',
-        fontSize: 12,
+        fontSize: 11,
         marginBottom: 2,
     },
     tripDate: {
@@ -299,7 +428,7 @@ const styles = StyleSheet.create({
     tripActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
     },
     viewButton: {
         padding: 6,
@@ -314,4 +443,3 @@ const styles = StyleSheet.create({
 });
 
 export default TripSidebar;
-

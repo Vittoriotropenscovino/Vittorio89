@@ -9,15 +9,19 @@ import { View, StyleSheet } from 'react-native';
 import { useFrame, useThree, Canvas } from '@react-three/fiber';
 import { Stars, OrbitControls, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { Trip, Coordinates, DEFAULT_GLOBE_CONFIG } from '../types';
+import { Trip, Coordinates, DEFAULT_GLOBE_CONFIG, HomeLocation, Itinerary } from '../types';
 import { latLonToVector3, getGlobeRotationForCoords, lerp } from '../utils/coordinates';
 import TripPin from './TripPin';
+import HomePin from './HomePin';
+import GlobeLine from './GlobeLine';
 
 interface EarthGlobeProps {
     trips: Trip[];
     onPinClick: (trip: Trip) => void;
     targetCoordinates?: Coordinates | null;
     autoRotate?: boolean;
+    homeLocation?: HomeLocation | null;
+    itineraries?: Itinerary[];
 }
 
 // Calcola il numero di segmenti in base alla distanza della camera
@@ -36,6 +40,8 @@ function Earth({
     onPinClick,
     targetCoordinates,
     autoRotate = true,
+    homeLocation,
+    itineraries = [],
 }: EarthGlobeProps) {
     const earthRef = useRef<THREE.Group>(null);
     const globeRef = useRef<THREE.Mesh>(null);
@@ -270,6 +276,40 @@ function Earth({
                     radius={radius}
                 />
             ))}
+
+            {/* Home Pin */}
+            {homeLocation && (
+                <HomePin homeLocation={homeLocation} radius={radius} />
+            )}
+
+            {/* Linee da casa a ogni viaggio */}
+            {homeLocation && trips.map((trip) => (
+                <GlobeLine
+                    key={`home-${trip.id}`}
+                    from={{ latitude: homeLocation.latitude, longitude: homeLocation.longitude }}
+                    to={{ latitude: trip.latitude, longitude: trip.longitude }}
+                    radius={radius}
+                    color="#60A5FA"
+                    opacity={0.25}
+                />
+            ))}
+
+            {/* Linee itinerario tra tappe consecutive */}
+            {itineraries.map((itin) => {
+                const itinTrips = itin.tripIds
+                    .map(id => trips.find(t => t.id === id))
+                    .filter(Boolean) as Trip[];
+                return itinTrips.slice(0, -1).map((trip, i) => (
+                    <GlobeLine
+                        key={`itin-${itin.id}-${i}`}
+                        from={{ latitude: trip.latitude, longitude: trip.longitude }}
+                        to={{ latitude: itinTrips[i + 1].latitude, longitude: itinTrips[i + 1].longitude }}
+                        radius={radius}
+                        color="#F59E0B"
+                        opacity={0.7}
+                    />
+                ));
+            })}
         </group>
     );
 }
@@ -310,9 +350,9 @@ function GlobeScene(props: EarthGlobeProps) {
                 minDistance={DEFAULT_GLOBE_CONFIG.zoomMin}
                 maxDistance={DEFAULT_GLOBE_CONFIG.zoomMax}
                 enableDamping
-                dampingFactor={0.05}
+                dampingFactor={0.08}
                 rotateSpeed={0.5}
-                zoomSpeed={0.8}
+                zoomSpeed={1.0}
             />
         </>
     );

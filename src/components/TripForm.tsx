@@ -12,19 +12,19 @@ import {
     Image,
     useWindowDimensions,
     Platform,
+    Switch,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
-import { TripFormProps, MediaItem } from '../types';
+import { TripFormProps, MediaItem, Itinerary } from '../types';
+import { geocodeWithNominatim } from '../utils/geocoding';
 
 // Directory for persistent media storage
 const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
 
-const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
-    // Use responsive dimensions
+const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave, itineraries = [] }) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
     const isSmallPhone = SCREEN_WIDTH < 400;
@@ -36,12 +36,18 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         latitude: number;
         longitude: number;
         displayName: string;
+        country?: string;
+        countryCode?: string;
     } | null>(null);
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [media, setMedia] = useState<MediaItem[]>([]);
 
-    // Reset form state
+    // Itinerary state
+    const [linkToItinerary, setLinkToItinerary] = useState(false);
+    const [selectedItineraryId, setSelectedItineraryId] = useState<string | null>(null);
+    const [newItineraryName, setNewItineraryName] = useState('');
+
     const resetForm = () => {
         setLocationQuery('');
         setFoundLocation(null);
@@ -50,32 +56,14 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         setMedia([]);
         setIsSearching(false);
         setIsSaving(false);
+        setLinkToItinerary(false);
+        setSelectedItineraryId(null);
+        setNewItineraryName('');
     };
 
-    // Handle close
     const handleClose = () => {
         resetForm();
         onClose();
-    };
-
-    // Geocode location using Nominatim (OpenStreetMap) - works on all platforms
-    const geocodeWithNominatim = async (query: string): Promise<Array<{
-        lat: string;
-        lon: string;
-        display_name: string;
-    }>> => {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=it`,
-            {
-                headers: {
-                    'User-Agent': 'TravelSphere/1.0',
-                },
-            }
-        );
-        if (!response.ok) {
-            throw new Error('Geocoding request failed');
-        }
-        return response.json();
     };
 
     const handleGeocode = async () => {
@@ -92,18 +80,20 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
 
             if (results && results.length > 0) {
                 const place = results[0];
-
-                // Extract a cleaner display name (city, region, country)
                 const nameParts = place.display_name.split(', ');
                 const displayName = nameParts.slice(0, 3).join(', ');
+
+                const country = place.address?.country || nameParts[nameParts.length - 1] || 'Sconosciuto';
+                const countryCode = place.address?.country_code || undefined;
 
                 setFoundLocation({
                     latitude: parseFloat(place.lat),
                     longitude: parseFloat(place.lon),
                     displayName,
+                    country,
+                    countryCode,
                 });
 
-                // Auto-fill title if empty
                 if (!title) {
                     setTitle(locationQuery);
                 }
@@ -126,61 +116,49 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         }
     };
 
-    // Ensure media directory exists (only on native platforms)
     const ensureMediaDir = async () => {
-        if (Platform.OS === 'web') return; // FileSystem not fully supported on web
+        if (Platform.OS === 'web') return;
         const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
         if (!dirInfo.exists) {
             await FileSystem.makeDirectoryAsync(MEDIA_DIR, { intermediates: true });
         }
     };
 
-    // Copy media to persistent storage (native only, web uses original URIs)
-    const copyMediaToPersistentStorage = async (items: MediaItem[]): Promise<MediaItem[]> => {
-        // On web, just return original items - FileSystem is not fully supported
-        if (Platform.OS === 'web') {
-            return items;
-        }
+    const getFileExtension = (uri: string, type: string): string => {
+        const match = uri.match(/\.(\w+)$/);
+        if (match) return '.' + match[1].toLowerCase();
+        return type === 'video' ? '.mp4' : '.jpg';
+    };
 
+    const copyMediaToPersistentStorage = async (items: MediaItem[]): Promise<MediaItem[]> => {
+        if (Platform.OS === 'web') return items;
         await ensureMediaDir();
 
         const copiedMedia: MediaItem[] = [];
-
         for (const item of items) {
-            // Skip if already in our directory
             if (item.uri.startsWith(MEDIA_DIR)) {
                 copiedMedia.push(item);
                 continue;
             }
 
-            const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}${item.type === 'video' ? '.mp4' : '.jpg'}`;
+            const ext = getFileExtension(item.uri, item.type);
+            const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
             const newUri = MEDIA_DIR + filename;
 
             try {
-                await FileSystem.copyAsync({
-                    from: item.uri,
-                    to: newUri,
-                });
-
-                copiedMedia.push({
-                    ...item,
-                    uri: newUri,
-                });
+                await FileSystem.copyAsync({ from: item.uri, to: newUri });
+                copiedMedia.push({ ...item, uri: newUri });
             } catch (error) {
                 console.error('Error copying media:', error);
-                // Keep original URI if copy fails
                 copiedMedia.push(item);
             }
         }
-
         return copiedMedia;
     };
 
-    // Pick images from gallery
     const handlePickImages = async () => {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
             if (status !== 'granted') {
                 Alert.alert(
                     'Permesso negato',
@@ -194,7 +172,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                 mediaTypes: ImagePicker.MediaTypeOptions.All,
                 allowsMultipleSelection: true,
                 quality: 0.8,
-                aspect: [16, 9],
+                videoMaxDuration: 60,
             });
 
             if (!result.canceled && result.assets) {
@@ -212,28 +190,28 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         }
     };
 
-    // Remove media item
     const removeMedia = (index: number) => {
         setMedia((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Submit form
     const handleSubmit = async () => {
         if (!foundLocation) {
             Alert.alert('Errore', 'Cerca e seleziona prima un luogo.');
             return;
         }
-
         if (!title.trim()) {
             Alert.alert('Errore', 'Inserisci un titolo per il viaggio.');
             return;
         }
 
         setIsSaving(true);
-
         try {
-            // Copy media to persistent storage
             const persistentMedia = await copyMediaToPersistentStorage(media);
+
+            const itineraryInfo = linkToItinerary ? {
+                itineraryId: selectedItineraryId || undefined,
+                newItineraryName: (!selectedItineraryId && newItineraryName.trim()) ? newItineraryName.trim() : undefined,
+            } : undefined;
 
             onSave({
                 title: title.trim(),
@@ -242,7 +220,9 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                 longitude: foundLocation.longitude,
                 date: date || new Date().toISOString().split('T')[0],
                 media: persistentMedia,
-            });
+                country: foundLocation.country,
+                countryCode: foundLocation.countryCode,
+            }, itineraryInfo);
 
             resetForm();
         } catch (error) {
@@ -252,7 +232,6 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
         }
     };
 
-    // Dynamic styles based on screen size
     const dynamicStyles = {
         blurContainer: {
             width: isTablet ? SCREEN_WIDTH * 0.5 : SCREEN_WIDTH * 0.85,
@@ -260,7 +239,7 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
             minWidth: 300,
         },
         scrollContent: {
-            maxHeight: SCREEN_HEIGHT * 0.5,
+            maxHeight: SCREEN_HEIGHT * 0.55,
         },
         mediaItem: {
             width: isSmallPhone ? 60 : 80,
@@ -283,7 +262,6 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                     tint="dark"
                 >
                     <View style={styles.formContainer}>
-                        {/* Header */}
                         <View style={styles.header}>
                             <View style={styles.headerTitle}>
                                 <Ionicons name="location" size={isSmallPhone ? 20 : 24} color="#60A5FA" />
@@ -336,12 +314,8 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                                 )}
                             </View>
 
-                            {/* Trip Details - Enabled only after location found */}
-                            <View style={[
-                                styles.detailsSection,
-                                !foundLocation && styles.disabled
-                            ]}>
-                                {/* Title */}
+                            {/* Trip Details */}
+                            <View style={[styles.detailsSection, !foundLocation && styles.disabled]}>
                                 <View style={styles.section}>
                                     <Text style={styles.label}>Titolo del viaggio</Text>
                                     <TextInput
@@ -354,7 +328,6 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                                     />
                                 </View>
 
-                                {/* Date */}
                                 <View style={styles.section}>
                                     <Text style={styles.label}>Data</Text>
                                     <TextInput
@@ -385,7 +358,6 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                                         </Text>
                                     </TouchableOpacity>
 
-                                    {/* Media Preview */}
                                     {media.length > 0 && (
                                         <ScrollView
                                             horizontal
@@ -413,6 +385,77 @@ const TripForm: React.FC<TripFormProps> = ({ visible, onClose, onSave }) => {
                                                 </View>
                                             ))}
                                         </ScrollView>
+                                    )}
+                                </View>
+
+                                {/* Itinerary Section */}
+                                <View style={styles.section}>
+                                    <View style={styles.itineraryToggleRow}>
+                                        <View style={styles.itineraryToggleLabel}>
+                                            <Ionicons name="git-branch-outline" size={18} color="#F59E0B" />
+                                            <Text style={styles.label}>Collega a un itinerario</Text>
+                                        </View>
+                                        <Switch
+                                            value={linkToItinerary}
+                                            onValueChange={setLinkToItinerary}
+                                            trackColor={{ false: '#374151', true: 'rgba(245, 158, 11, 0.4)' }}
+                                            thumbColor={linkToItinerary ? '#F59E0B' : '#6B7280'}
+                                        />
+                                    </View>
+
+                                    {linkToItinerary && (
+                                        <View style={styles.itineraryOptions}>
+                                            {itineraries.length > 0 && (
+                                                <>
+                                                    <Text style={styles.itinerarySubLabel}>Itinerari esistenti:</Text>
+                                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.itineraryChips}>
+                                                        {itineraries.map((itin) => (
+                                                            <TouchableOpacity
+                                                                key={itin.id}
+                                                                style={[
+                                                                    styles.itineraryChip,
+                                                                    selectedItineraryId === itin.id && styles.itineraryChipActive,
+                                                                ]}
+                                                                onPress={() => {
+                                                                    setSelectedItineraryId(
+                                                                        selectedItineraryId === itin.id ? null : itin.id
+                                                                    );
+                                                                    if (selectedItineraryId !== itin.id) {
+                                                                        setNewItineraryName('');
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Ionicons
+                                                                    name="git-branch-outline"
+                                                                    size={14}
+                                                                    color={selectedItineraryId === itin.id ? '#F59E0B' : '#9CA3AF'}
+                                                                />
+                                                                <Text style={[
+                                                                    styles.itineraryChipText,
+                                                                    selectedItineraryId === itin.id && styles.itineraryChipTextActive,
+                                                                ]}>
+                                                                    {itin.name}
+                                                                </Text>
+                                                            </TouchableOpacity>
+                                                        ))}
+                                                    </ScrollView>
+                                                    <Text style={styles.itinerarySubLabel}>Oppure crea nuovo:</Text>
+                                                </>
+                                            )}
+                                            {!itineraries.length && (
+                                                <Text style={styles.itinerarySubLabel}>Nome nuovo itinerario:</Text>
+                                            )}
+                                            <TextInput
+                                                style={[styles.input, styles.itineraryInput]}
+                                                placeholder="es. Tour Giappone 2024"
+                                                placeholderTextColor="#6B7280"
+                                                value={newItineraryName}
+                                                onChangeText={(text) => {
+                                                    setNewItineraryName(text);
+                                                    if (text.trim()) setSelectedItineraryId(null);
+                                                }}
+                                            />
+                                        </View>
                                     )}
                                 </View>
 
@@ -586,6 +629,60 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 8,
         fontWeight: '700',
+    },
+    // Itinerary styles
+    itineraryToggleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    itineraryToggleLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    itineraryOptions: {
+        marginTop: 10,
+        backgroundColor: 'rgba(245, 158, 11, 0.05)',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(245, 158, 11, 0.15)',
+    },
+    itinerarySubLabel: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        marginBottom: 8,
+    },
+    itineraryChips: {
+        marginBottom: 12,
+    },
+    itineraryChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    itineraryChipActive: {
+        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+        borderColor: 'rgba(245, 158, 11, 0.4)',
+    },
+    itineraryChipText: {
+        color: '#9CA3AF',
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    itineraryChipTextActive: {
+        color: '#F59E0B',
+    },
+    itineraryInput: {
+        borderColor: 'rgba(245, 158, 11, 0.2)',
     },
     submitBtn: {
         backgroundColor: '#3B82F6',

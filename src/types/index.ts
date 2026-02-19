@@ -6,6 +6,21 @@ export interface MediaItem {
     height?: number;
 }
 
+// Home Location
+export interface HomeLocation {
+    latitude: number;
+    longitude: number;
+    locationName: string;
+}
+
+// Itinerary grouping
+export interface Itinerary {
+    id: string;
+    name: string;
+    tripIds: string[];
+    createdAt: number;
+}
+
 // Trip/Memory Data
 export interface Trip {
     id: string;
@@ -16,6 +31,11 @@ export interface Trip {
     date: string;
     media: MediaItem[];
     createdAt: number;
+    // Optional fields for itinerary and country grouping
+    itineraryId?: string;
+    itineraryOrder?: number;
+    country?: string;
+    countryCode?: string;
 }
 
 // Geocoding Result
@@ -32,19 +52,40 @@ export interface PinProps {
     isSelected: boolean;
 }
 
+// Home Pin Props
+export interface HomePinProps {
+    homeLocation: HomeLocation;
+    radius: number;
+}
+
+// Globe Line Props
+export interface GlobeLineProps {
+    from: Coordinates;
+    to: Coordinates;
+    radius: number;
+    color?: string;
+    opacity?: number;
+}
+
 // Earth Globe Props
 export interface EarthGlobeProps {
     trips: Trip[];
     onPinClick: (trip: Trip) => void;
     targetCoordinates?: Coordinates | null;
     autoRotate?: boolean;
+    homeLocation?: HomeLocation | null;
+    itineraries?: Itinerary[];
 }
 
 // Trip Form Props
 export interface TripFormProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (trip: Omit<Trip, 'id' | 'createdAt'>) => void;
+    onSave: (trip: Omit<Trip, 'id' | 'createdAt'>, itineraryInfo?: {
+        itineraryId?: string;
+        newItineraryName?: string;
+    }) => void;
+    itineraries?: Itinerary[];
 }
 
 // Memory Viewer Props
@@ -53,6 +94,23 @@ export interface MemoryViewerProps {
     visible: boolean;
     onClose: () => void;
     onDelete?: (tripId: string) => void;
+    onShare?: (trip: Trip) => void;
+}
+
+// Share Modal Props
+export interface ShareModalProps {
+    trip: Trip | null;
+    visible: boolean;
+    onClose: () => void;
+}
+
+// Settings Screen Props
+export interface SettingsScreenProps {
+    visible: boolean;
+    onClose: () => void;
+    homeLocation: HomeLocation | null;
+    onSetHome: (home: HomeLocation) => void;
+    onClearData: () => void;
 }
 
 export interface Coordinates {
@@ -62,10 +120,10 @@ export interface Coordinates {
 
 export const DEFAULT_GLOBE_CONFIG = {
     radius: 2,
-    segments: 64,          // Valore iniziale
-    segmentsMin: 32,       // Segmenti quando zoom è lontano
-    segmentsMax: 128,      // Segmenti quando zoom è vicino (alta qualità)
+    segments: 64,
+    segmentsMin: 32,
+    segmentsMax: 192,
     rotationSpeed: 0.0003,
-    zoomMin: 1.5,          // Ridotto per permettere zoom molto ravvicinato e separare i pin
-    zoomMax: 10,
+    zoomMin: 1.2,
+    zoomMax: 12,
 };

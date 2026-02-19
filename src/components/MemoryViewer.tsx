@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,44 +9,58 @@ import {
     FlatList,
     useWindowDimensions,
     Alert,
+    ViewToken,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { MemoryViewerProps, MediaItem } from '../types';
 
-const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete }) => {
+const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onShare }) => {
     const flatListRef = useRef<FlatList>(null);
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(0);
 
-    // Use responsive dimensions
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
     const isSmallPhone = SCREEN_WIDTH < 400;
 
+    // Track visible item for video playback
+    const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+    const onViewableItemsChanged = useRef(
+        ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+            if (viewableItems.length > 0 && viewableItems[0].index != null) {
+                setActiveIndex(viewableItems[0].index);
+            }
+        }
+    ).current;
+
     if (!trip) return null;
 
-    // Calculate responsive sizes
     const mediaWidth = isTablet ? SCREEN_WIDTH * 0.7 : SCREEN_WIDTH * 0.9;
     const mediaHeight = SCREEN_HEIGHT * 0.65;
 
-    const handleScroll = (event: any) => {
-        const contentOffset = event.nativeEvent.contentOffset.x;
-        const index = Math.round(contentOffset / mediaWidth);
-        setCurrentIndex(index);
-    };
-
     const renderMediaItem = ({ item, index }: { item: MediaItem; index: number }) => {
+        const isActive = index === activeIndex;
+
         return (
             <View style={[styles.mediaContainer, { width: mediaWidth, height: mediaHeight }]}>
                 {item.type === 'video' ? (
-                    <Video
-                        source={{ uri: item.uri }}
-                        style={styles.media}
-                        resizeMode={ResizeMode.CONTAIN}
-                        useNativeControls
-                        shouldPlay={false}
-                    />
+                    isActive ? (
+                        <Video
+                            source={{ uri: item.uri }}
+                            style={styles.media}
+                            resizeMode={ResizeMode.CONTAIN}
+                            useNativeControls
+                            shouldPlay={false}
+                            isLooping={false}
+                            isMuted={false}
+                        />
+                    ) : (
+                        <View style={styles.videoPlaceholder}>
+                            <Ionicons name="play-circle" size={64} color="rgba(255,255,255,0.7)" />
+                            <Text style={styles.videoPlaceholderText}>Video</Text>
+                        </View>
+                    )
                 ) : (
                     <Image
                         source={{ uri: item.uri }}
@@ -68,18 +82,13 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
         </View>
     );
 
-    // Handle delete with confirmation
     const handleDelete = () => {
         if (!trip || !onDelete) return;
-
         Alert.alert(
             'Elimina Viaggio',
             `Sei sicuro di voler eliminare "${trip.title}"? Questa azione non può essere annullata.`,
             [
-                {
-                    text: 'Annulla',
-                    style: 'cancel',
-                },
+                { text: 'Annulla', style: 'cancel' },
                 {
                     text: 'Elimina',
                     style: 'destructive',
@@ -90,6 +99,11 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                 },
             ]
         );
+    };
+
+    const handleShare = () => {
+        if (!trip || !onShare) return;
+        onShare(trip);
     };
 
     return (
@@ -127,6 +141,15 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                             </View>
                         </View>
                         <View style={styles.headerButtons}>
+                            {onShare && (
+                                <TouchableOpacity
+                                    onPress={handleShare}
+                                    style={styles.shareButton}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Ionicons name="share-outline" size={isSmallPhone ? 20 : 22} color="#60A5FA" />
+                                </TouchableOpacity>
+                            )}
                             {onDelete && (
                                 <TouchableOpacity
                                     onPress={handleDelete}
@@ -161,7 +184,8 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                             snapToInterval={mediaWidth}
                             snapToAlignment="center"
                             decelerationRate="fast"
-                            onScroll={handleScroll}
+                            onViewableItemsChanged={onViewableItemsChanged}
+                            viewabilityConfig={viewabilityConfig}
                             scrollEventThrottle={16}
                             contentContainerStyle={[
                                 styles.galleryContent,
@@ -181,7 +205,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                                 key={index}
                                 style={[
                                     styles.dot,
-                                    currentIndex === index && styles.activeDot
+                                    activeIndex === index && styles.activeDot
                                 ]}
                             />
                         ))}
@@ -193,13 +217,13 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     <BlurView intensity={40} style={styles.counterOverlay} tint="dark">
                         <Ionicons name="images" size={isSmallPhone ? 14 : 16} color="#9CA3AF" />
                         <Text style={[styles.counterText, isSmallPhone && { fontSize: 12 }]}>
-                            {currentIndex + 1} / {trip.media.length}
+                            {activeIndex + 1} / {trip.media.length}
                         </Text>
                     </BlurView>
                 )}
 
-                {/* Navigation Hint - only on first view */}
-                {trip.media && trip.media.length > 1 && currentIndex === 0 && (
+                {/* Navigation Hint */}
+                {trip.media && trip.media.length > 1 && activeIndex === 0 && (
                     <View style={styles.navHint}>
                         <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.4)" />
                         <Text style={styles.navHintText}>Scorri per navigare</Text>
@@ -259,17 +283,17 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '400',
     },
-    closeButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        padding: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
     headerButtons: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+    },
+    shareButton: {
+        backgroundColor: 'rgba(96, 165, 250, 0.15)',
+        padding: 10,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(96, 165, 250, 0.3)',
     },
     deleteButton: {
         backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -277,6 +301,13 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         borderWidth: 1,
         borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    closeButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        padding: 10,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     galleryContainer: {
         flex: 1,
@@ -299,6 +330,18 @@ const styles = StyleSheet.create({
     media: {
         width: '100%',
         height: '100%',
+    },
+    videoPlaceholder: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        width: '100%',
+    },
+    videoPlaceholderText: {
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontSize: 14,
+        marginTop: 8,
     },
     emptyState: {
         alignItems: 'center',
