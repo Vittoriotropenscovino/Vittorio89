@@ -20,10 +20,11 @@ interface Props {
     onTripsUpdate: (trips: Trip[]) => void;
     onShowPrivacy: () => void;
     onShowTerms: () => void;
+    onItinerariesReset?: () => void;
 }
 
 const SettingsScreen: React.FC<Props> = ({
-    visible, onClose, trips, onTripsUpdate, onShowPrivacy, onShowTerms,
+    visible, onClose, trips, onTripsUpdate, onShowPrivacy, onShowTerms, onItinerariesReset,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
@@ -67,6 +68,7 @@ const SettingsScreen: React.FC<Props> = ({
                     onPress: async () => {
                         await StorageService.clearAll();
                         onTripsUpdate([]);
+                        if (onItinerariesReset) onItinerariesReset();
                         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                     },
                 },

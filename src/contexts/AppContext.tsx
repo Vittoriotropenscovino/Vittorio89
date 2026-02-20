@@ -1,14 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { translations, Language, TranslationKey } from '../i18n/translations';
+import { HomeLocation } from '../types';
 
 const SETTINGS_KEY = '@travelsphere_settings';
-
-export interface HomeLocation {
-  latitude: number;
-  longitude: number;
-  name: string;
-}
 
 export interface AppSettings {
   language: Language;

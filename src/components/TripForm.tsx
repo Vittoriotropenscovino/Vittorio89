@@ -12,8 +12,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
-
-const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+import { MEDIA_DIR } from '../services/StorageService';
 const NOMINATIM_MIN_INTERVAL = 1100;
 
 const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ visible, onClose, onSave, editTrip, itineraries }) => {
@@ -279,7 +278,10 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     const confirmDatePicker = () => {
-        const d = `${dateYear}-${String(dateMonth + 1).padStart(2, '0')}-${String(dateDay).padStart(2, '0')}`;
+        const maxDays = new Date(dateYear, dateMonth + 1, 0).getDate();
+        const clampedDay = Math.min(dateDay, maxDays);
+        const d = `${dateYear}-${String(dateMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+        setDateDay(clampedDay);
         setDate(d);
         setShowDatePicker(false);
     };
@@ -515,9 +517,9 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     <Text style={styles.datePickerSep}>-</Text>
                                     {/* Day */}
                                     <View style={styles.datePickerCol}>
-                                        <TouchableOpacity onPress={() => setDateDay(d => d < 31 ? d + 1 : 1)}><Ionicons name="chevron-up" size={24} color="#60A5FA" /></TouchableOpacity>
+                                        <TouchableOpacity onPress={() => setDateDay(d => { const max = new Date(dateYear, dateMonth + 1, 0).getDate(); return d < max ? d + 1 : 1; })}><Ionicons name="chevron-up" size={24} color="#60A5FA" /></TouchableOpacity>
                                         <Text style={styles.datePickerValue}>{String(dateDay).padStart(2, '0')}</Text>
-                                        <TouchableOpacity onPress={() => setDateDay(d => d > 1 ? d - 1 : 31)}><Ionicons name="chevron-down" size={24} color="#60A5FA" /></TouchableOpacity>
+                                        <TouchableOpacity onPress={() => setDateDay(d => { const max = new Date(dateYear, dateMonth + 1, 0).getDate(); return d > 1 ? d - 1 : max; })}><Ionicons name="chevron-down" size={24} color="#60A5FA" /></TouchableOpacity>
                                     </View>
                                 </View>
                                 <View style={styles.datePickerButtons}>

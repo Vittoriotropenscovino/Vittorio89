@@ -452,10 +452,9 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
         onMessage={handleMessage}
         javaScriptEnabled
         domStorageEnabled
-        originWhitelist={['*']}
-        mixedContentMode="always"
+        originWhitelist={['https://*', 'about:*']}
+        mixedContentMode="never"
         allowFileAccess
-        allowUniversalAccessFromFileURLs
         scrollEnabled={false}
         overScrollMode="never"
         androidLayerType="none"

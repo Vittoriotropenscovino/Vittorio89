@@ -132,7 +132,7 @@ const AppContent: React.FC = () => {
         });
         setAuthenticated(result.success);
       } catch {
-        setAuthenticated(true);
+        setAuthenticated(false);
       }
     })();
   }, [isSettingsLoaded, settings.biometricEnabled, t]);
@@ -174,10 +174,13 @@ const AppContent: React.FC = () => {
   }, [editingTrip, generateId, t]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
-    const updatedTrips = await StorageService.deleteTrip(tripId, trips);
-    setTrips(updatedTrips);
+    setTrips((prevTrips) => {
+      const updatedTrips = prevTrips.filter((t) => t.id !== tripId);
+      StorageService.saveTrips(updatedTrips);
+      return updatedTrips;
+    });
     setSelectedTrip(null);
-  }, [trips]);
+  }, []);
 
   const handleToggleFavorite = useCallback((tripId: string) => {
     setTrips((prev) => prev.map((tr) =>
@@ -388,12 +391,13 @@ const AppContent: React.FC = () => {
       {/* Settings & screens */}
       <SettingsScreen visible={showSettings} onClose={() => setShowSettings(false)}
         trips={trips} onTripsUpdate={setTrips}
-        onShowPrivacy={() => setShowPrivacy(true)} onShowTerms={() => setShowTerms(true)} />
-      <PrivacyPolicy visible={showPrivacy} onClose={() => setShowPrivacy(false)} />
-      <TermsOfService visible={showTerms} onClose={() => setShowTerms(false)} />
-      <StatsScreen visible={showStats} onClose={() => setShowStats(false)} trips={trips} />
-      <CalendarView visible={showCalendar} onClose={() => setShowCalendar(false)}
-        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setShowCalendar(false); }} />
+        onShowPrivacy={() => setShowPrivacy(true)} onShowTerms={() => setShowTerms(true)}
+        onItinerariesReset={() => setItineraries([])} />
+      {showPrivacy && <PrivacyPolicy visible={showPrivacy} onClose={() => setShowPrivacy(false)} />}
+      {showTerms && <TermsOfService visible={showTerms} onClose={() => setShowTerms(false)} />}
+      {showStats && <StatsScreen visible={showStats} onClose={() => setShowStats(false)} trips={trips} />}
+      {showCalendar && <CalendarView visible={showCalendar} onClose={() => setShowCalendar(false)}
+        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setShowCalendar(false); }} />}
       <ItineraryManager visible={showItineraryManager} onClose={() => setShowItineraryManager(false)}
         itineraries={itineraries} trips={trips}
         onCreateItinerary={handleCreateItinerary}

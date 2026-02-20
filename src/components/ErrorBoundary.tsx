@@ -48,16 +48,18 @@ export default class ErrorBoundary extends React.Component<Props, State> {
               L'applicazione ha riscontrato un errore imprevisto.
             </Text>
 
-            <ScrollView style={styles.errorBox}>
-              <Text style={styles.errorText}>
-                {this.state.error && this.state.error.toString()}
-              </Text>
-              {this.state.errorInfo && (
-                <Text style={styles.stackTrace}>
-                  {this.state.errorInfo.componentStack}
+            {__DEV__ && (
+              <ScrollView style={styles.errorBox}>
+                <Text style={styles.errorText}>
+                  {this.state.error && this.state.error.toString()}
                 </Text>
-              )}
-            </ScrollView>
+                {this.state.errorInfo && (
+                  <Text style={styles.stackTrace}>
+                    {this.state.errorInfo.componentStack}
+                  </Text>
+                )}
+              </ScrollView>
+            )}
 
             <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
               <Ionicons name="refresh" size={20} color="#fff" />

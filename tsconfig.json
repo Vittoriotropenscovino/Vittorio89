@@ -14,8 +14,7 @@
         "src/types/*"
       ]
     },
-    "skipLibCheck": true,
-    "noImplicitAny": false
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",

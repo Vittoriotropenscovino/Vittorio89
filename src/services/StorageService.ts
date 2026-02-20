@@ -5,7 +5,7 @@ import { Trip, Itinerary } from '../types';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
 const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
-const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
 const isWeb = Platform.OS === 'web';
 
 /**
@@ -105,6 +105,7 @@ export const StorageService = {
     clearAll: async (): Promise<void> => {
         try {
             await AsyncStorage.removeItem(TRIPS_STORAGE_KEY);
+            await AsyncStorage.removeItem(ITINERARIES_STORAGE_KEY);
             // Also clear media directory (native only)
             if (!isWeb) {
                 const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);

@@ -13,7 +13,7 @@ interface Props {
 }
 
 const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }) => {
-    const { t } = useApp();
+    const { t, language } = useApp();
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
@@ -39,7 +39,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     for (let i = 0; i < startOffset; i++) days.push(null);
     for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
-    const weekDays = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+    const weekDays = language === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
     const prevMonth = () => {
         if (month === 0) { setMonth(11); setYear(year - 1); }

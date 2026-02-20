@@ -6,7 +6,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Trip, TripTag, TAG_CONFIG } from '../types';
+import { Trip, TripTag, TAG_CONFIG, HomeLocation } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { getCountryFlag } from '../utils/countryFlags';
 import { extractCountryFromLocationName } from '../utils/geocoding';
@@ -26,7 +26,7 @@ interface Props {
     onOpenSettings?: () => void;
     onOpenStats?: () => void;
     onOpenCalendar?: () => void;
-    homeLocation?: { latitude: number; longitude: number; name: string } | null;
+    homeLocation?: HomeLocation | null;
 }
 
 interface CountrySection {
