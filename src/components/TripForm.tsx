@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { MEDIA_DIR } from '../services/StorageService';
+
 const NOMINATIM_MIN_INTERVAL = 1100;
 
 const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ visible, onClose, onSave, editTrip, itineraries }) => {
@@ -158,6 +159,11 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     const handleGeocode = async () => {
         if (!locationQuery.trim()) { Alert.alert(t('error') as string, t('enterLocation') as string); return; }
+        const now = Date.now();
+        if (now - lastGeocodingTime.current < NOMINATIM_MIN_INTERVAL) {
+            return;
+        }
+        lastGeocodingTime.current = now;
         setIsSearching(true); setFoundLocation(null);
         try {
             // 1. Try Nominatim + Photon in parallel (no permissions needed)

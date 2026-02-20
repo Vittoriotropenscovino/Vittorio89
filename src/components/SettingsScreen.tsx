@@ -44,6 +44,7 @@ const SettingsScreen: React.FC<Props> = ({
             Alert.alert('', t('exportSuccess') as string);
         } catch (e) {
             console.error('Export error:', e);
+            Alert.alert(t('error') as string, String(e));
         }
     };
 

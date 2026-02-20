@@ -111,7 +111,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                                             ]}
                                             disabled={!hasTrips}
                                             onPress={() => {
-                                                if (tripsOnDay.length === 1) {
+                                                if (tripsOnDay.length >= 1) {
                                                     onTripSelect(tripsOnDay[0]);
                                                     onClose();
                                                 }

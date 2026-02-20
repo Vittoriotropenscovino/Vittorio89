@@ -245,6 +245,8 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  const handleSaveConfirmDone = useCallback(() => setShowSaveConfirm(false), []);
+
   // Loading state
   if (!isSettingsLoaded || isLoading) {
     return (
@@ -269,17 +271,21 @@ const AppContent: React.FC = () => {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
-  return (
-    <View style={styles.container}>
-      {/* GDPR Consent */}
-      {!settings.hasAcceptedGDPR && (
+  // GDPR gate
+  if (!settings.hasAcceptedGDPR) {
+    return (
+      <View style={styles.container}>
         <GDPRConsent
-          visible={!settings.hasAcceptedGDPR}
+          visible={true}
           onAccept={handleGDPRAccept}
           onShowPrivacy={() => setShowPrivacy(true)}
         />
-      )}
+      </View>
+    );
+  }
 
+  return (
+    <View style={styles.container}>
       {/* Layer 0: Globe */}
       <EarthGlobe
         trips={trips}
@@ -293,7 +299,7 @@ const AppContent: React.FC = () => {
       <View style={styles.uiOverlay} pointerEvents="box-none">
         <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)}>
+            <TouchableOpacity style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)} accessibilityLabel="Menu" accessibilityRole="button">
               <Ionicons name="menu" size={28} color="#60A5FA" />
             </TouchableOpacity>
             <View>
@@ -311,7 +317,7 @@ const AppContent: React.FC = () => {
           <TouchableOpacity style={styles.topButton} onPress={handleCastScreen}>
             <Ionicons name="tv-outline" size={16} color="#00d4ff" />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.topButton, styles.exitButton]} onPress={handleExitApp}>
+          <TouchableOpacity style={[styles.topButton, styles.exitButton]} onPress={handleExitApp} accessibilityLabel="Exit" accessibilityRole="button">
             <Ionicons name="power" size={16} color="#EF4444" />
           </TouchableOpacity>
           <View style={styles.statusIndicatorInline}>
@@ -365,7 +371,7 @@ const AppContent: React.FC = () => {
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
+            <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)} accessibilityLabel="Add Trip" accessibilityRole="button">
               <Ionicons name="add" size={28} color="#fff" />
               <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
@@ -374,7 +380,7 @@ const AppContent: React.FC = () => {
       </View>
 
       {/* Save confirmation toast */}
-      <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={() => setShowSaveConfirm(false)} />
+      <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={handleSaveConfirmDone} />
 
       {/* Layer 2: Modals */}
       <TripForm visible={showForm} onClose={handleCloseForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />

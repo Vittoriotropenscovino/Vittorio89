@@ -2,6 +2,12 @@
  * Shared geocoding utility using Nominatim (OpenStreetMap)
  */
 
+const fetchWithTimeout = (url: string, options: RequestInit = {}, timeout = 10000): Promise<Response> => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
+};
+
 export interface NominatimResult {
     lat: string;
     lon: string;
@@ -17,7 +23,7 @@ export interface NominatimResult {
 }
 
 export const geocodeWithNominatim = async (query: string, language = 'it'): Promise<NominatimResult[]> => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language}&addressdetails=1`,
         {
             headers: {
@@ -33,7 +39,7 @@ export const geocodeWithNominatim = async (query: string, language = 'it'): Prom
 
 export const reverseGeocodeCountry = async (lat: number, lon: number): Promise<{ country: string; countryCode: string } | null> => {
     try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=3&addressdetails=1`,
             { headers: { 'User-Agent': 'TravelSphere/1.0' } }
         );
