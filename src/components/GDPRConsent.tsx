@@ -14,7 +14,7 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
     const { t } = useApp();
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.iconRow}>

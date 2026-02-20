@@ -77,7 +77,7 @@ const ItineraryManager: React.FC<Props> = ({
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
@@ -172,7 +172,7 @@ const ItineraryManager: React.FC<Props> = ({
             </View>
 
             {/* Rename modal */}
-            <Modal visible={renameId !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={handleCancelRename}>
+            <Modal visible={renameId !== null} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={handleCancelRename}>
                 <View style={styles.renameOverlay}>
                     <View style={styles.renameCard}>
                         <Text style={styles.renameTitle}>{t('renameItinerary')}</Text>

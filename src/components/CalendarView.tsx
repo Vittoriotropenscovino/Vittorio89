@@ -59,7 +59,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>

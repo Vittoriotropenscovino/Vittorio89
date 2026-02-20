@@ -457,7 +457,7 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
         allowFileAccess
         scrollEnabled={false}
         overScrollMode="never"
-        androidLayerType="none"
+        androidLayerType="hardware"
         setBuiltInZoomControls={false}
         setDisplayZoomControls={false}
         nestedScrollEnabled={false}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Platform, Animated, Easing, BackHandler, Alert, Linking,
+  Platform, Animated, Easing, BackHandler, Alert, Linking, AppState,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -94,10 +94,13 @@ const AppContent: React.FC = () => {
     hideNavigationBar();
   }, [hideNavigationBar]);
 
-  // Re-apply immersive mode when any modal opens or closes
+  // Re-apply immersive mode when app returns to foreground
   useEffect(() => {
-    hideNavigationBar();
-  }, [showForm, showSettings, showPrivacy, showTerms, showStats, showCalendar, showItineraryManager, sidebarOpen, hideNavigationBar]);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') hideNavigationBar();
+    });
+    return () => sub.remove();
+  }, [hideNavigationBar]);
 
   // Load trips and itineraries
   useEffect(() => {

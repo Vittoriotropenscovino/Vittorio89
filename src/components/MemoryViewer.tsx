@@ -109,7 +109,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
     const hasMedia = trip.media && trip.media.length > 0;
 
     return (
-        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={onClose}>
+        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 {/* Header */}
                 <View style={styles.headerBar}>

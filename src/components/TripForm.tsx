@@ -330,7 +330,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     return (
-        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={handleClose}>
+        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
             <View style={styles.overlay}>
                 <View style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer]}>
                         <View style={styles.header}>
@@ -500,7 +500,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
                 {/* Custom Date Picker Modal */}
                 {showDatePicker && (
-                    <Modal visible transparent animationType="fade" statusBarTranslucent>
+                    <Modal visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
                         <View style={styles.datePickerOverlay}>
                             <View style={styles.datePickerCard}>
                                 <Text style={styles.datePickerTitle}>{t('selectDate')}</Text>
