@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 
@@ -16,8 +16,7 @@ const TermsOfService: React.FC<Props> = ({ visible, onClose }) => {
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <BlurView intensity={40} style={styles.card} tint="dark">
-                    <View style={styles.content}>
+                <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
                             <Ionicons name="document-text" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('termsOfService')}</Text>
@@ -63,8 +62,7 @@ const TermsOfService: React.FC<Props> = ({ visible, onClose }) => {
                                     : 'We reserve the right to modify these terms. Changes will be communicated via app update.'}
                             </Text>
                         </ScrollView>
-                    </View>
-                </BlurView>
+                </View>
             </View>
         </Modal>
     );

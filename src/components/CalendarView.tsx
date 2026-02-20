@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
@@ -61,8 +61,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <BlurView intensity={50} style={styles.card} tint="dark">
-                    <View style={styles.content}>
+                <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
                             <Ionicons name="calendar" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('calendarTitle')}</Text>
@@ -154,8 +153,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                                     ))
                                 )}
                         </ScrollView>
-                    </View>
-                </BlurView>
+                </View>
             </View>
         </Modal>
     );

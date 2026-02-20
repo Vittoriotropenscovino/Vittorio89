@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 
@@ -16,8 +16,7 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
             <View style={styles.overlay}>
-                <BlurView intensity={40} style={styles.card} tint="dark">
-                    <View style={styles.content}>
+                <View style={[styles.card, styles.content]}>
                         <View style={styles.iconRow}>
                             <Ionicons name="shield-checkmark" size={40} color="#00d4ff" />
                         </View>
@@ -45,8 +44,7 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
                         <TouchableOpacity onPress={onShowPrivacy}>
                             <Text style={styles.learnMore}>{t('gdprLearnMore')}</Text>
                         </TouchableOpacity>
-                    </View>
-                </BlurView>
+                </View>
             </View>
         </Modal>
     );

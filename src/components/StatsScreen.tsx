@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
@@ -45,8 +45,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <BlurView intensity={50} style={styles.card} tint="dark">
-                    <View style={styles.content}>
+                <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
                             <Ionicons name="stats-chart" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('statistics')}</Text>
@@ -119,8 +118,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                                 ))}
                             </View>
                         </ScrollView>
-                    </View>
-                </BlurView>
+                </View>
             </View>
         </Modal>
     );

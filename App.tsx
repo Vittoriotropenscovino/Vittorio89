@@ -79,15 +79,25 @@ const AppContent: React.FC = () => {
     }
   }, [trips.length, pulseAnim]);
 
-  // Lock orientation + fullscreen immersive mode
-  useEffect(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+  // Hide Android navigation bar
+  const hideNavigationBar = useCallback(() => {
     if (Platform.OS === 'android') {
       NavigationBar.setVisibilityAsync('hidden').catch(() => {});
       NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
       NavigationBar.setBackgroundColorAsync('transparent').catch(() => {});
     }
   }, []);
+
+  // Lock orientation + fullscreen immersive mode
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    hideNavigationBar();
+  }, [hideNavigationBar]);
+
+  // Re-apply immersive mode when any modal opens or closes
+  useEffect(() => {
+    hideNavigationBar();
+  }, [showForm, showSettings, showPrivacy, showTerms, showStats, showCalendar, showItineraryManager, sidebarOpen, hideNavigationBar]);
 
   // Load trips and itineraries
   useEffect(() => {

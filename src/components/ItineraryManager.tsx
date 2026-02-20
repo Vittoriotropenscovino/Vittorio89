@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
     TextInput, Alert, Platform,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Trip, Itinerary } from '../types';
@@ -79,8 +79,7 @@ const ItineraryManager: React.FC<Props> = ({
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <BlurView intensity={50} style={styles.card} tint="dark">
-                    <View style={styles.content}>
+                <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
                             <Ionicons name="git-merge-outline" size={24} color="#F59E0B" />
                             <Text style={styles.title}>{t('itineraries')}</Text>
@@ -169,8 +168,7 @@ const ItineraryManager: React.FC<Props> = ({
                             )}
                             <View style={{ height: 20 }} />
                         </ScrollView>
-                    </View>
-                </BlurView>
+                </View>
             </View>
 
             {/* Rename modal */}

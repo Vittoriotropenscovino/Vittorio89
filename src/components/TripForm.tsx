@@ -3,7 +3,7 @@ import {
     View, Text, TextInput, TouchableOpacity, Modal, StyleSheet,
     Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -332,8 +332,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     return (
         <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={handleClose}>
             <View style={styles.overlay}>
-                <BlurView intensity={40} style={[styles.blurContainer, dynamicStyles.blurContainer]} tint="dark">
-                    <View style={styles.formContainer}>
+                <View style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer]}>
                         <View style={styles.header}>
                             <View style={styles.headerTitle}>
                                 <Ionicons name={isEditMode ? 'create' : 'location'} size={isSmallPhone ? 20 : 24} color="#60A5FA" />
@@ -497,8 +496,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                 </TouchableOpacity>
                             </View>
                         </ScrollView>
-                    </View>
-                </BlurView>
+                </View>
 
                 {/* Custom Date Picker Modal */}
                 {showDatePicker && (
