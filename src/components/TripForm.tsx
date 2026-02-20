@@ -237,7 +237,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') { Alert.alert(t('permissionDenied') as string, t('galleryPermission') as string); return; }
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All,
+                mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
                 allowsMultipleSelection: true, quality: 0.8, aspect: [16, 9],
             });
             if (!result.canceled && result.assets) {
@@ -257,7 +257,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') { Alert.alert(t('permissionDenied') as string, t('cameraPermission') as string); return; }
             const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.8, aspect: [16, 9],
+                mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
+                quality: 0.8, aspect: [16, 9],
             });
             if (!result.canceled && result.assets) {
                 const newMedia: MediaItem[] = result.assets.map((asset) => ({
