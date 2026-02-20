@@ -25,6 +25,7 @@ import StatsScreen from './src/components/StatsScreen';
 import CalendarView from './src/components/CalendarView';
 import SaveConfirmation from './src/components/SaveConfirmation';
 import OfflineBanner from './src/components/OfflineBanner';
+import ItineraryManager from './src/components/ItineraryManager';
 import StorageService from './src/services/StorageService';
 import { Trip, Itinerary } from './src/types';
 
@@ -46,6 +47,7 @@ const AppContent: React.FC = () => {
   const [showTerms, setShowTerms] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showItineraryManager, setShowItineraryManager] = useState(false);
 
   // Save confirmation
   const [saveMsg, setSaveMsg] = useState('');
@@ -193,34 +195,25 @@ const AppContent: React.FC = () => {
     setEditingTrip(null);
   }, []);
 
-  const handleCreateItinerary = useCallback(() => {
-    Alert.prompt
-      ? Alert.prompt(
-          t('newItinerary') as string,
-          t('itineraryNamePlaceholder') as string,
-          (name: string) => {
-            if (name?.trim()) {
-              const newIt: Itinerary = { id: generateId(), name: name.trim(), tripIds: [], createdAt: Date.now() };
-              setItineraries((prev) => [...prev, newIt]);
-              setSaveMsg(t('saved') as string);
-              setShowSaveConfirm(true);
-            }
-          }
-        )
-      : Alert.alert(
-          t('newItinerary') as string,
-          t('itineraryNamePlaceholder') as string,
-          [
-            { text: t('cancel') as string, style: 'cancel' },
-            { text: t('confirm') as string, onPress: () => {
-              const newIt: Itinerary = { id: generateId(), name: `${t('itineraries')} ${itineraries.length + 1}`, tripIds: [], createdAt: Date.now() };
-              setItineraries((prev) => [...prev, newIt]);
-              setSaveMsg(t('saved') as string);
-              setShowSaveConfirm(true);
-            }},
-          ]
-        );
-  }, [t, generateId, itineraries.length]);
+  const handleCreateItinerary = useCallback((name: string) => {
+    const newIt: Itinerary = { id: generateId(), name, tripIds: [], createdAt: Date.now() };
+    setItineraries((prev) => [...prev, newIt]);
+    setSaveMsg(t('saved') as string);
+    setShowSaveConfirm(true);
+  }, [generateId, t]);
+
+  const handleDeleteItinerary = useCallback((id: string) => {
+    setItineraries((prev) => prev.filter((it) => it.id !== id));
+    setTrips((prev) => prev.map((tr) =>
+      tr.itineraryId === id ? { ...tr, itineraryId: undefined } : tr
+    ));
+  }, []);
+
+  const handleRenameItinerary = useCallback((id: string, newName: string) => {
+    setItineraries((prev) => prev.map((it) =>
+      it.id === id ? { ...it, name: newName } : it
+    ));
+  }, []);
 
   const handleOnboardingComplete = useCallback(() => {
     updateSettings({ hasSeenOnboarding: true });
@@ -365,7 +358,7 @@ const AppContent: React.FC = () => {
 
         {/* Add buttons */}
         <View style={styles.addButtonContainer}>
-          <TouchableOpacity style={styles.itineraryButton} onPress={handleCreateItinerary}>
+          <TouchableOpacity style={styles.itineraryButton} onPress={() => setShowItineraryManager(true)}>
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
@@ -389,7 +382,8 @@ const AppContent: React.FC = () => {
         onToggleFavorite={handleToggleFavorite}
         onOpenSettings={() => setShowSettings(true)}
         onOpenStats={() => setShowStats(true)}
-        onOpenCalendar={() => setShowCalendar(true)} />
+        onOpenCalendar={() => setShowCalendar(true)}
+        homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}
       <SettingsScreen visible={showSettings} onClose={() => setShowSettings(false)}
@@ -400,6 +394,11 @@ const AppContent: React.FC = () => {
       <StatsScreen visible={showStats} onClose={() => setShowStats(false)} trips={trips} />
       <CalendarView visible={showCalendar} onClose={() => setShowCalendar(false)}
         trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setShowCalendar(false); }} />
+      <ItineraryManager visible={showItineraryManager} onClose={() => setShowItineraryManager(false)}
+        itineraries={itineraries} trips={trips}
+        onCreateItinerary={handleCreateItinerary}
+        onDeleteItinerary={handleDeleteItinerary}
+        onRenameItinerary={handleRenameItinerary} />
     </View>
   );
 };

@@ -26,6 +26,7 @@ interface Props {
     onOpenSettings?: () => void;
     onOpenStats?: () => void;
     onOpenCalendar?: () => void;
+    homeLocation?: { latitude: number; longitude: number; name: string } | null;
 }
 
 interface CountrySection {
@@ -37,14 +38,14 @@ interface CountrySection {
 
 const TripSidebar: React.FC<Props> = ({
     trips, visible, onClose, onTripSelect, onDelete,
-    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar,
+    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, homeLocation,
 }) => {
     const { t } = useApp();
     const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortMode, setSortMode] = useState<SortMode>('recent');
+    const [sortMode, setSortMode] = useState<SortMode>('country');
     const [filterTag, setFilterTag] = useState<TripTag | null>(null);
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
@@ -158,14 +159,15 @@ const TripSidebar: React.FC<Props> = ({
         </TouchableOpacity>
     );
 
-    const renderSectionHeader = ({ section }: { section: CountrySection }) => {
+    const renderSectionHeader = ({ section }: { section: CountrySection & { realCount?: number } }) => {
         const isCollapsed = collapsedSections.has(section.title);
+        const count = section.realCount ?? section.data.length;
         return (
             <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(section.title)} activeOpacity={0.7}>
                 <Text style={styles.sectionFlag}>{section.flag}</Text>
                 <Text style={styles.sectionTitle} numberOfLines={1}>{section.title}</Text>
                 <View style={styles.sectionBadge}>
-                    <Text style={styles.sectionCount}>{section.data.length}</Text>
+                    <Text style={styles.sectionCount}>{count}</Text>
                 </View>
                 <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={16} color="#6B7280" />
             </TouchableOpacity>
@@ -173,8 +175,8 @@ const TripSidebar: React.FC<Props> = ({
     };
 
     const sortButtons: { mode: SortMode; label: string; icon: string }[] = [
-        { mode: 'recent', label: t('recent') as string, icon: 'time-outline' },
         { mode: 'country', label: t('groupByCountry') as string, icon: 'flag-outline' },
+        { mode: 'recent', label: t('recent') as string, icon: 'time-outline' },
         { mode: 'name', label: t('byName') as string, icon: 'text-outline' },
         { mode: 'favorites', label: t('byFavorites') as string, icon: 'heart-outline' },
     ];
@@ -202,6 +204,16 @@ const TripSidebar: React.FC<Props> = ({
                             <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color="#9CA3AF" /></TouchableOpacity>
                         </View>
                         <View style={styles.quickActions}>
+                            {onOpenSettings && (
+                                <TouchableOpacity
+                                    style={[styles.quickActionBtn, homeLocation ? styles.homeActionSet : styles.homeActionUnset]}
+                                    onPress={() => { onOpenSettings(); onClose(); }}>
+                                    <Ionicons name="home" size={16} color="#FFD700" />
+                                    <Text style={styles.quickActionText} numberOfLines={1}>
+                                        {homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                             {onOpenStats && (
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenStats(); onClose(); }}>
                                     <Ionicons name="stats-chart" size={16} color="#00d4ff" />
@@ -256,6 +268,7 @@ const TripSidebar: React.FC<Props> = ({
                             <SectionList
                                 sections={countrySections.map(section => ({
                                     ...section,
+                                    realCount: section.data.length,
                                     data: collapsedSections.has(section.title) ? [] : section.data,
                                 }))}
                                 renderItem={renderTrip}
@@ -294,7 +307,9 @@ const styles = StyleSheet.create({
     sidebarTitle: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
     quickActions: { flexDirection: 'row', gap: 8, marginBottom: 14 },
     quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },
-    quickActionText: { color: '#9CA3AF', fontSize: 10, fontWeight: '500' },
+    quickActionText: { color: '#9CA3AF', fontSize: 10, fontWeight: '500', flexShrink: 1 },
+    homeActionSet: { borderColor: 'rgba(255,215,0,0.2)', backgroundColor: 'rgba(255,215,0,0.06)' },
+    homeActionUnset: { borderColor: 'rgba(255,215,0,0.15)', backgroundColor: 'rgba(255,215,0,0.04)' },
     searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 8, marginBottom: 10 },
     searchInput: { flex: 1, color: '#fff', fontSize: 13, padding: 0 },
     sortRow: { flexDirection: 'row', gap: 4, marginBottom: 8 },

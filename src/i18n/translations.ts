@@ -162,6 +162,11 @@ const it = {
   deleteItineraryConfirm: 'Sei sicuro di voler eliminare questo itinerario?',
   connectPins: 'Collega i pin',
   tripsInItinerary: 'viaggi nell\'itinerario',
+  renameItinerary: 'Rinomina Itinerario',
+  itineraryTrips: 'viaggi',
+  noItineraries: 'Nessun itinerario creato',
+  createFirstItinerary: 'Crea il tuo primo itinerario!',
+  manageItineraries: 'Gestisci Itinerari',
 };
 
 const en: typeof it = {
@@ -326,6 +331,11 @@ const en: typeof it = {
   deleteItineraryConfirm: 'Are you sure you want to delete this itinerary?',
   connectPins: 'Connect pins',
   tripsInItinerary: 'trips in itinerary',
+  renameItinerary: 'Rename Itinerary',
+  itineraryTrips: 'trips',
+  noItineraries: 'No itineraries created',
+  createFirstItinerary: 'Create your first itinerary!',
+  manageItineraries: 'Manage Itineraries',
 };
 
 export const translations: Record<Language, typeof it> = { it, en };

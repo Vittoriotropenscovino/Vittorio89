@@ -12,3 +12,4 @@ export { default as StatsScreen } from './StatsScreen';
 export { default as CalendarView } from './CalendarView';
 export { default as SaveConfirmation } from './SaveConfirmation';
 export { default as OfflineBanner } from './OfflineBanner';
+export { default as ItineraryManager } from './ItineraryManager';
