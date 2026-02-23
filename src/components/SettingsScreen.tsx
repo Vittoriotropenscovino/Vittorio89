@@ -224,6 +224,22 @@ const SettingsScreen: React.FC<Props> = ({
                                 </TouchableOpacity>
                             </View>
 
+                            {settings.homeLocation && (
+                                <SettingRow
+                                    icon="git-network-outline"
+                                    iconColor="#FFD700"
+                                    label={t('showHomeLines') as string}
+                                    right={
+                                        <Switch
+                                            value={settings.showHomeLines !== false}
+                                            onValueChange={(v) => updateSettings({ showHomeLines: v })}
+                                            trackColor={{ false: '#374151', true: 'rgba(255,215,0,0.4)' }}
+                                            thumbColor={settings.showHomeLines !== false ? '#FFD700' : '#6B7280'}
+                                        />
+                                    }
+                                />
+                            )}
+
                             <SectionHeader title={t('security') as string} />
                             <SettingRow
                                 icon="finger-print"

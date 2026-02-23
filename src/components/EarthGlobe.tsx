@@ -26,7 +26,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 <div id="globeViz"></div>
 <div id="dbg">loading...</div>
 <script>
-var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false;
+var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showHomeLines=true;
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -265,6 +265,7 @@ function handleCmd(d){
   if(!d||!d.type)return;
   if(d.type==='updateTrips'){_itineraries=d.itineraries||[];updateTrips(d.trips);}
   else if(d.type==='updateHome'){_home=d.home||null;if(_trips.length>0)updateTrips(_trips);}
+  else if(d.type==='updateHomeLines'){_showHomeLines=d.show!==false;if(_trips.length>0)updateTrips(_trips);}
   else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.8},1500);
 }
 
@@ -288,31 +289,35 @@ function updateTrips(t){
     var s=t.slice().sort(function(a,b){return a.createdAt-b.createdAt;});
     var a=[];
 
-    if(_home){
-      // Arc from home to first trip
-      a.push({
-        startLat:_home.latitude,startLng:_home.longitude,
-        endLat:s[0].latitude,endLng:s[0].longitude,
-        colors:['rgba(255,215,0,0.9)','rgba('+hueColors[0]+',0.6)']
-      });
-      // Arcs between consecutive trips
-      for(var i=0;i<s.length-1;i++){
-        var col1=hueColors[i%hueColors.length];
-        var col2=hueColors[(i+1)%hueColors.length];
+    if(_home&&_showHomeLines){
+      // Smart filter: only connect home to trips WITHOUT an itinerary
+      var freeTrips=s.filter(function(x){return !x.itineraryId;});
+      if(freeTrips.length>0){
+        // Arc from home to first free trip
         a.push({
-          startLat:s[i].latitude,startLng:s[i].longitude,
-          endLat:s[i+1].latitude,endLng:s[i+1].longitude,
-          colors:['rgba('+col1+',0.9)','rgba('+col2+',0.4)']
+          startLat:_home.latitude,startLng:_home.longitude,
+          endLat:freeTrips[0].latitude,endLng:freeTrips[0].longitude,
+          colors:['rgba(255,215,0,0.9)','rgba('+hueColors[0]+',0.6)']
+        });
+        // Arcs between consecutive free trips
+        for(var i=0;i<freeTrips.length-1;i++){
+          var col1=hueColors[i%hueColors.length];
+          var col2=hueColors[(i+1)%hueColors.length];
+          a.push({
+            startLat:freeTrips[i].latitude,startLng:freeTrips[i].longitude,
+            endLat:freeTrips[i+1].latitude,endLng:freeTrips[i+1].longitude,
+            colors:['rgba('+col1+',0.9)','rgba('+col2+',0.4)']
+          });
+        }
+        // Arc from last free trip back to home
+        var lastCol=hueColors[(freeTrips.length-1)%hueColors.length];
+        a.push({
+          startLat:freeTrips[freeTrips.length-1].latitude,startLng:freeTrips[freeTrips.length-1].longitude,
+          endLat:_home.latitude,endLng:_home.longitude,
+          colors:['rgba('+lastCol+',0.6)','rgba(255,215,0,0.9)']
         });
       }
-      // Arc from last trip back to home
-      var lastCol=hueColors[(s.length-1)%hueColors.length];
-      a.push({
-        startLat:s[s.length-1].latitude,startLng:s[s.length-1].longitude,
-        endLat:_home.latitude,endLng:_home.longitude,
-        colors:['rgba('+lastCol+',0.6)','rgba(255,215,0,0.9)']
-      });
-    }else{
+    }else if(!_home){
       // No home: consecutive arcs
       for(var i=0;i<s.length-1;i++){
         var col1=hueColors[i%hueColors.length];
@@ -374,7 +379,7 @@ function updateTrips(t){
 </body>
 </html>`;
 
-export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries }: EarthGlobeProps) {
+export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showHomeLines }: EarthGlobeProps) {
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
   const pendingTrips = useRef<Trip[]>([]);
@@ -410,6 +415,12 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
   }, [homeLocation, sendToWebView]);
 
   useEffect(() => {
+    if (isReady.current) {
+      sendToWebView({ type: 'updateHomeLines', show: showHomeLines !== false });
+    }
+  }, [showHomeLines, sendToWebView]);
+
+  useEffect(() => {
     if (targetCoordinates && isReady.current) {
       sendToWebView({ type: 'flyTo', lat: targetCoordinates.latitude, lng: targetCoordinates.longitude });
     }
@@ -433,6 +444,7 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
           if (homeLocation) {
             sendToWebView({ type: 'updateHome', home: homeLocation });
           }
+          sendToWebView({ type: 'updateHomeLines', show: showHomeLines !== false });
           pendingTrips.current = [];
         } else if (data.type === 'pinClick') {
           const trip = trips.find((t) => t.id === data.tripId);
@@ -440,7 +452,7 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
         }
       } catch (e) {}
     },
-    [trips, itineraries, onPinClick, sendToWebView, homeLocation]
+    [trips, itineraries, onPinClick, sendToWebView, homeLocation, showHomeLines]
   );
 
   return (

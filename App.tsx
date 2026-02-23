@@ -306,6 +306,7 @@ const AppContent: React.FC = () => {
         targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
+        showHomeLines={settings.showHomeLines !== false}
       />
 
       {/* Layer 1: UI overlay */}

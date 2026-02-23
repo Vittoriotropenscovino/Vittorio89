@@ -167,6 +167,8 @@ const it = {
   noItineraries: 'Nessun itinerario creato',
   createFirstItinerary: 'Crea il tuo primo itinerario!',
   manageItineraries: 'Gestisci Itinerari',
+  showHomeLines: 'Mostra Linee da Casa',
+  homeLinesDesc: 'Collega casa ai viaggi senza itinerario',
 };
 
 const en: typeof it = {
@@ -336,6 +338,8 @@ const en: typeof it = {
   noItineraries: 'No itineraries created',
   createFirstItinerary: 'Create your first itinerary!',
   manageItineraries: 'Manage Itineraries',
+  showHomeLines: 'Show Home Lines',
+  homeLinesDesc: 'Connect home to trips without itinerary',
 };
 
 export const translations: Record<Language, typeof it> = { it, en };

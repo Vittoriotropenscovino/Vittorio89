@@ -11,6 +11,7 @@ export interface AppSettings {
   hasSeenOnboarding: boolean;
   hasAcceptedGDPR: boolean;
   homeLocation?: HomeLocation;
+  showHomeLines?: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
