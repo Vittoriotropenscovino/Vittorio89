@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated, SectionList,
-    TextInput, Dimensions, Platform,
+    TextInput, Platform, useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,9 +10,6 @@ import { Trip, TripTag, TAG_CONFIG, HomeLocation } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { getCountryFlag } from '../utils/countryFlags';
 import { extractCountryFromLocationName } from '../utils/geocoding';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SIDEBAR_WIDTH = Math.min(SCREEN_WIDTH * 0.42, 380);
 
 type SortMode = 'recent' | 'date' | 'name' | 'favorites' | 'country';
 
@@ -41,7 +38,9 @@ const TripSidebar: React.FC<Props> = ({
     onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, homeLocation,
 }) => {
     const { t } = useApp();
-    const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+    const { width: screenWidth } = useWindowDimensions();
+    const sidebarWidth = Math.min(screenWidth * 0.42, 380);
+    const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +57,7 @@ const TripSidebar: React.FC<Props> = ({
             ]).start();
         } else {
             Animated.parallel([
-                Animated.timing(slideAnim, { toValue: -SIDEBAR_WIDTH, duration: 250, useNativeDriver: true }),
+                Animated.timing(slideAnim, { toValue: -sidebarWidth, duration: 250, useNativeDriver: true }),
                 Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
             ]).start(() => { setIsRendered(false); setSearchQuery(''); });
         }
@@ -196,7 +195,7 @@ const TripSidebar: React.FC<Props> = ({
             <Animated.View style={[styles.backdrop, { opacity: backdropOpacity, ...Platform.select({ android: { elevation: 100 } }) }]}>
                 <TouchableOpacity style={styles.backdropTouch} onPress={onClose} activeOpacity={1} />
             </Animated.View>
-            <Animated.View style={[styles.sidebar, { transform: [{ translateX: slideAnim }], ...Platform.select({ android: { elevation: 101 } }) }]}>
+            <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: slideAnim }], ...Platform.select({ android: { elevation: 101 } }) }]}>
                 <BlurView intensity={80} style={styles.sidebarBlur} tint="dark">
                     <View style={styles.sidebarContent}>
                         <View style={styles.sidebarHeader}>
@@ -300,7 +299,7 @@ const TripSidebar: React.FC<Props> = ({
 const styles = StyleSheet.create({
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50 },
     backdropTouch: { flex: 1 },
-    sidebar: { position: 'absolute', top: 0, left: 0, bottom: 0, width: SIDEBAR_WIDTH, zIndex: 51 },
+    sidebar: { position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 51 },
     sidebarBlur: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(0,212,255,0.1)' },
     sidebarContent: { flex: 1, padding: 16, backgroundColor: 'rgba(10,10,20,0.75)' },
     sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },

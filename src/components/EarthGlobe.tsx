@@ -26,7 +26,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 <div id="globeViz"></div>
 <div id="dbg">loading...</div>
 <script>
-var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showHomeLines=true;
+var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showHomeLines=true,_visibleLabels={},_pointsData=[];
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -38,7 +38,7 @@ window.onerror=function(m){if(!_ready)L('ERR:'+m);};
   function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
   resize();window.addEventListener('resize',resize);
   var stars=[];
-  for(var i=0;i<200;i++){
+  for(var i=0;i<150;i++){
     stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.2+0.2,a:Math.random()*0.6+0.1,speed:Math.random()*0.003+0.001,phase:Math.random()*Math.PI*2});
   }
   function drawStars(){
@@ -114,7 +114,7 @@ function go(countries){
       .pointColor(function(d){return d.color||'#ff6b6b';})
       .pointAltitude(function(){return 0.01+0.04*_zoomFactor;})
       .pointRadius(function(d){return d.isHome?0.25+0.2*_zoomFactor:0.12+0.18*_zoomFactor;})
-      .pointResolution(12)
+      .pointResolution(8)
 
       // PULSING RINGS - dynamic size
       .ringsData([])
@@ -123,18 +123,18 @@ function go(countries){
         var c=d.ringColor||'255,107,107';
         return 'rgba('+c+','+(1-t)*0.6+')';
       };})
-      .ringMaxRadius(function(){return 1.0+1.8*_zoomFactor;})
+      .ringMaxRadius(function(){return 0.6+1.2*_zoomFactor;})
       .ringPropagationSpeed(2.5)
       .ringRepeatPeriod(1200)
 
       // LABELS - dynamic size, hidden when zoomed out
       .labelsData([])
       .labelLat('lat').labelLng('lng')
-      .labelText(function(d){return _zoomFactor>1.15?'':d.label;})
+      .labelText(function(d){if(_zoomFactor>1.15)return '';if(!_visibleLabels[d.tripId])return '';return d.label;})
       .labelSize(function(){return 0.2+0.35*_zoomFactor;})
       .labelDotRadius(function(){return 0.08+0.12*_zoomFactor;})
       .labelColor(function(d){return d.isHome?'rgba(255,215,0,0.95)':'rgba(0,220,255,0.95)';})
-      .labelResolution(2)
+      .labelResolution(1)
       .labelAltitude(0.015)
 
       // ANIMATED ARCS
@@ -150,7 +150,7 @@ function go(countries){
       .customLayerData([])
       .customThreeObject(function(d){
         if(typeof THREE==='undefined') return null;
-        var g=new THREE.SphereGeometry(d.size||0.4,8,8);
+        var g=new THREE.SphereGeometry(d.size||0.4,6,6);
         var m=new THREE.MeshBasicMaterial({color:new THREE.Color(d.color||'#00d4ff'),transparent:true,opacity:d.opacity||0.6});
         return new THREE.Mesh(g,m);
       })
@@ -185,18 +185,18 @@ function go(countries){
         var R=100.4;
         [-60,-30,0,30,60].forEach(function(lat){
           var phi=(90-lat)*Math.PI/180,v=[];
-          for(var lo=0;lo<=360;lo+=2){var th=lo*Math.PI/180;v.push(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th));}
+          for(var lo=0;lo<=360;lo+=4){var th=lo*Math.PI/180;v.push(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th));}
           var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
           scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.06})));
         });
         for(var lo=0;lo<360;lo+=30){
           var th=lo*Math.PI/180,v=[];
-          for(var lt=-90;lt<=90;lt+=2){var p=(90-lt)*Math.PI/180;v.push(R*Math.sin(p)*Math.cos(th),R*Math.cos(p),R*Math.sin(p)*Math.sin(th));}
+          for(var lt=-90;lt<=90;lt+=4){var p=(90-lt)*Math.PI/180;v.push(R*Math.sin(p)*Math.cos(th),R*Math.cos(p),R*Math.sin(p)*Math.sin(th));}
           var g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
           scene.add(new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.06})));
         }
 
-        var scanRingGeo=new THREE.RingGeometry(100.2,100.8,64);
+        var scanRingGeo=new THREE.RingGeometry(100.2,100.8,48);
         var scanRingMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.12,side:THREE.DoubleSide});
         var scanRing=new THREE.Mesh(scanRingGeo,scanRingMat);
         scanRing.rotation.x=Math.PI/2;
@@ -235,7 +235,11 @@ function go(countries){
           var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
           if(Math.abs(f-_zoomFactor)>0.03){
             _zoomFactor=f;
+            // Adatta velocita rotazione allo zoom: lenta da vicino, normale da lontano
+            c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
             if(_trips.length>0||_home){
+              // Ricalcola label visibili con nuovo zoom
+              if(_pointsData.length>0)_visibleLabels=computeVisibleLabels(_pointsData);
               globe.pointsData(globe.pointsData());
               globe.ringsData(globe.ringsData());
               globe.labelsData(globe.labelsData());
@@ -270,6 +274,31 @@ function handleCmd(d){
 }
 
 var hueColors=['255,107,107','0,220,255','139,92,246','16,185,129','245,158,11','236,72,153'];
+
+// Clustering: calcola quali label mostrare per evitare sovrapposizioni
+function computeVisibleLabels(points){
+  var minDist=1.0+4.0*_zoomFactor; // gradi - piu grande quando zoommato fuori
+  var vis={};
+  var visPos=[]; // cache posizioni visibili per confronto rapido
+  // Home sempre visibile
+  for(var i=0;i<points.length;i++){
+    if(points[i].isHome){vis[points[i].tripId]=1;visPos.push({lat:points[i].lat,lng:points[i].lng});break;}
+  }
+  for(var i=0;i<points.length;i++){
+    var p=points[i];
+    if(p.isHome)continue;
+    var dominated=false;
+    var cosLat=Math.cos(p.lat*0.01745);
+    for(var k=0;k<visPos.length;k++){
+      var dlat=p.lat-visPos[k].lat;
+      var dlng=(p.lng-visPos[k].lng)*cosLat;
+      if(Math.sqrt(dlat*dlat+dlng*dlng)<minDist){dominated=true;break;}
+    }
+    if(!dominated){vis[p.tripId]=1;visPos.push({lat:p.lat,lng:p.lng});}
+  }
+  return vis;
+}
+
 function updateTrips(t){
   if(!globe||!t)return;_trips=t;
   var p=t.map(function(x,i){
@@ -282,6 +311,8 @@ function updateTrips(t){
     p.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',color:'#FFD700',ringColor:'255,215,0',isHome:true});
   }
 
+  _pointsData=p;
+  _visibleLabels=computeVisibleLabels(p);
   globe.pointsData(p).ringsData(p).labelsData(p);
 
   // Generate arcs - itinerary from home
@@ -362,7 +393,7 @@ function updateTrips(t){
   var particles=[];
   t.forEach(function(x,i){
     var col=hueColors[i%hueColors.length];
-    for(var j=0;j<3;j++){
+    for(var j=0;j<2;j++){
       particles.push({
         lat:x.latitude+(Math.random()-0.5)*3,
         lng:x.longitude+(Math.random()-0.5)*3,

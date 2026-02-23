@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
@@ -13,6 +13,7 @@ interface Props {
 
 const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     const { t } = useApp();
+    const { height: screenHeight } = useWindowDimensions();
 
     const stats = useMemo(() => {
         const totalPhotos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'image').length, 0);
@@ -54,7 +55,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+                        <ScrollView showsVerticalScrollIndicator={false} style={[styles.scroll, { maxHeight: screenHeight * 0.6 }]}>
                             {/* Big numbers */}
                             <View style={styles.bigNumbers}>
                                 <View style={styles.bigNumItem}>
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
-    scroll: { maxHeight: 500 },
+    scroll: {},
     bigNumbers: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 20 },
     bigNumItem: { alignItems: 'center' },
     bigNum: { fontSize: 36, fontWeight: '900', color: '#00d4ff' },
