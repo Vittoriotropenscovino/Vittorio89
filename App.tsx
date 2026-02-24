@@ -29,25 +29,19 @@ import ItineraryManager from './src/components/ItineraryManager';
 import StorageService from './src/services/StorageService';
 import { Trip, Itinerary } from './src/types';
 
+type ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager';
+
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [activeModal, setActiveModal] = useState<ModalType>('none');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
-
-  // Modal visibility states
-  const [showSettings, setShowSettings] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showItineraryManager, setShowItineraryManager] = useState(false);
 
   // Save confirmation
   const [saveMsg, setSaveMsg] = useState('');
@@ -101,6 +95,32 @@ const AppContent: React.FC = () => {
     });
     return () => sub.remove();
   }, [hideNavigationBar]);
+
+  // Biometric re-auth when app returns from background
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (
+        appStateRef.current.match(/background/) &&
+        nextState === 'active' &&
+        settings.biometricEnabled
+      ) {
+        setAuthenticated(false);
+        (async () => {
+          try {
+            const result = await LocalAuthentication.authenticateAsync({
+              promptMessage: t('biometricPrompt') as string,
+            });
+            setAuthenticated(result.success);
+          } catch {
+            setAuthenticated(false);
+          }
+        })();
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, [settings.biometricEnabled, t]);
 
   // Load trips and itineraries
   useEffect(() => {
@@ -181,7 +201,7 @@ const AppContent: React.FC = () => {
         ...it, tripIds: it.tripIds.filter((id) => id !== tripId),
       })));
     }
-    setShowForm(false);
+    setActiveModal('none');
     setSaveMsg(t('saved') as string);
     setShowSaveConfirm(true);
   }, [editingTrip, generateId, t]);
@@ -203,11 +223,11 @@ const AppContent: React.FC = () => {
 
   const handleEditTrip = useCallback((trip: Trip) => {
     setEditingTrip(trip);
-    setShowForm(true);
+    setActiveModal('form');
   }, []);
 
   const handleCloseForm = useCallback(() => {
-    setShowForm(false);
+    setActiveModal('none');
     setEditingTrip(null);
   }, []);
 
@@ -291,7 +311,7 @@ const AppContent: React.FC = () => {
         <GDPRConsent
           visible={true}
           onAccept={handleGDPRAccept}
-          onShowPrivacy={() => setShowPrivacy(true)}
+          onShowPrivacy={() => setActiveModal('privacy')}
         />
       </View>
     );
@@ -381,11 +401,11 @@ const AppContent: React.FC = () => {
 
         {/* Add buttons */}
         <View style={styles.addButtonContainer}>
-          <TouchableOpacity style={styles.itineraryButton} onPress={() => setShowItineraryManager(true)}>
+          <TouchableOpacity style={styles.itineraryButton} onPress={() => setActiveModal('itineraryManager')}>
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)} accessibilityLabel="Add Trip" accessibilityRole="button">
+            <TouchableOpacity style={styles.addButton} onPress={() => setActiveModal('form')} accessibilityLabel="Add Trip" accessibilityRole="button">
               <Ionicons name="add" size={28} color="#fff" />
               <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
@@ -397,28 +417,28 @@ const AppContent: React.FC = () => {
       <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={handleSaveConfirmDone} />
 
       {/* Layer 2: Modals */}
-      <TripForm visible={showForm} onClose={handleCloseForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
+      <TripForm visible={activeModal === 'form'} onClose={handleCloseForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
       <MemoryViewer trip={selectedTrip} visible={!!selectedTrip}
         onClose={() => setSelectedTrip(null)} onDelete={handleDeleteTrip} onEdit={handleEditTrip} />
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
         onTripSelect={(trip) => setSelectedTrip(trip)} onDelete={handleDeleteTrip}
         onToggleFavorite={handleToggleFavorite}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenStats={() => setShowStats(true)}
-        onOpenCalendar={() => setShowCalendar(true)}
+        onOpenSettings={() => setActiveModal('settings')}
+        onOpenStats={() => setActiveModal('stats')}
+        onOpenCalendar={() => setActiveModal('calendar')}
         homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}
-      <SettingsScreen visible={showSettings} onClose={() => setShowSettings(false)}
+      <SettingsScreen visible={activeModal === 'settings'} onClose={() => setActiveModal('none')}
         trips={trips} onTripsUpdate={setTrips}
-        onShowPrivacy={() => setShowPrivacy(true)} onShowTerms={() => setShowTerms(true)}
+        onShowPrivacy={() => setActiveModal('privacy')} onShowTerms={() => setActiveModal('terms')}
         onItinerariesReset={() => setItineraries([])} />
-      {showPrivacy && <PrivacyPolicy visible={showPrivacy} onClose={() => setShowPrivacy(false)} />}
-      {showTerms && <TermsOfService visible={showTerms} onClose={() => setShowTerms(false)} />}
-      {showStats && <StatsScreen visible={showStats} onClose={() => setShowStats(false)} trips={trips} />}
-      {showCalendar && <CalendarView visible={showCalendar} onClose={() => setShowCalendar(false)}
-        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setShowCalendar(false); }} />}
-      <ItineraryManager visible={showItineraryManager} onClose={() => setShowItineraryManager(false)}
+      {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => setActiveModal('none')} />}
+      {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => setActiveModal('none')} />}
+      {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => setActiveModal('none')} trips={trips} />}
+      {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => setActiveModal('none')}
+        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setActiveModal('none'); }} />}
+      <ItineraryManager visible={activeModal === 'itineraryManager'} onClose={() => setActiveModal('none')}
         itineraries={itineraries} trips={trips}
         onCreateItinerary={handleCreateItinerary}
         onDeleteItinerary={handleDeleteItinerary}

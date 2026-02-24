@@ -6,6 +6,7 @@
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
+    "jsEngine": "hermes",
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
@@ -20,11 +21,28 @@
       "bundleIdentifier": "com.travelsphere.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to find places on the globe.",
-        "NSPhotoLibraryUsageDescription": "We need access to your photos to add memories to your trips."
+        "NSPhotoLibraryUsageDescription": "We need access to your photos to add memories to your trips.",
+        "NSCameraUsageDescription": "We need access to your camera to capture travel moments.",
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       }
     },
     "android": {
       "package": "com.travelsphere.app",
+      "targetSdkVersion": 34,
+      "compileSdkVersion": 34,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0a0f"

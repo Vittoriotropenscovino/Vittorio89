@@ -3,7 +3,7 @@
  * Globo 3D futuristico: hex/wireframe holografico con animazioni attraenti
  */
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { EarthGlobeProps, Trip } from '../types';
@@ -410,10 +410,14 @@ function updateTrips(t){
 </body>
 </html>`;
 
-export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showHomeLines }: EarthGlobeProps) {
+const ORIGIN_WHITELIST = ['https://*', 'about:*'];
+
+function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showHomeLines }: EarthGlobeProps) {
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
   const pendingTrips = useRef<Trip[]>([]);
+
+  const webViewSource = useMemo(() => ({ html: GLOBE_HTML, baseUrl: 'https://unpkg.com' }), []);
 
   const sendToWebView = useCallback((data: Record<string, unknown>) => {
     if (!webViewRef.current) return;
@@ -490,14 +494,15 @@ export default function EarthGlobe({ trips, onPinClick, targetCoordinates, homeL
     <View style={styles.container}>
       <WebView
         ref={webViewRef}
-        source={{ html: GLOBE_HTML, baseUrl: 'https://unpkg.com' }}
+        source={webViewSource}
         style={styles.webview}
         onMessage={handleMessage}
         javaScriptEnabled
         domStorageEnabled
-        originWhitelist={['https://*', 'about:*']}
+        originWhitelist={ORIGIN_WHITELIST}
         mixedContentMode="never"
-        allowFileAccess
+        allowFileAccess={false}
+        allowUniversalAccessFromFileURLs={false}
         scrollEnabled={false}
         overScrollMode="never"
         androidLayerType="hardware"
@@ -513,3 +518,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050510' },
   webview: { flex: 1, backgroundColor: '#050510' },
 });
+
+export default React.memo(EarthGlobe);

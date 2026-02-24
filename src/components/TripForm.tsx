@@ -295,6 +295,13 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const handleSubmit = async () => {
         if (!foundLocation) { Alert.alert(t('error') as string, t('searchLocation') as string); return; }
         if (!title.trim()) { Alert.alert(t('error') as string, t('enterTitle') as string); return; }
+        const lat = foundLocation.latitude;
+        const lng = foundLocation.longitude;
+        if (lat == null || lng == null || isNaN(lat) || isNaN(lng) ||
+            lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            Alert.alert(t('error') as string, t('invalidCoordinates') as string);
+            return;
+        }
         setIsSaving(true);
         try {
             const persistentMedia = await copyMediaToPersistentStorage(media);
