@@ -273,7 +273,7 @@ var hueColors=['255,107,107','0,220,255','139,92,246','16,185,129','245,158,11',
 
 // Clustering: raggruppa pin vicini in base allo zoom
 function computeClusters(points){
-  var minDist=1.5+5.0*_zoomFactor;
+  var minDist=3.0*_zoomFactor*_zoomFactor;
   var clusters=[];
   // Home sempre da solo
   for(var i=0;i<points.length;i++){
@@ -332,6 +332,19 @@ function updateTrips(t){
       dp.push({lat:cl.lat,lng:cl.lng,tripId:'__cluster_'+i,color:'rgba(0,220,255,0.95)',isHome:false,isCluster:true,clusterCount:cl.count});
       dr.push({lat:cl.lat,lng:cl.lng,ringColor:'0,220,255'});
       dl.push({lat:cl.lat,lng:cl.lng,tripId:'__cluster_'+i,label:cl.count+' viaggi',isHome:false,isCluster:true});
+    }
+  }
+  // Deconflict overlapping labels
+  var labelSep=0.15+0.5*_zoomFactor;
+  for(var i=0;i<dl.length;i++){
+    for(var j=i+1;j<dl.length;j++){
+      var dlt=dl[i].lat-dl[j].lat;
+      var dln=(dl[i].lng-dl[j].lng)*Math.cos(dl[i].lat*0.01745);
+      var dd=Math.sqrt(dlt*dlt+dln*dln);
+      if(dd<labelSep&&dd>0.001){
+        var push=(labelSep-dd)*0.55;
+        dl[i].lat+=push;dl[j].lat-=push;
+      }
     }
   }
   globe.pointsData(dp).ringsData(dr).labelsData(dl);

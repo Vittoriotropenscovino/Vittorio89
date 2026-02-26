@@ -71,11 +71,11 @@ const PrivacyPolicy: React.FC<Props> = ({ visible, onClose }) => {
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 550, width: '90%', maxHeight: '85%' },
-    content: { padding: 24, backgroundColor: 'rgba(15,15,20,0.85)' },
+    content: { padding: 24, backgroundColor: 'rgba(15,15,20,0.85)', flex: 1 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
-    scroll: { maxHeight: 400 },
+    scroll: { flex: 1 },
     updated: { color: '#6B7280', fontSize: 11, marginBottom: 16, fontStyle: 'italic' },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: '#60A5FA', marginTop: 16, marginBottom: 8 },
     body: { fontSize: 13, color: '#D1D5DB', lineHeight: 20 },
