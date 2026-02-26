@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, Modal, StyleSheet,
-    Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform,
+    Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform, Switch,
 } from 'react-native';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -40,6 +40,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const [foundCountry, setFoundCountry] = useState('');
     const [foundCountryCode, setFoundCountryCode] = useState('');
     const [selectedItineraryId, setSelectedItineraryId] = useState<string | undefined>(undefined);
+    const [showArc, setShowArc] = useState(false);
 
     const lastGeocodingTime = useRef(0);
 
@@ -54,6 +55,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             setFoundCountry(editTrip.country || '');
             setFoundCountryCode(editTrip.countryCode || '');
             setSelectedItineraryId(editTrip.itineraryId);
+            setShowArc(editTrip.showArc || false);
             setFoundLocation({
                 latitude: editTrip.latitude,
                 longitude: editTrip.longitude,
@@ -79,6 +81,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         setDateDay(new Date().getDate());
         setFoundCountry(''); setFoundCountryCode('');
         setSelectedItineraryId(undefined);
+        setShowArc(false);
     };
 
     const handleClose = () => { resetForm(); onClose(); };
@@ -319,6 +322,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 country: foundCountry || undefined,
                 countryCode: foundCountryCode || undefined,
                 itineraryId: selectedItineraryId,
+                showArc,
             });
             resetForm();
         } catch (error) {
@@ -441,6 +445,24 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         </View>
                                     </View>
                                 )}
+
+                                <View style={styles.section}>
+                                    <View style={styles.arcToggleRow}>
+                                        <View style={styles.arcToggleInfo}>
+                                            <Ionicons name="git-network-outline" size={18} color={showArc ? '#F59E0B' : '#6B7280'} />
+                                            <Text style={[styles.arcToggleLabel, showArc && { color: '#F59E0B' }]}>
+                                                {t('showArcToHome')}
+                                            </Text>
+                                        </View>
+                                        <Switch
+                                            value={showArc}
+                                            onValueChange={setShowArc}
+                                            trackColor={{ false: '#374151', true: 'rgba(245,158,11,0.4)' }}
+                                            thumbColor={showArc ? '#F59E0B' : '#6B7280'}
+                                            disabled={!foundLocation}
+                                        />
+                                    </View>
+                                </View>
 
                                 <View style={styles.section}>
                                     <Text style={styles.label}>{t('notes')}</Text>
@@ -599,6 +621,9 @@ const styles = StyleSheet.create({
     datePickerCancelText: { color: '#9CA3AF', fontSize: 15, fontWeight: '500' },
     datePickerConfirm: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#3B82F6' },
     datePickerConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    arcToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+    arcToggleInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    arcToggleLabel: { color: '#9CA3AF', fontSize: 14, fontWeight: '500' },
 });
 
 export default TripForm;

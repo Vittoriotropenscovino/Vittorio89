@@ -336,10 +336,23 @@ function updateTrips(t){
   }
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
 
-  // Generate arcs - ONLY for itineraries
+  // Generate arcs - home-to-trip (per-trip) + itineraries (global toggle)
   if(t.length>0){
     var a=[];
-    if(_itineraries&&_itineraries.length>0){
+    // Archi home→trip: solo per trip con showArc=true
+    if(_home){
+      var arcTrips=t.filter(function(x){return x.showArc;});
+      arcTrips.forEach(function(x){
+        var col=hueColors[t.indexOf(x)%hueColors.length];
+        a.push({
+          startLat:_home.latitude,startLng:_home.longitude,
+          endLat:x.latitude,endLng:x.longitude,
+          colors:['rgba(255,215,0,0.9)','rgba('+col+',0.6)']
+        });
+      });
+    }
+    // Archi itinerario (oro, controllati da toggle globale)
+    if(_showTravelLines&&_itineraries&&_itineraries.length>0){
       var tripMap={};
       t.forEach(function(x){tripMap[x.id]=x;});
       _itineraries.forEach(function(itin){
@@ -356,7 +369,7 @@ function updateTrips(t){
         }
       });
     }
-    globe.arcsData(_showTravelLines?a:[]);
+    globe.arcsData(a);
   }else globe.arcsData([]);
 
   // Floating particles
@@ -402,6 +415,7 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
       id: t.id, title: t.title, latitude: t.latitude,
       longitude: t.longitude, createdAt: t.createdAt,
       itineraryId: t.itineraryId,
+      showArc: t.showArc || false,
     }));
     const itinData = (itineraries || []).map((it) => ({
       id: it.id, name: it.name, tripIds: it.tripIds,
@@ -445,6 +459,7 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
             id: t.id, title: t.title, latitude: t.latitude,
             longitude: t.longitude, createdAt: t.createdAt,
             itineraryId: t.itineraryId,
+            showArc: t.showArc || false,
           })), itineraries: itinData });
           if (homeLocation) {
             sendToWebView({ type: 'updateHome', home: homeLocation });

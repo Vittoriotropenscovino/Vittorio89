@@ -25,6 +25,7 @@ export interface Trip {
     country?: string;
     countryCode?: string;
     itineraryId?: string;
+    showArc?: boolean;
 }
 
 // Itinerary - connects multiple trips

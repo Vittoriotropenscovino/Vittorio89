@@ -170,6 +170,7 @@ const it = {
   manageItineraries: 'Gestisci Itinerari',
   showTravelLines: 'Mostra Linee Viaggio',
   travelLinesDesc: 'Mostra le linee degli itinerari sul globo',
+  showArcToHome: 'Collega a Casa',
 };
 
 const en: typeof it = {
@@ -342,6 +343,7 @@ const en: typeof it = {
   manageItineraries: 'Manage Itineraries',
   showTravelLines: 'Show Travel Lines',
   travelLinesDesc: 'Show itinerary lines on the globe',
+  showArcToHome: 'Connect to Home',
 };
 
 export const translations: Record<Language, typeof it> = { it, en };
