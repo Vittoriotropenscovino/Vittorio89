@@ -57,7 +57,7 @@ export interface EarthGlobeProps {
     autoRotate?: boolean;
     homeLocation?: HomeLocation | null;
     itineraries?: Itinerary[];
-    showHomeLines?: boolean;
+    showTravelLines?: boolean;
 }
 
 // Trip Form Props - supports both create and edit mode

@@ -280,6 +280,10 @@ const AppContent: React.FC = () => {
 
   const handleSaveConfirmDone = useCallback(() => setShowSaveConfirm(false), []);
 
+  const handleToggleTravelLines = useCallback(() => {
+    updateSettings({ showTravelLines: !(settings.showTravelLines !== false) });
+  }, [settings.showTravelLines, updateSettings]);
+
   // Loading state
   if (!isSettingsLoaded || isLoading) {
     return (
@@ -326,7 +330,7 @@ const AppContent: React.FC = () => {
         targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
-        showHomeLines={settings.showHomeLines !== false}
+        showTravelLines={settings.showTravelLines !== false}
       />
 
       {/* Layer 1: UI overlay */}
@@ -401,6 +405,12 @@ const AppContent: React.FC = () => {
 
         {/* Add buttons */}
         <View style={styles.addButtonContainer}>
+          <TouchableOpacity
+            style={[styles.travelLinesButton, settings.showTravelLines === false && styles.travelLinesButtonOff]}
+            onPress={handleToggleTravelLines}
+          >
+            <Ionicons name="git-network-outline" size={20} color={settings.showTravelLines !== false ? '#F59E0B' : '#6B7280'} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.itineraryButton} onPress={() => setActiveModal('itineraryManager')}>
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
@@ -511,6 +521,14 @@ const styles = StyleSheet.create({
   welcomeText: { color: 'rgba(156,163,175,0.9)', fontSize: 12, lineHeight: 18 },
   welcomeArrow: { alignItems: 'flex-end', marginTop: 8 },
   addButtonContainer: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  travelLinesButton: {
+    backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 50, width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+    ...Platform.select({ android: { elevation: 12 } }),
+  },
+  travelLinesButtonOff: {
+    backgroundColor: 'rgba(107,114,128,0.15)', borderColor: 'rgba(107,114,128,0.3)',
+  },
   itineraryButton: {
     backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
     borderRadius: 50, width: 44, height: 44, justifyContent: 'center', alignItems: 'center',

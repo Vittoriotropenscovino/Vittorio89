@@ -26,7 +26,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 <div id="globeViz"></div>
 <div id="dbg">loading...</div>
 <script>
-var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showHomeLines=true,_visibleLabels={},_pointsData=[];
+var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_pointsData=[];
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -113,7 +113,7 @@ function go(countries){
       .pointLat('lat').pointLng('lng')
       .pointColor(function(d){return d.color||'#ff6b6b';})
       .pointAltitude(function(){return 0.01+0.04*_zoomFactor;})
-      .pointRadius(function(d){return d.isHome?0.25+0.2*_zoomFactor:0.12+0.18*_zoomFactor;})
+      .pointRadius(function(d){if(d.isHome)return 0.25+0.2*_zoomFactor;if(d.isCluster)return 0.2+0.06*d.clusterCount+0.2*_zoomFactor;return 0.12+0.18*_zoomFactor;})
       .pointResolution(8)
 
       // PULSING RINGS - dynamic size
@@ -130,10 +130,10 @@ function go(countries){
       // LABELS - dynamic size, hidden when zoomed out
       .labelsData([])
       .labelLat('lat').labelLng('lng')
-      .labelText(function(d){if(_zoomFactor>1.15)return '';if(!_visibleLabels[d.tripId])return '';return d.label;})
+      .labelText(function(d){if(_zoomFactor>1.15)return '';return d.label;})
       .labelSize(function(){return 0.2+0.35*_zoomFactor;})
       .labelDotRadius(function(){return 0.08+0.12*_zoomFactor;})
-      .labelColor(function(d){return d.isHome?'rgba(255,215,0,0.95)':'rgba(0,220,255,0.95)';})
+      .labelColor(function(d){if(d.isHome)return 'rgba(255,215,0,0.95)';if(d.isCluster)return 'rgba(0,220,255,1)';return 'rgba(0,220,255,0.95)';})
       .labelResolution(1)
       .labelAltitude(0.015)
 
@@ -238,11 +238,7 @@ function go(countries){
             // Adatta velocita rotazione allo zoom: lenta da vicino, normale da lontano
             c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
             if(_trips.length>0||_home){
-              // Ricalcola label visibili con nuovo zoom
-              if(_pointsData.length>0)_visibleLabels=computeVisibleLabels(_pointsData);
-              globe.pointsData(globe.pointsData());
-              globe.ringsData(globe.ringsData());
-              globe.labelsData(globe.labelsData());
+              updateTrips(_trips);
             }
           }
         }catch(ze){}
@@ -262,113 +258,87 @@ function go(countries){
   }catch(e){L('INIT ERR:'+e.message);}
 }
 
-function onPin(p){if(p&&p.tripId&&p.tripId!=='__home__')S({type:'pinClick',tripId:p.tripId});}
+function onPin(p){if(!p||!p.tripId)return;if(p.tripId.indexOf('__cluster_')===0){if(globe)globe.pointOfView({lat:p.lat,lng:p.lng,altitude:1.5},1000);return;}if(p.tripId!=='__home__')S({type:'pinClick',tripId:p.tripId});}
 function onMsg(e){try{handleCmd(JSON.parse(typeof e.data==='string'?e.data:''));}catch(x){}}
 function handleMessageFromRN(d){if(typeof d==='string'){try{d=JSON.parse(d);}catch(e){return;}}handleCmd(d);}
 function handleCmd(d){
   if(!d||!d.type)return;
   if(d.type==='updateTrips'){_itineraries=d.itineraries||[];updateTrips(d.trips);}
   else if(d.type==='updateHome'){_home=d.home||null;if(_trips.length>0)updateTrips(_trips);}
-  else if(d.type==='updateHomeLines'){_showHomeLines=d.show!==false;if(_trips.length>0)updateTrips(_trips);}
+  else if(d.type==='updateTravelLines'){_showTravelLines=d.show!==false;if(_trips.length>0)updateTrips(_trips);}
   else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.8},1500);
 }
 
 var hueColors=['255,107,107','0,220,255','139,92,246','16,185,129','245,158,11','236,72,153'];
 
-// Clustering: calcola quali label mostrare per evitare sovrapposizioni
-function computeVisibleLabels(points){
-  var minDist=1.0+4.0*_zoomFactor; // gradi - piu grande quando zoommato fuori
-  var vis={};
-  var visPos=[]; // cache posizioni visibili per confronto rapido
-  // Home sempre visibile
+// Clustering: raggruppa pin vicini in base allo zoom
+function computeClusters(points){
+  var minDist=1.5+5.0*_zoomFactor;
+  var clusters=[];
+  // Home sempre da solo
   for(var i=0;i<points.length;i++){
-    if(points[i].isHome){vis[points[i].tripId]=1;visPos.push({lat:points[i].lat,lng:points[i].lng});break;}
+    if(points[i].isHome){
+      clusters.push({lat:points[i].lat,lng:points[i].lng,count:1,members:[points[i]],isHome:true,color:points[i].color,ringColor:points[i].ringColor,label:points[i].label,tripId:points[i].tripId});
+      break;
+    }
   }
   for(var i=0;i<points.length;i++){
     var p=points[i];
     if(p.isHome)continue;
-    var dominated=false;
+    var bestCluster=-1,bestDist=minDist;
     var cosLat=Math.cos(p.lat*0.01745);
-    for(var k=0;k<visPos.length;k++){
-      var dlat=p.lat-visPos[k].lat;
-      var dlng=(p.lng-visPos[k].lng)*cosLat;
-      if(Math.sqrt(dlat*dlat+dlng*dlng)<minDist){dominated=true;break;}
+    for(var k=0;k<clusters.length;k++){
+      if(clusters[k].isHome)continue;
+      var dlat=p.lat-clusters[k].lat;
+      var dlng=(p.lng-clusters[k].lng)*cosLat;
+      var dist=Math.sqrt(dlat*dlat+dlng*dlng);
+      if(dist<bestDist){bestDist=dist;bestCluster=k;}
     }
-    if(!dominated){vis[p.tripId]=1;visPos.push({lat:p.lat,lng:p.lng});}
+    if(bestCluster>=0){
+      var c=clusters[bestCluster];
+      var w=c.count;
+      c.lat=(c.lat*w+p.lat)/(w+1);
+      c.lng=(c.lng*w+p.lng)/(w+1);
+      c.count++;
+      c.members.push(p);
+    }else{
+      clusters.push({lat:p.lat,lng:p.lng,count:1,members:[p],isHome:false,color:p.color,ringColor:p.ringColor,label:p.label,tripId:p.tripId});
+    }
   }
-  return vis;
+  return clusters;
 }
 
 function updateTrips(t){
   if(!globe||!t)return;_trips=t;
-  var p=t.map(function(x,i){
+  var rawPoints=t.map(function(x,i){
     var col=hueColors[i%hueColors.length];
     return{lat:x.latitude,lng:x.longitude,tripId:x.id,label:x.title,color:'rgb('+col+')',ringColor:col};
   });
-
-  // Add home pin if set
   if(_home){
-    p.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',color:'#FFD700',ringColor:'255,215,0',isHome:true});
+    rawPoints.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',color:'#FFD700',ringColor:'255,215,0',isHome:true});
   }
+  _pointsData=rawPoints;
 
-  _pointsData=p;
-  _visibleLabels=computeVisibleLabels(p);
-  globe.pointsData(p).ringsData(p).labelsData(p);
-
-  // Generate arcs - itinerary from home
-  if(t.length>0){
-    var s=t.slice().sort(function(a,b){return a.createdAt-b.createdAt;});
-    var a=[];
-
-    if(_home&&_showHomeLines){
-      // Smart filter: only connect home to trips WITHOUT an itinerary
-      var freeTrips=s.filter(function(x){return !x.itineraryId;});
-      if(freeTrips.length>0){
-        // Arc from home to first free trip
-        a.push({
-          startLat:_home.latitude,startLng:_home.longitude,
-          endLat:freeTrips[0].latitude,endLng:freeTrips[0].longitude,
-          colors:['rgba(255,215,0,0.9)','rgba('+hueColors[0]+',0.6)']
-        });
-        // Arcs between consecutive free trips
-        for(var i=0;i<freeTrips.length-1;i++){
-          var col1=hueColors[i%hueColors.length];
-          var col2=hueColors[(i+1)%hueColors.length];
-          a.push({
-            startLat:freeTrips[i].latitude,startLng:freeTrips[i].longitude,
-            endLat:freeTrips[i+1].latitude,endLng:freeTrips[i+1].longitude,
-            colors:['rgba('+col1+',0.9)','rgba('+col2+',0.4)']
-          });
-        }
-        // Arc from last free trip back to home
-        var lastCol=hueColors[(freeTrips.length-1)%hueColors.length];
-        a.push({
-          startLat:freeTrips[freeTrips.length-1].latitude,startLng:freeTrips[freeTrips.length-1].longitude,
-          endLat:_home.latitude,endLng:_home.longitude,
-          colors:['rgba('+lastCol+',0.6)','rgba(255,215,0,0.9)']
-        });
-      }
-    }else if(!_home){
-      // No home: consecutive arcs
-      for(var i=0;i<s.length-1;i++){
-        var col1=hueColors[i%hueColors.length];
-        var col2=hueColors[(i+1)%hueColors.length];
-        a.push({
-          startLat:s[i].latitude,startLng:s[i].longitude,
-          endLat:s[i+1].latitude,endLng:s[i+1].longitude,
-          colors:['rgba('+col1+',0.9)','rgba('+col2+',0.4)']
-        });
-      }
-      if(s.length>=3){
-        var lastCol=hueColors[(s.length-1)%hueColors.length];
-        a.push({
-          startLat:s[s.length-1].latitude,startLng:s[s.length-1].longitude,
-          endLat:s[0].latitude,endLng:s[0].longitude,
-          colors:['rgba('+lastCol+',0.6)','rgba('+hueColors[0]+',0.3)']
-        });
-      }
+  var clusters=computeClusters(rawPoints);
+  var dp=[],dr=[],dl=[];
+  for(var i=0;i<clusters.length;i++){
+    var cl=clusters[i];
+    if(cl.count===1){
+      var m=cl.members[0];
+      dp.push({lat:m.lat,lng:m.lng,tripId:m.tripId,color:m.color,isHome:m.isHome||false,isCluster:false,clusterCount:1});
+      dr.push({lat:m.lat,lng:m.lng,ringColor:m.ringColor});
+      dl.push({lat:m.lat,lng:m.lng,tripId:m.tripId,label:m.label,isHome:m.isHome||false,isCluster:false});
+    }else{
+      dp.push({lat:cl.lat,lng:cl.lng,tripId:'__cluster_'+i,color:'rgba(0,220,255,0.95)',isHome:false,isCluster:true,clusterCount:cl.count});
+      dr.push({lat:cl.lat,lng:cl.lng,ringColor:'0,220,255'});
+      dl.push({lat:cl.lat,lng:cl.lng,tripId:'__cluster_'+i,label:cl.count+' viaggi',isHome:false,isCluster:true});
     }
-    // Add itinerary arcs (gold, thicker)
+  }
+  globe.pointsData(dp).ringsData(dr).labelsData(dl);
+
+  // Generate arcs - ONLY for itineraries
+  if(t.length>0){
+    var a=[];
     if(_itineraries&&_itineraries.length>0){
       var tripMap={};
       t.forEach(function(x){tripMap[x.id]=x;});
@@ -386,7 +356,7 @@ function updateTrips(t){
         }
       });
     }
-    globe.arcsData(a);
+    globe.arcsData(_showTravelLines?a:[]);
   }else globe.arcsData([]);
 
   // Floating particles
@@ -412,7 +382,7 @@ function updateTrips(t){
 
 const ORIGIN_WHITELIST = ['https://*', 'about:*'];
 
-function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showHomeLines }: EarthGlobeProps) {
+function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines }: EarthGlobeProps) {
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
   const pendingTrips = useRef<Trip[]>([]);
@@ -451,9 +421,9 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
 
   useEffect(() => {
     if (isReady.current) {
-      sendToWebView({ type: 'updateHomeLines', show: showHomeLines !== false });
+      sendToWebView({ type: 'updateTravelLines', show: showTravelLines !== false });
     }
-  }, [showHomeLines, sendToWebView]);
+  }, [showTravelLines, sendToWebView]);
 
   useEffect(() => {
     if (targetCoordinates && isReady.current) {
@@ -479,7 +449,7 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
           if (homeLocation) {
             sendToWebView({ type: 'updateHome', home: homeLocation });
           }
-          sendToWebView({ type: 'updateHomeLines', show: showHomeLines !== false });
+          sendToWebView({ type: 'updateTravelLines', show: showTravelLines !== false });
           pendingTrips.current = [];
         } else if (data.type === 'pinClick') {
           const trip = trips.find((t) => t.id === data.tripId);
@@ -487,7 +457,7 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
         }
       } catch (e) {}
     },
-    [trips, itineraries, onPinClick, sendToWebView, homeLocation, showHomeLines]
+    [trips, itineraries, onPinClick, sendToWebView, homeLocation, showTravelLines]
   );
 
   return (

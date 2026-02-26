@@ -11,7 +11,7 @@ export interface AppSettings {
   hasSeenOnboarding: boolean;
   hasAcceptedGDPR: boolean;
   homeLocation?: HomeLocation;
-  showHomeLines?: boolean;
+  showTravelLines?: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -50,7 +50,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const stored = await AsyncStorage.getItem(SETTINGS_KEY);
         if (stored) {
-          setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
+          const parsed = JSON.parse(stored);
+          if (parsed.showHomeLines !== undefined && parsed.showTravelLines === undefined) {
+            parsed.showTravelLines = parsed.showHomeLines;
+            delete parsed.showHomeLines;
+          }
+          setSettings({ ...DEFAULT_SETTINGS, ...parsed });
         }
       } catch (e) {
         console.error('Error loading settings:', e);
