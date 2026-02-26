@@ -26,6 +26,7 @@ export interface Trip {
     countryCode?: string;
     itineraryId?: string;
     showArc?: boolean;
+    isWishlist?: boolean;
 }
 
 // Itinerary - connects multiple trips
@@ -59,6 +60,8 @@ export interface EarthGlobeProps {
     homeLocation?: HomeLocation | null;
     itineraries?: Itinerary[];
     showTravelLines?: boolean;
+    visitedCountries?: string[];
+    flythroughStops?: { lat: number; lng: number }[] | null;
 }
 
 // Trip Form Props - supports both create and edit mode

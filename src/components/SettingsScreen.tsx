@@ -9,6 +9,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../contexts/AppContext';
 import { Trip } from '../types';
 import StorageService from '../services/StorageService';
@@ -39,9 +40,10 @@ const SettingsScreen: React.FC<Props> = ({
             const canShare = await Sharing.isAvailableAsync();
             if (canShare) {
                 await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'TravelSphere Backup' });
+            } else {
+                Alert.alert('', t('exportSuccess') as string);
             }
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('', t('exportSuccess') as string);
         } catch (e) {
             console.error('Export error:', e);
             Alert.alert(t('error') as string, String(e));
@@ -49,12 +51,40 @@ const SettingsScreen: React.FC<Props> = ({
     };
 
     const handleImport = async () => {
-        Alert.alert(
-            t('importData') as string,
-            language === 'it'
-                ? 'Per importare, condividi il file .json di backup con TravelSphere'
-                : 'To import, share the backup .json file with TravelSphere',
-        );
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+            });
+            if (result.canceled || !result.assets || result.assets.length === 0) return;
+            const fileUri = result.assets[0].uri;
+            const content = await FileSystem.readAsStringAsync(fileUri);
+            const parsed = JSON.parse(content);
+            if (parsed.trips && Array.isArray(parsed.trips)) {
+                Alert.alert(
+                    t('importData') as string,
+                    language === 'it'
+                        ? `Trovati ${parsed.trips.length} viaggi. Vuoi importarli?`
+                        : `Found ${parsed.trips.length} trips. Import them?`,
+                    [
+                        { text: t('cancel') as string, style: 'cancel' },
+                        {
+                            text: t('confirm') as string,
+                            onPress: () => {
+                                onTripsUpdate(parsed.trips);
+                                if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                Alert.alert('', t('importSuccess') as string);
+                            },
+                        },
+                    ],
+                );
+            } else {
+                Alert.alert(t('error') as string, t('importError') as string);
+            }
+        } catch (e) {
+            console.error('Import error:', e);
+            Alert.alert(t('error') as string, t('importError') as string);
+        }
     };
 
     const handleDeleteAll = () => {
@@ -97,7 +127,18 @@ const SettingsScreen: React.FC<Props> = ({
     };
 
     const handleCloudBackup = async () => {
-        await handleExport();
+        try {
+            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+            const backupDir = FileSystem.documentDirectory + 'backups/';
+            const dirInfo = await FileSystem.getInfoAsync(backupDir);
+            if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(backupDir, { intermediates: true });
+            const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            await FileSystem.writeAsStringAsync(backupDir + filename, data);
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('', t('backupSuccess') as string);
+        } catch (e) {
+            Alert.alert(t('error') as string, String(e));
+        }
     };
 
     const handleSearchHome = async () => {

@@ -20,6 +20,7 @@
     "expo-asset": "~11.0.5",
     "expo-av": "~15.0.0",
     "expo-blur": "~14.0.0",
+    "expo-document-picker": "^55.0.8",
     "expo-file-system": "~18.0.0",
     "expo-font": "~13.0.4",
     "expo-haptics": "~14.0.1",

@@ -171,6 +171,19 @@ const it = {
   showTravelLines: 'Mostra Linee Viaggio',
   travelLinesDesc: 'Mostra le linee degli itinerari sul globo',
   showArcToHome: 'Collega a Casa',
+  // Wishlist
+  wishlist: 'Lista Desideri',
+  wishlistTrip: 'Viaggio Desiderato',
+  markAsWishlist: 'Viaggio futuro',
+  wishlistDesc: 'Segna come luogo che vuoi visitare',
+  // EXIF
+  exifAutoFill: 'Dati rilevati dalla foto!',
+  exifLocationFound: 'Posizione trovata dalla foto',
+  // Flythrough
+  playFlythrough: 'Anima Itinerario',
+  flythroughPlaying: 'Animazione in corso...',
+  // Fog of War
+  countriesExplored: 'Paesi Esplorati',
 };
 
 const en: typeof it = {
@@ -344,6 +357,19 @@ const en: typeof it = {
   showTravelLines: 'Show Travel Lines',
   travelLinesDesc: 'Show itinerary lines on the globe',
   showArcToHome: 'Connect to Home',
+  // Wishlist
+  wishlist: 'Wishlist',
+  wishlistTrip: 'Wishlist Trip',
+  markAsWishlist: 'Future trip',
+  wishlistDesc: 'Mark as a place you want to visit',
+  // EXIF
+  exifAutoFill: 'Data detected from photo!',
+  exifLocationFound: 'Location found from photo',
+  // Flythrough
+  playFlythrough: 'Animate Itinerary',
+  flythroughPlaying: 'Animation playing...',
+  // Fog of War
+  countriesExplored: 'Countries Explored',
 };
 
 export const translations: Record<Language, typeof it> = { it, en };

@@ -17,11 +17,12 @@ interface Props {
     onCreateItinerary: (name: string) => void;
     onDeleteItinerary: (id: string) => void;
     onRenameItinerary: (id: string, newName: string) => void;
+    onFlythrough?: (stops: { lat: number; lng: number }[]) => void;
 }
 
 const ItineraryManager: React.FC<Props> = ({
     visible, onClose, itineraries, trips,
-    onCreateItinerary, onDeleteItinerary, onRenameItinerary,
+    onCreateItinerary, onDeleteItinerary, onRenameItinerary, onFlythrough,
 }) => {
     const { t } = useApp();
     const [newName, setNewName] = useState('');
@@ -134,6 +135,19 @@ const ItineraryManager: React.FC<Props> = ({
                                                         {itTrips.length} {t('itineraryTrips')}
                                                     </Text>
                                                 </View>
+                                                {itTrips.length >= 2 && onFlythrough && (
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(16,185,129,0.15)', borderRadius: 8 }]}
+                                                        onPress={() => {
+                                                            const stops = itTrips.map(tr => ({ lat: tr.latitude, lng: tr.longitude }));
+                                                            onFlythrough(stops);
+                                                            onClose();
+                                                        }}
+                                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    >
+                                                        <Ionicons name="play" size={16} color="#10B981" />
+                                                    </TouchableOpacity>
+                                                )}
                                                 <TouchableOpacity
                                                     style={styles.actionBtn}
                                                     onPress={() => handleStartRename(itinerary)}

@@ -41,6 +41,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const [foundCountryCode, setFoundCountryCode] = useState('');
     const [selectedItineraryId, setSelectedItineraryId] = useState<string | undefined>(undefined);
     const [showArc, setShowArc] = useState(false);
+    const [isWishlist, setIsWishlist] = useState(false);
 
     const lastGeocodingTime = useRef(0);
 
@@ -56,6 +57,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             setFoundCountryCode(editTrip.countryCode || '');
             setSelectedItineraryId(editTrip.itineraryId);
             setShowArc(editTrip.showArc || false);
+            setIsWishlist(editTrip.isWishlist || false);
             setFoundLocation({
                 latitude: editTrip.latitude,
                 longitude: editTrip.longitude,
@@ -82,6 +84,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         setFoundCountry(''); setFoundCountryCode('');
         setSelectedItineraryId(undefined);
         setShowArc(false);
+        setIsWishlist(false);
     };
 
     const handleClose = () => { resetForm(); onClose(); };
@@ -178,8 +181,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             if (httpResult) {
                 setFoundLocation({ latitude: httpResult.lat, longitude: httpResult.lon, displayName: httpResult.name });
                 if ('country' in httpResult && httpResult.country) {
-                    setFoundCountry(httpResult.country);
-                    setFoundCountryCode(httpResult.countryCode || '');
+                    setFoundCountry(String(httpResult.country));
+                    setFoundCountryCode(String((httpResult as any).countryCode || ''));
                 }
                 if (!title) setTitle(locationQuery);
                 return;
@@ -247,6 +250,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
                 allowsMultipleSelection: true, quality: 0.8, aspect: [16, 9],
+                exif: true,
             });
             if (!result.canceled && result.assets) {
                 const newMedia: MediaItem[] = result.assets.map((asset) => ({
@@ -254,6 +258,58 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                     width: asset.width, height: asset.height,
                 }));
                 setMedia((prev) => [...prev, ...newMedia]);
+
+                // EXIF auto-fill: extract GPS and date from first image with EXIF data
+                if (!foundLocation) {
+                    for (const asset of result.assets) {
+                        const exif = (asset as any).exif;
+                        if (exif) {
+                            // Try GPS coordinates
+                            const gpsLat = exif.GPSLatitude;
+                            const gpsLng = exif.GPSLongitude;
+                            if (gpsLat && gpsLng && !isNaN(gpsLat) && !isNaN(gpsLng)) {
+                                const lat = exif.GPSLatitudeRef === 'S' ? -Math.abs(gpsLat) : Math.abs(gpsLat);
+                                const lng = exif.GPSLongitudeRef === 'W' ? -Math.abs(gpsLng) : Math.abs(gpsLng);
+                                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                                    // Reverse geocode to get location name
+                                    try {
+                                        const res = await fetchWithTimeout(
+                                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+                                        );
+                                        const data = await res.json();
+                                        if (data && data.display_name) {
+                                            const parts = data.display_name.split(', ');
+                                            const name = parts.slice(0, 3).join(', ');
+                                            setFoundLocation({ latitude: lat, longitude: lng, displayName: name });
+                                            setLocationQuery(name);
+                                            if (!title) setTitle(parts[0] || name);
+                                            if (data.address) {
+                                                setFoundCountry(data.address.country || '');
+                                                setFoundCountryCode((data.address.country_code || '').toUpperCase());
+                                            }
+                                            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                            Alert.alert('', t('exifAutoFill') as string);
+                                        }
+                                    } catch { /* reverse geocode failed */ }
+                                }
+                            }
+                            // Try date from EXIF
+                            if (!date && exif.DateTimeOriginal) {
+                                const dtStr = String(exif.DateTimeOriginal);
+                                // Format: "2024:06:15 14:30:00" or "2024-06-15T14:30:00"
+                                const match = dtStr.match(/(\d{4})[:\-](\d{2})[:\-](\d{2})/);
+                                if (match) {
+                                    const exifDate = `${match[1]}-${match[2]}-${match[3]}`;
+                                    setDate(exifDate);
+                                    setDateYear(parseInt(match[1], 10));
+                                    setDateMonth(parseInt(match[2], 10) - 1);
+                                    setDateDay(parseInt(match[3], 10));
+                                }
+                            }
+                            break; // Only use EXIF from first image with data
+                        }
+                    }
+                }
             }
         } catch (error) {
             Alert.alert(t('error') as string, t('galleryPermission') as string);
@@ -323,6 +379,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 countryCode: foundCountryCode || undefined,
                 itineraryId: selectedItineraryId,
                 showArc,
+                isWishlist,
             });
             resetForm();
         } catch (error) {
@@ -459,6 +516,30 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                             onValueChange={setShowArc}
                                             trackColor={{ false: '#374151', true: 'rgba(245,158,11,0.4)' }}
                                             thumbColor={showArc ? '#F59E0B' : '#6B7280'}
+                                            disabled={!foundLocation}
+                                        />
+                                    </View>
+                                </View>
+
+                                {/* Wishlist toggle */}
+                                <View style={styles.section}>
+                                    <View style={[styles.arcToggleRow, isWishlist && { borderColor: 'rgba(236,72,153,0.3)', backgroundColor: 'rgba(236,72,153,0.08)' }]}>
+                                        <View style={styles.arcToggleInfo}>
+                                            <Ionicons name="heart-outline" size={18} color={isWishlist ? '#EC4899' : '#6B7280'} />
+                                            <View>
+                                                <Text style={[styles.arcToggleLabel, isWishlist && { color: '#EC4899' }]}>
+                                                    {t('markAsWishlist')}
+                                                </Text>
+                                                <Text style={{ color: '#6B7280', fontSize: 10, marginTop: 2 }}>
+                                                    {t('wishlistDesc')}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <Switch
+                                            value={isWishlist}
+                                            onValueChange={setIsWishlist}
+                                            trackColor={{ false: '#374151', true: 'rgba(236,72,153,0.4)' }}
+                                            thumbColor={isWishlist ? '#EC4899' : '#6B7280'}
                                             disabled={!foundLocation}
                                         />
                                     </View>

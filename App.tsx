@@ -46,6 +46,8 @@ const AppContent: React.FC = () => {
   // Save confirmation
   const [saveMsg, setSaveMsg] = useState('');
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  // Flythrough animation
+  const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
 
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -55,6 +57,15 @@ const AppContent: React.FC = () => {
     const totalMedia = trips.reduce((sum, tr) => sum + tr.media.length, 0);
     const uniqueLocations = new Set(trips.map((tr) => tr.locationName.split(',').pop()?.trim())).size;
     return { totalMedia, uniqueLocations };
+  }, [trips]);
+
+  // Fog of War - compute visited country codes from trips
+  const visitedCountries = useMemo(() => {
+    const codes = new Set<string>();
+    trips.forEach((tr) => {
+      if (tr.countryCode && !tr.isWishlist) codes.add(tr.countryCode);
+    });
+    return Array.from(codes);
   }, [trips]);
 
   // Pulse animation for empty state
@@ -331,6 +342,8 @@ const AppContent: React.FC = () => {
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
         showTravelLines={settings.showTravelLines !== false}
+        visitedCountries={visitedCountries}
+        flythroughStops={flythroughStops}
       />
 
       {/* Layer 1: UI overlay */}
@@ -452,7 +465,8 @@ const AppContent: React.FC = () => {
         itineraries={itineraries} trips={trips}
         onCreateItinerary={handleCreateItinerary}
         onDeleteItinerary={handleDeleteItinerary}
-        onRenameItinerary={handleRenameItinerary} />
+        onRenameItinerary={handleRenameItinerary}
+        onFlythrough={(stops) => { setFlythroughStops(stops); setTimeout(() => setFlythroughStops(null), 500); }} />
     </View>
   );
 };
