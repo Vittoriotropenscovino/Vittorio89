@@ -124,7 +124,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         return null;
     };
 
-    const geocodeWithPhoton = async (query: string): Promise<{ lat: number; lon: number; name: string } | null> => {
+    const geocodeWithPhoton = async (query: string): Promise<{ lat: number; lon: number; name: string; country?: string; countryCode?: string } | null> => {
         try {
             const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=${language === 'it' ? 'it' : 'en'}`;
             const response = await fetchWithTimeout(url);
@@ -135,7 +135,11 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 const [lon, lat] = f.geometry.coordinates;
                 const pr = f.properties;
                 const parts = [pr.name, pr.state || pr.county, pr.country].filter(Boolean);
-                return { lat, lon, name: parts.slice(0, 3).join(', ') };
+                return {
+                    lat, lon, name: parts.slice(0, 3).join(', '),
+                    country: pr.country || '',
+                    countryCode: (pr.countrycode || '').toUpperCase(),
+                };
             }
         } catch { /* photon failed */ }
         return null;
