@@ -48,6 +48,8 @@ const AppContent: React.FC = () => {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   // Flythrough animation
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
+  // Auto-fly to newly saved trip
+  const [autoFlyTarget, setAutoFlyTarget] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -181,6 +183,14 @@ const AppContent: React.FC = () => {
     })();
   }, [isSettingsLoaded, settings.biometricEnabled, t]);
 
+  // Clear autoFlyTarget after it's been consumed
+  useEffect(() => {
+    if (autoFlyTarget) {
+      const timer = setTimeout(() => setAutoFlyTarget(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFlyTarget]);
+
   const generateId = useCallback((): string => {
     return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
   }, []);
@@ -215,6 +225,8 @@ const AppContent: React.FC = () => {
     setActiveModal('none');
     setSaveMsg(t('saved') as string);
     setShowSaveConfirm(true);
+    // Fly globe to the saved trip location
+    setAutoFlyTarget({ latitude: tripData.latitude, longitude: tripData.longitude });
   }, [editingTrip, generateId, t]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
@@ -338,7 +350,7 @@ const AppContent: React.FC = () => {
       <EarthGlobe
         trips={trips}
         onPinClick={(trip) => setSelectedTrip(trip)}
-        targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : null}
+        targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
         showTravelLines={settings.showTravelLines !== false}

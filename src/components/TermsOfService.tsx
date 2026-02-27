@@ -18,14 +18,16 @@ const TermsOfService: React.FC<Props> = ({ visible, onClose }) => {
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, { height: screenH * 0.82 }]}>
-                        <View style={styles.header}>
-                            <Ionicons name="document-text" size={24} color="#00d4ff" />
-                            <Text style={styles.title}>{t('termsOfService')}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#9CA3AF" />
-                            </TouchableOpacity>
+                        <View style={styles.headerWrap}>
+                            <View style={styles.header}>
+                                <Ionicons name="document-text" size={24} color="#00d4ff" />
+                                <Text style={styles.title}>{t('termsOfService')}</Text>
+                                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                                    <Ionicons name="close" size={24} color="#9CA3AF" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <ScrollView style={styles.scroll} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 30 }}>
+                        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={true} nestedScrollEnabled={true} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
                             <Text style={styles.updated}>{isIT ? 'Ultimo aggiornamento: Febbraio 2026' : 'Last updated: February 2026'}</Text>
 
                             <Text style={styles.sectionTitle}>{isIT ? '1. Accettazione' : '1. Acceptance'}</Text>
@@ -71,7 +73,8 @@ const TermsOfService: React.FC<Props> = ({ visible, onClose }) => {
 
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 550, width: '90%', padding: 24, backgroundColor: 'rgba(15,15,20,0.95)' },
+    card: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 550, width: '90%', backgroundColor: 'rgba(15,15,20,0.95)' },
+    headerWrap: { paddingTop: 24, paddingHorizontal: 24 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
