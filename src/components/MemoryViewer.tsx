@@ -6,6 +6,7 @@ import {
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import { MemoryViewerProps, MediaItem } from '../types';
 import { useApp } from '../contexts/AppContext';
 
@@ -110,7 +111,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 
     return (
         <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
-            <View style={styles.overlay}>
+            <BlurView intensity={25} tint="dark" style={styles.overlay}>
                 {/* Header */}
                 <View style={styles.headerBar}>
                     <View style={styles.tripInfoRow}>
@@ -194,13 +195,13 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                         />
                     </View>
                 )}
-            </View>
+            </BlurView>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(3,3,12,0.97)' },
+    overlay: { flex: 1, backgroundColor: 'rgba(3,3,12,0.85)' },
     headerBar: {
         paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10,
         borderBottomWidth: 1, borderBottomColor: 'rgba(0,212,255,0.1)',

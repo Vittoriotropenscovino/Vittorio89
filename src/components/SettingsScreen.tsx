@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
@@ -199,7 +200,7 @@ const SettingsScreen: React.FC<Props> = ({
 
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
-            <View style={styles.overlay}>
+            <BlurView intensity={30} tint="dark" style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
                             <Ionicons name="settings" size={24} color="#00d4ff" />
@@ -313,13 +314,13 @@ const SettingsScreen: React.FC<Props> = ({
                             <View style={{ height: 20 }} />
                         </ScrollView>
                 </View>
-            </View>
+            </BlurView>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 480, width: '88%', maxHeight: '92%' },
     content: { flex: 1, padding: 24, backgroundColor: 'rgba(15,15,20,0.85)' },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },

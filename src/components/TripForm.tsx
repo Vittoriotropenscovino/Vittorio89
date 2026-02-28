@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { MEDIA_DIR } from '../services/StorageService';
@@ -403,7 +404,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     return (
         <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
-            <View style={styles.overlay}>
+            <BlurView intensity={30} tint="dark" style={styles.overlay}>
                 <View style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer]}>
                         <View style={styles.header}>
                             <View style={styles.headerTitle}>
@@ -652,13 +653,13 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                         </View>
                     </Modal>
                 )}
-            </View>
+            </BlurView>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
     blurContainer: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     formContainer: { padding: 20, backgroundColor: 'rgba(15,15,20,0.7)' },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

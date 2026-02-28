@@ -8,6 +8,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppProvider, useApp } from './src/contexts/AppContext';
@@ -420,6 +421,7 @@ const AppContent: React.FC = () => {
         {trips.length === 0 && (
           <View style={styles.welcomeOverlay} pointerEvents="box-none">
             <View style={styles.welcomeCard}>
+              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
               <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
               <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
               <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
@@ -538,8 +540,9 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 14, backgroundColor: 'rgba(0,212,255,0.2)' },
   welcomeOverlay: { position: 'absolute', bottom: 100, right: 20, alignItems: 'flex-end' },
   welcomeCard: {
-    backgroundColor: 'rgba(5,5,20,0.75)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
+    backgroundColor: 'rgba(5,5,20,0.4)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
     borderRadius: 16, paddingHorizontal: 20, paddingVertical: 16, maxWidth: 260,
+    overflow: 'hidden',
     ...Platform.select({ android: { elevation: 12 } }),
   },
   welcomeIconRow: { marginBottom: 8 },
@@ -561,9 +564,10 @@ const styles = StyleSheet.create({
     ...Platform.select({ android: { elevation: 12 } }),
   },
   addButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#3B82F6',
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#00d4ff',
     borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24,
-    borderWidth: 1, borderColor: 'rgba(0,212,255,0.3)',
+    borderWidth: 1, borderColor: 'rgba(0,212,255,0.5)',
+    shadowColor: '#00d4ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12,
     ...Platform.select({ android: { elevation: 12 } }),
   },
   addButtonText: { color: '#fff', fontWeight: '600' },
