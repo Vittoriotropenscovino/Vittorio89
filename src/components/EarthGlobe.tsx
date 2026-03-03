@@ -31,7 +31,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 <script>
 var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_scanAnimId=0;
 var _visitedCountries=[],_countryFeatures=[],_flythroughActive=false;
-var _index=null,_spiderfied=false,_spiderArcs=[];
+var _currentAltitude=2.5;
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -64,7 +64,6 @@ window.onerror=function(m){S({type:'log',message:'ERR:'+m});return true;};
 var _isoToNumeric={AF:'004',AL:'008',DZ:'012',AD:'020',AO:'024',AG:'028',AR:'032',AM:'051',AU:'036',AT:'040',AZ:'031',BS:'044',BH:'048',BD:'050',BB:'052',BY:'112',BE:'056',BZ:'084',BJ:'204',BT:'064',BO:'068',BA:'070',BW:'072',BR:'076',BN:'096',BG:'100',BF:'854',BI:'108',KH:'116',CM:'120',CA:'124',CV:'132',CF:'140',TD:'148',CL:'152',CN:'156',CO:'170',KM:'174',CG:'178',CD:'180',CR:'188',CI:'384',HR:'191',CU:'192',CY:'196',CZ:'203',DK:'208',DJ:'262',DM:'212',DO:'214',EC:'218',EG:'818',SV:'222',GQ:'226',ER:'232',EE:'233',SZ:'748',ET:'231',FJ:'242',FI:'246',FR:'250',GA:'266',GM:'270',GE:'268',DE:'276',GH:'288',GR:'300',GD:'308',GT:'320',GN:'324',GW:'624',GY:'328',HT:'332',HN:'340',HU:'348',IS:'352',IN:'356',ID:'360',IR:'364',IQ:'368',IE:'372',IL:'376',IT:'380',JM:'388',JP:'392',JO:'400',KZ:'398',KE:'404',KI:'296',KP:'408',KR:'410',KW:'414',KG:'417',LA:'418',LV:'428',LB:'422',LS:'426',LR:'430',LY:'434',LI:'438',LT:'440',LU:'442',MG:'450',MW:'454',MY:'458',MV:'462',ML:'466',MT:'470',MH:'584',MR:'478',MU:'480',MX:'484',FM:'583',MD:'498',MC:'492',MN:'496',ME:'499',MA:'504',MZ:'508',MM:'104',NA:'516',NR:'520',NP:'524',NL:'528',NZ:'554',NI:'558',NE:'562',NG:'566',MK:'807',NO:'578',OM:'512',PK:'586',PW:'585',PS:'275',PA:'591',PG:'598',PY:'600',PE:'604',PH:'608',PL:'616',PT:'620',QA:'634',RO:'642',RU:'643',RW:'646',KN:'659',LC:'662',VC:'670',WS:'882',SM:'674',ST:'678',SA:'682',SN:'686',RS:'688',SC:'690',SL:'694',SG:'702',SK:'703',SI:'705',SB:'090',SO:'706',ZA:'710',SS:'728',ES:'724',LK:'144',SD:'729',SR:'740',SE:'752',CH:'756',SY:'760',TW:'158',TJ:'762',TZ:'834',TH:'764',TL:'626',TG:'768',TO:'776',TT:'780',TN:'788',TR:'792',TM:'795',TV:'798',UG:'800',UA:'804',AE:'784',GB:'826',US:'840',UY:'858',UZ:'860',VU:'548',VA:'336',VE:'862',VN:'704',YE:'887',ZM:'894',ZW:'716',XK:'926',GL:'304'};
 
 L('loading libs...');
-loadJS('https://unpkg.com/supercluster@8/dist/supercluster.min.js',function(){
 loadJS('https://unpkg.com/topojson-client@3/dist/topojson-client.min.js',function(){
 loadJS('https://unpkg.com/globe.gl@2/dist/globe.gl.min.js',function(){
   if(typeof Globe==='undefined'){L('Globe.gl fail');return;}
@@ -86,7 +85,6 @@ loadJS('https://unpkg.com/globe.gl@2/dist/globe.gl.min.js',function(){
       L('map fail, no countries');
       go({type:'FeatureCollection',features:[]});
     });
-});
 });
 });
 
@@ -147,7 +145,7 @@ function go(countries){
       })
       .polygonAltitude(0.009)
 
-      // TRIP MARKERS - ALL RED, clusters bigger
+      // TRIP MARKERS
       .pointsData([])
       .pointLat('lat').pointLng('lng')
       .pointColor(function(d){
@@ -156,12 +154,10 @@ function go(countries){
         return '#EF4444';
       })
       .pointAltitude(function(d){
-        if(d.isCluster)return 0.01+0.06*_zoomFactor;
         return 0.01+0.04*_zoomFactor;
       })
       .pointRadius(function(d){
         if(d.isHome)return 0.25+0.2*_zoomFactor;
-        if(d.isCluster){var s=Math.min(d.clusterCount,20);return 0.3+0.03*s+0.2*_zoomFactor;}
         return 0.12+0.18*_zoomFactor;
       })
       .pointResolution(8)
@@ -177,31 +173,27 @@ function go(countries){
       .ringPropagationSpeed(2.5)
       .ringRepeatPeriod(1200)
 
-      // LABELS - cluster count or trip title
+      // LABELS - trip title (visible only when zoomed in)
       .labelsData([])
       .labelLat('lat').labelLng('lng')
       .labelText(function(d){
-        if(d.isCluster)return d.label;
-        if(_zoomFactor>1.15)return '';
+        if(d.isHome)return d.label;
+        if(_currentAltitude>0.8)return '';
         return d.label;
       })
       .labelSize(function(d){
-        if(d.isCluster)return 0.5+0.5*_zoomFactor;
         return 0.2+0.35*_zoomFactor;
       })
       .labelDotRadius(function(d){
-        if(d.isCluster)return 0;
         return 0.08+0.12*_zoomFactor;
       })
       .labelColor(function(d){
         if(d.isHome)return 'rgba(255,215,0,0.95)';
-        if(d.isCluster)return 'rgba(255,255,255,1)';
         if(d.isWishlist)return 'rgba(236,72,153,0.95)';
         return 'rgba(255,255,255,0.95)';
       })
       .labelResolution(1)
-      .labelAltitude(function(d){
-        if(d.isCluster)return 0.025+0.06*_zoomFactor;
+      .labelAltitude(function(){
         return 0.015;
       })
 
@@ -302,7 +294,7 @@ function go(countries){
     c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
     c.addEventListener('end',function(){if(_idleTimer)clearTimeout(_idleTimer);_idleTimer=setTimeout(function(){if(!_flythroughActive)c.autoRotate=true;},7000);});
 
-    // === ZOOM-ADAPTIVE CLUSTERING ===
+    // === ZOOM-ADAPTIVE RENDERING ===
     try{
       var lastZoomUpdate=0;
       c.addEventListener('change',function(){
@@ -312,10 +304,13 @@ function go(countries){
         try{
           var dist=c.object.position.length();
           var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
-          if(Math.abs(f-_zoomFactor)>0.03){
+          var alt=globe.pointOfView().altitude;
+          var altChanged=(Math.abs(alt-_currentAltitude)>0.05);
+          _currentAltitude=alt;
+          if(Math.abs(f-_zoomFactor)>0.03||altChanged){
             _zoomFactor=f;
             c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
-            renderClusters();
+            renderPins();
           }
         }catch(ze){}
       });
@@ -334,98 +329,13 @@ function go(countries){
   }catch(e){L('INIT ERR:'+e.message);}
 }
 
-function clearSpiderfy(){
-  if(_spiderfied){_spiderfied=false;_spiderArcs=[];renderClusters();}
-}
-
-function shouldSpiderfy(clusterId){
-  try{
-    var leaves=_index.getLeaves(clusterId,Infinity);
-    if(leaves.length<2||leaves.length>12)return false;
-    var lats=leaves.map(function(l){return l.geometry.coordinates[1];});
-    var lngs=leaves.map(function(l){return l.geometry.coordinates[0];});
-    var latSpread=Math.max.apply(null,lats)-Math.min.apply(null,lats);
-    var lngSpread=Math.max.apply(null,lngs)-Math.min.apply(null,lngs);
-    return latSpread<0.05&&lngSpread<0.05;
-  }catch(e){return false;}
-}
-
-function spiderfyCluster(clusterId,centerLat,centerLng){
-  try{
-    var leaves=_index.getLeaves(clusterId,Infinity);
-    var n=leaves.length;
-    var radius=1.5+n*0.3;
-    var dp=[],dr=[],dl=[],arcs=[];
-    // Keep home pin
-    if(_home){
-      dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,isCluster:false,clusterCount:1});
-      dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-      dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true,isCluster:false});
-    }
-    for(var i=0;i<n;i++){
-      var leaf=leaves[i];
-      var angle=(2*Math.PI*i)/n - Math.PI/2;
-      var sLat=centerLat+radius*Math.sin(angle)*0.9;
-      var sLng=centerLng+radius*Math.cos(angle);
-      var props=leaf.properties;
-      var wl=props.isWishlist||false;
-      dp.push({lat:sLat,lng:sLng,tripId:props.id,color:wl?'#EC4899':'#EF4444',isHome:false,isCluster:false,clusterCount:1,isWishlist:wl});
-      dr.push({lat:sLat,lng:sLng,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-      dl.push({lat:sLat,lng:sLng,tripId:props.id,label:props.title,isHome:false,isCluster:false,isWishlist:wl});
-      arcs.push({startLat:centerLat,startLng:centerLng,endLat:sLat,endLng:sLng,colors:['rgba(0,212,255,0.5)','rgba(0,212,255,0.15)']});
-    }
-    // Also render non-cluster points
-    if(_index&&_trips.length>0){
-      var zoom=distToZoom();
-      var clusters=_index.getClusters([-180,-85,180,85],zoom);
-      for(var j=0;j<clusters.length;j++){
-        var c2=clusters[j];
-        var coords=c2.geometry.coordinates;
-        if(c2.properties.cluster&&c2.properties.cluster_id===clusterId)continue;
-        var lng2=coords[0],lat2=coords[1];
-        if(c2.properties.cluster){
-          var count=c2.properties.point_count;var cid=c2.properties.cluster_id;
-          dp.push({lat:lat2,lng:lng2,tripId:'__cluster_'+cid,color:'#EF4444',isHome:false,isCluster:true,clusterCount:count,clusterId:cid});
-          dr.push({lat:lat2,lng:lng2,ringColor:'239,68,68'});
-          dl.push({lat:lat2,lng:lng2,tripId:'__cluster_'+cid,label:String(count),isHome:false,isCluster:true,clusterId:cid});
-        }else{
-          var pr=c2.properties;var wl2=pr.isWishlist||false;
-          dp.push({lat:lat2,lng:lng2,tripId:pr.id,color:wl2?'#EC4899':'#EF4444',isHome:false,isCluster:false,clusterCount:1,isWishlist:wl2});
-          dr.push({lat:lat2,lng:lng2,ringColor:wl2?'236,72,153':'239,68,68',isWishlist:wl2});
-          dl.push({lat:lat2,lng:lng2,tripId:pr.id,label:pr.title,isHome:false,isCluster:false,isWishlist:wl2});
-        }
-      }
-    }
-    _spiderfied=true;_spiderArcs=arcs;
-    globe.pointsData(dp).ringsData(dr).labelsData(dl).arcsData(arcs.concat(globe.arcsData().filter(function(a){return !a._spider;})));
-    globe.pointOfView({lat:centerLat,lng:centerLng,altitude:1.2},1000);
-  }catch(e){renderClusters();}
-}
-
 function onPin(p){
-  if(!p||!p.tripId)return;
-  if(_spiderfied&&!p.isCluster){
-    if(p.tripId!=='__home__')S({type:'pinClick',tripId:p.tripId});
-    clearSpiderfy();
-    return;
-  }
-  if(p.isCluster&&p.clusterId!=null&&_index){
-    if(shouldSpiderfy(p.clusterId)){
-      spiderfyCluster(p.clusterId,p.lat,p.lng);
-      return;
-    }
-    try{
-      var expZoom=_index.getClusterExpansionZoom(p.clusterId);
-      var t=Math.min(1,expZoom/16);
-      var alt=3.5*(1-t)+0.3*t;
-      globe.pointOfView({lat:p.lat,lng:p.lng,altitude:alt},1000);
-    }catch(e){
-      globe.pointOfView({lat:p.lat,lng:p.lng,altitude:1.5},1000);
-    }
-    return;
-  }
-  if(_spiderfied)clearSpiderfy();
-  if(p.tripId!=='__home__')S({type:'pinClick',tripId:p.tripId});
+  if(!p||!p.tripId||p.tripId==='__home__')return;
+  // Zoom progressivo: dimezza altitudine corrente, minimo 0.15
+  var pov=globe.pointOfView();
+  var newAlt=Math.max(0.15,pov.altitude/2);
+  globe.pointOfView({lat:p.lat,lng:p.lng,altitude:newAlt},1000);
+  S({type:'pinClick',tripId:p.tripId});
 }
 
 function onMsg(e){try{handleCmd(JSON.parse(typeof e.data==='string'?e.data:''));}catch(x){}}
@@ -434,7 +344,7 @@ function handleCmd(d){
   try{
   if(!d||!d.type)return;
   if(d.type==='updateTrips'){_itineraries=d.itineraries||[];updateTrips(d.trips);}
-  else if(d.type==='updateHome'){_home=d.home||null;renderClusters();updateArcs();}
+  else if(d.type==='updateHome'){_home=d.home||null;renderPins();updateArcs();}
   else if(d.type==='updateTravelLines'){_showTravelLines=d.show!==false;updateArcs();}
   else if(d.type==='updateVisitedCountries'){
     _visitedCountries=d.countries||[];
@@ -473,50 +383,23 @@ function startFlythrough(stops){
   flyNext();
 }
 
-// === SUPERCLUSTER ZOOM MAPPING ===
-function distToZoom(){
-  if(!globe)return 3;
-  try{
-    var dist=globe.controls().object.position.length();
-    return Math.round(Math.max(0,Math.min(16,16*(600-dist)/490)));
-  }catch(e){return 3;}
-}
-
-// === RENDER CLUSTERS FROM SUPERCLUSTER INDEX ===
-function renderClusters(){
+// === RENDER INDIVIDUAL PINS ===
+function renderPins(){
   if(!globe)return;
   var dp=[],dr=[],dl=[];
 
-  // Home pin always separate, never clustered
   if(_home){
-    dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,isCluster:false,clusterCount:1});
+    dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true,isCluster:false});
+    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true});
   }
 
-  if(_index&&_trips.length>0){
-    var zoom=distToZoom();
-    var clusters=_index.getClusters([-180,-85,180,85],zoom);
-
-    for(var i=0;i<clusters.length;i++){
-      var c=clusters[i];
-      var coords=c.geometry.coordinates;
-      var lng=coords[0],lat=coords[1];
-
-      if(c.properties.cluster){
-        var count=c.properties.point_count;
-        var cid=c.properties.cluster_id;
-        dp.push({lat:lat,lng:lng,tripId:'__cluster_'+cid,color:'#EF4444',isHome:false,isCluster:true,clusterCount:count,clusterId:cid});
-        dr.push({lat:lat,lng:lng,ringColor:'239,68,68'});
-        dl.push({lat:lat,lng:lng,tripId:'__cluster_'+cid,label:String(count),isHome:false,isCluster:true,clusterId:cid});
-      }else{
-        var props=c.properties;
-        var wl=props.isWishlist||false;
-        dp.push({lat:lat,lng:lng,tripId:props.id,color:wl?'#EC4899':'#EF4444',isHome:false,isCluster:false,clusterCount:1,isWishlist:wl});
-        dr.push({lat:lat,lng:lng,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-        dl.push({lat:lat,lng:lng,tripId:props.id,label:props.title,isHome:false,isCluster:false,isWishlist:wl});
-      }
-    }
+  for(var i=0;i<_trips.length;i++){
+    var t=_trips[i];
+    var wl=t.isWishlist||false;
+    dp.push({lat:t.latitude,lng:t.longitude,tripId:t.id,color:wl?'#EC4899':'#EF4444',isHome:false,clusterCount:1,isWishlist:wl});
+    dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
+    dl.push({lat:t.latitude,lng:t.longitude,tripId:t.id,label:t.title,isHome:false,isWishlist:wl});
   }
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
@@ -561,25 +444,32 @@ function updateArcs(){
   globe.arcsData(a);
 }
 
+// === OFFSET FOR IDENTICAL COORDINATES ===
+function applyCoordinateOffset(trips){
+  var seen={};
+  for(var i=0;i<trips.length;i++){
+    var key=trips[i].latitude+','+trips[i].longitude;
+    if(!seen[key])seen[key]=0;
+    var count=seen[key];
+    if(count>0){
+      var angle=(2*Math.PI*count)/6;
+      trips[i].latitude+=0.008*Math.sin(angle)*count;
+      trips[i].longitude+=0.008*Math.cos(angle)*count;
+    }
+    seen[key]++;
+  }
+  return trips;
+}
+
 // === MAIN UPDATE FUNCTION ===
 function updateTrips(t){
   if(!globe||!t)return;
-  _trips=t;
+  // Copy trip data and apply offset for identical coordinates
+  _trips=applyCoordinateOffset(t.map(function(x){
+    return{id:x.id,title:x.title,latitude:x.latitude,longitude:x.longitude,isWishlist:x.isWishlist||false,showArc:x.showArc||false};
+  }));
 
-  // Build supercluster index
-  if(typeof Supercluster!=='undefined'){
-    var features=t.map(function(x){
-      return{
-        type:'Feature',
-        geometry:{type:'Point',coordinates:[x.longitude,x.latitude]},
-        properties:{id:x.id,title:x.title,isWishlist:x.isWishlist||false,showArc:x.showArc||false}
-      };
-    });
-    _index=new Supercluster({radius:80,maxZoom:16,minZoom:0});
-    _index.load(features);
-  }
-
-  renderClusters();
+  renderPins();
   updateArcs();
 
   // Floating particles (red for trips, pink for wishlist)
