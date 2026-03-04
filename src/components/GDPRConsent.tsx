@@ -25,15 +25,15 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
 
                         <View style={styles.bulletRow}>
                             <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                            <Text style={styles.bulletText}>Dati salvati solo localmente</Text>
+                            <Text style={styles.bulletText}>{t('gdprBullet1')}</Text>
                         </View>
                         <View style={styles.bulletRow}>
                             <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                            <Text style={styles.bulletText}>Nessun tracciamento</Text>
+                            <Text style={styles.bulletText}>{t('gdprBullet2')}</Text>
                         </View>
                         <View style={styles.bulletRow}>
                             <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                            <Text style={styles.bulletText}>Eliminazione dati completa disponibile</Text>
+                            <Text style={styles.bulletText}>{t('gdprBullet3')}</Text>
                         </View>
 
                         <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>

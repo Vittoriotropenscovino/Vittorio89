@@ -12,8 +12,20 @@ import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../contexts/AppContext';
+import { Language } from '../i18n/translations';
 import { Trip } from '../types';
 import StorageService from '../services/StorageService';
+
+const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
+    { code: 'it', flag: 'IT', labelKey: 'italian' },
+    { code: 'en', flag: 'EN', labelKey: 'english' },
+    { code: 'es', flag: 'ES', labelKey: 'spanish' },
+    { code: 'fr', flag: 'FR', labelKey: 'french' },
+    { code: 'de', flag: 'DE', labelKey: 'german' },
+    { code: 'pt', flag: 'PT', labelKey: 'portuguese' },
+    { code: 'zh', flag: 'ZH', labelKey: 'chinese' },
+    { code: 'ja', flag: 'JA', labelKey: 'japanese' },
+];
 
 interface Props {
     visible: boolean;
@@ -64,9 +76,7 @@ const SettingsScreen: React.FC<Props> = ({
             if (parsed.trips && Array.isArray(parsed.trips)) {
                 Alert.alert(
                     t('importData') as string,
-                    language === 'it'
-                        ? `Trovati ${parsed.trips.length} viaggi. Vuoi importarli?`
-                        : `Found ${parsed.trips.length} trips. Import them?`,
+                    (t('importConfirmMessage') as string).replace('{count}', String(parsed.trips.length)),
                     [
                         { text: t('cancel') as string, style: 'cancel' },
                         {
@@ -212,21 +222,19 @@ const SettingsScreen: React.FC<Props> = ({
 
                         <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
                             <SectionHeader title={t('language') as string} />
-                            <View style={styles.langRow}>
-                                <TouchableOpacity
-                                    style={[styles.langButton, language === 'it' && styles.langActive]}
-                                    onPress={() => setLanguage('it')}
-                                >
-                                    <Text style={styles.langFlag}>IT</Text>
-                                    <Text style={[styles.langText, language === 'it' && styles.langTextActive]}>{t('italian')}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.langButton, language === 'en' && styles.langActive]}
-                                    onPress={() => setLanguage('en')}
-                                >
-                                    <Text style={styles.langFlag}>EN</Text>
-                                    <Text style={[styles.langText, language === 'en' && styles.langTextActive]}>{t('english')}</Text>
-                                </TouchableOpacity>
+                            <View style={styles.langGrid}>
+                                {LANGUAGE_OPTIONS.map((lang) => (
+                                    <TouchableOpacity
+                                        key={lang.code}
+                                        style={[styles.langButton, language === lang.code && styles.langActive]}
+                                        onPress={() => setLanguage(lang.code)}
+                                    >
+                                        <Text style={styles.langFlag}>{lang.flag}</Text>
+                                        <Text style={[styles.langText, language === lang.code && styles.langTextActive]}>
+                                            {t(lang.labelKey as any)}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
                             </View>
 
                             <SectionHeader title={t('homeLocation') as string} />
@@ -331,8 +339,8 @@ const styles = StyleSheet.create({
     settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
     settingIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
     settingLabel: { flex: 1, color: '#E5E7EB', fontSize: 14, fontWeight: '500' },
-    langRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-    langButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 12 },
+    langGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+    langButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, width: '48%' },
     langActive: { borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.08)' },
     langFlag: { fontSize: 16, fontWeight: '800', color: '#00d4ff' },
     langText: { color: '#9CA3AF', fontSize: 14 },

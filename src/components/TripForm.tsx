@@ -589,7 +589,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                                         <Ionicons name="close" size={12} color="#fff" />
                                                     </TouchableOpacity>
                                                     {item.type === 'video' && (
-                                                        <View style={styles.videoTag}><Text style={styles.videoTagText}>VIDEO</Text></View>
+                                                        <View style={styles.videoTag}><Text style={styles.videoTagText}>{t('videoTag')}</Text></View>
                                                     )}
                                                 </View>
                                             ))}

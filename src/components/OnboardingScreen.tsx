@@ -5,8 +5,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { Language } from '../i18n/translations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const LANGUAGE_OPTIONS: { code: Language; flag: string; name: string }[] = [
+    { code: 'it', flag: 'IT', name: 'Italiano' },
+    { code: 'en', flag: 'EN', name: 'English' },
+    { code: 'es', flag: 'ES', name: 'Español' },
+    { code: 'fr', flag: 'FR', name: 'Français' },
+    { code: 'de', flag: 'DE', name: 'Deutsch' },
+    { code: 'pt', flag: 'PT', name: 'Português' },
+    { code: 'zh', flag: 'ZH', name: '中文' },
+    { code: 'ja', flag: 'JA', name: '日本語' },
+];
 
 interface OnboardingProps {
     onComplete: () => void;
@@ -19,7 +31,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     const flatListRef = useRef<FlatList>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
 
-    const handleLanguageSelect = (lang: 'it' | 'en') => {
+    const handleLanguageSelect = (lang: Language) => {
         setLanguage(lang);
         setLanguageChosen(true);
     };
@@ -35,15 +47,13 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                     <Text style={styles.langPickerTitle}>
                         Seleziona la tua lingua{'\n'}Select your language
                     </Text>
-                    <View style={styles.langButtons}>
-                        <TouchableOpacity style={styles.langOption} onPress={() => handleLanguageSelect('it')}>
-                            <Text style={styles.langFlag}>IT</Text>
-                            <Text style={styles.langOptionText}>Italiano</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.langOption} onPress={() => handleLanguageSelect('en')}>
-                            <Text style={styles.langFlag}>EN</Text>
-                            <Text style={styles.langOptionText}>English</Text>
-                        </TouchableOpacity>
+                    <View style={styles.langGrid}>
+                        {LANGUAGE_OPTIONS.map((lang) => (
+                            <TouchableOpacity key={lang.code} style={styles.langOption} onPress={() => handleLanguageSelect(lang.code)}>
+                                <Text style={styles.langFlag}>{lang.flag}</Text>
+                                <Text style={styles.langOptionText}>{lang.name}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </View>
             </View>
@@ -111,7 +121,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                 {currentIndex < slides.length - 1 ? (
                     <>
                         <TouchableOpacity onPress={onComplete}>
-                            <Text style={styles.skipText}>Skip</Text>
+                            <Text style={styles.skipText}>{t('skip')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
                             <Ionicons name="arrow-forward" size={24} color="#fff" />
@@ -159,20 +169,24 @@ const styles = StyleSheet.create({
         marginBottom: 32,
         lineHeight: 32,
     },
-    langButtons: {
+    langGrid: {
         flexDirection: 'row',
-        gap: 20,
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 12,
+        maxWidth: 400,
     },
     langOption: {
         backgroundColor: 'rgba(0,212,255,0.06)',
         borderWidth: 1.5,
         borderColor: 'rgba(0,212,255,0.2)',
-        borderRadius: 20,
-        paddingVertical: 20,
-        paddingHorizontal: 40,
+        borderRadius: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
         alignItems: 'center',
-        gap: 8,
-        minWidth: 160,
+        gap: 4,
+        width: '45%',
+        minWidth: 140,
     },
     langFlag: {
         fontSize: 28,
