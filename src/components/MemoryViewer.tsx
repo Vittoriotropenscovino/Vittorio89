@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
     View, Text, Modal, StyleSheet, TouchableOpacity, Image,
     FlatList, useWindowDimensions, Alert, Platform, Share,
@@ -15,6 +15,14 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
     const [currentIndex, setCurrentIndex] = useState(0);
     const mainListRef = useRef<FlatList>(null);
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+
+    // Reset currentIndex when trip changes or viewer opens to prevent out-of-bounds
+    useEffect(() => {
+        setCurrentIndex(0);
+        if (mainListRef.current && visible) {
+            mainListRef.current.scrollToOffset({ offset: 0, animated: false });
+        }
+    }, [trip?.id, visible]);
 
     if (!trip) return null;
 
