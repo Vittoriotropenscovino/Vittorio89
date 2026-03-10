@@ -312,6 +312,31 @@ const SettingsScreen: React.FC<Props> = ({
                             <SettingRow icon="shield-checkmark-outline" label={t('privacyPolicy') as string} onPress={onShowPrivacy} />
                             <SettingRow icon="document-text-outline" label={t('termsOfService') as string} onPress={onShowTerms} />
 
+                            <SettingRow
+                                icon="refresh-outline"
+                                iconColor="#A78BFA"
+                                label={t('replayOnboarding') as string}
+                                onPress={() => {
+                                    Alert.alert(
+                                        t('replayOnboarding') as string,
+                                        language === 'it'
+                                            ? 'Rivedrai la selezione lingua e le slide introduttive al prossimo avvio.'
+                                            : 'You will see the language selection and intro slides on next launch.',
+                                        [
+                                            { text: t('cancel') as string, style: 'cancel' },
+                                            {
+                                                text: t('confirm') as string,
+                                                onPress: () => {
+                                                    updateSettings({ hasSeenOnboarding: false, hasAcceptedGDPR: false });
+                                                    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                                    onClose();
+                                                },
+                                            },
+                                        ],
+                                    );
+                                }}
+                            />
+
                             <SectionHeader title={t('about') as string} />
                             <SettingRow
                                 icon="information-circle-outline"

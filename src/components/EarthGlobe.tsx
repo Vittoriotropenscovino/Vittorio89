@@ -383,6 +383,43 @@ function startFlythrough(stops){
   flyNext();
 }
 
+// === ZOOM-AWARE PIN SPREADING ===
+function spreadPins(pins){
+  if(pins.length<2)return pins;
+  // Threshold scales with altitude: zoomed out = bigger threshold = more spreading
+  var alt=Math.max(0.1,_currentAltitude);
+  var threshold=Math.min(8,Math.max(0.3,alt*4));
+  var strength=Math.min(1.0,alt*0.6);
+  // 3 passes of pairwise repulsion
+  for(var pass=0;pass<3;pass++){
+    for(var i=0;i<pins.length;i++){
+      for(var j=i+1;j<pins.length;j++){
+        var dlat=pins[i].lat-pins[j].lat;
+        var dlng=pins[i].lng-pins[j].lng;
+        var dist=Math.sqrt(dlat*dlat+dlng*dlng);
+        if(dist<threshold&&dist>0.0001){
+          var force=strength*(threshold-dist)/threshold;
+          var nx=dlat/dist,ny=dlng/dist;
+          var push=force*threshold*0.3;
+          pins[i].lat+=nx*push;
+          pins[i].lng+=ny*push;
+          pins[j].lat-=nx*push;
+          pins[j].lng-=ny*push;
+        }else if(dist<=0.0001){
+          // Identical coordinates: spread in circle
+          var angle=(2*Math.PI*j)/Math.max(2,pins.length);
+          var offset=threshold*0.15;
+          pins[i].lat+=offset*Math.sin(angle);
+          pins[i].lng+=offset*Math.cos(angle);
+          pins[j].lat-=offset*Math.sin(angle);
+          pins[j].lng-=offset*Math.cos(angle);
+        }
+      }
+    }
+  }
+  return pins;
+}
+
 // === RENDER INDIVIDUAL PINS ===
 function renderPins(){
   if(!globe)return;
@@ -394,12 +431,23 @@ function renderPins(){
     dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true});
   }
 
+  // Build pin arrays from original trip coordinates
+  var tripPins=[];
   for(var i=0;i<_trips.length;i++){
     var t=_trips[i];
+    tripPins.push({lat:t.latitude,lng:t.longitude,idx:i});
+  }
+
+  // Apply zoom-aware spreading
+  tripPins=spreadPins(tripPins);
+
+  for(var i=0;i<_trips.length;i++){
+    var t=_trips[i];
+    var sp=tripPins[i];
     var wl=t.isWishlist||false;
-    dp.push({lat:t.latitude,lng:t.longitude,tripId:t.id,color:wl?'#EC4899':'#EF4444',isHome:false,clusterCount:1,isWishlist:wl});
-    dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-    dl.push({lat:t.latitude,lng:t.longitude,tripId:t.id,label:t.title,isHome:false,isWishlist:wl});
+    dp.push({lat:sp.lat,lng:sp.lng,tripId:t.id,color:wl?'#EC4899':'#EF4444',isHome:false,clusterCount:1,isWishlist:wl});
+    dr.push({lat:sp.lat,lng:sp.lng,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
+    dl.push({lat:sp.lat,lng:sp.lng,tripId:t.id,label:t.title,isHome:false,isWishlist:wl});
   }
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
@@ -444,30 +492,13 @@ function updateArcs(){
   globe.arcsData(a);
 }
 
-// === OFFSET FOR IDENTICAL COORDINATES ===
-function applyCoordinateOffset(trips){
-  var seen={};
-  for(var i=0;i<trips.length;i++){
-    var key=trips[i].latitude+','+trips[i].longitude;
-    if(!seen[key])seen[key]=0;
-    var count=seen[key];
-    if(count>0){
-      var angle=(2*Math.PI*count)/6;
-      trips[i].latitude+=0.008*Math.sin(angle)*count;
-      trips[i].longitude+=0.008*Math.cos(angle)*count;
-    }
-    seen[key]++;
-  }
-  return trips;
-}
-
 // === MAIN UPDATE FUNCTION ===
 function updateTrips(t){
   if(!globe||!t)return;
-  // Copy trip data and apply offset for identical coordinates
-  _trips=applyCoordinateOffset(t.map(function(x){
+  // Copy trip data (spreading is handled dynamically in renderPins based on zoom)
+  _trips=t.map(function(x){
     return{id:x.id,title:x.title,latitude:x.latitude,longitude:x.longitude,isWishlist:x.isWishlist||false,showArc:x.showArc||false};
-  }));
+  });
 
   renderPins();
   updateArcs();
