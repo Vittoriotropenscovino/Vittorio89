@@ -17,7 +17,7 @@ const PrivacyPolicy: React.FC<Props> = ({ visible, onClose }) => {
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <View style={[styles.card, { maxHeight: screenH * 0.75 }]}>
+                <View style={[styles.card, { maxHeight: screenH * 0.85 }]}>
                         <View style={styles.headerWrap}>
                             <View style={styles.header}>
                                 <Ionicons name="shield-checkmark" size={24} color="#00d4ff" />
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
-    scroll: { flexGrow: 1, flexShrink: 1 },
+    scroll: { flex: 1 },
     updated: { color: '#6B7280', fontSize: 11, marginBottom: 16, fontStyle: 'italic' },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: '#60A5FA', marginTop: 16, marginBottom: 8 },
     body: { fontSize: 13, color: '#D1D5DB', lineHeight: 20 },

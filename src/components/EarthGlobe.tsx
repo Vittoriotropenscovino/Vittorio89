@@ -388,10 +388,10 @@ function spreadPins(pins){
   if(pins.length<2)return pins;
   // Threshold scales with altitude: zoomed out = bigger threshold = more spreading
   var alt=Math.max(0.1,_currentAltitude);
-  var threshold=Math.min(8,Math.max(0.3,alt*4));
-  var strength=Math.min(1.0,alt*0.6);
-  // 3 passes of pairwise repulsion
-  for(var pass=0;pass<3;pass++){
+  var threshold=Math.min(12,Math.max(0.5,alt*5));
+  var strength=Math.min(1.5,alt*0.8);
+  // 5 passes of pairwise repulsion for better separation
+  for(var pass=0;pass<5;pass++){
     for(var i=0;i<pins.length;i++){
       for(var j=i+1;j<pins.length;j++){
         var dlat=pins[i].lat-pins[j].lat;
@@ -400,7 +400,7 @@ function spreadPins(pins){
         if(dist<threshold&&dist>0.0001){
           var force=strength*(threshold-dist)/threshold;
           var nx=dlat/dist,ny=dlng/dist;
-          var push=force*threshold*0.3;
+          var push=force*threshold*0.5;
           pins[i].lat+=nx*push;
           pins[i].lng+=ny*push;
           pins[j].lat-=nx*push;
@@ -408,7 +408,7 @@ function spreadPins(pins){
         }else if(dist<=0.0001){
           // Identical coordinates: spread in circle
           var angle=(2*Math.PI*j)/Math.max(2,pins.length);
-          var offset=threshold*0.15;
+          var offset=threshold*0.25;
           pins[i].lat+=offset*Math.sin(angle);
           pins[i].lng+=offset*Math.cos(angle);
           pins[j].lat-=offset*Math.sin(angle);

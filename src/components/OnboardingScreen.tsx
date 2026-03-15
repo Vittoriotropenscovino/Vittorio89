@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated,
-    Dimensions, FlatList,
+    Dimensions, FlatList, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -40,7 +40,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     if (!languageChosen) {
         return (
             <View style={styles.container}>
-                <View style={styles.langPickerContainer}>
+                <ScrollView contentContainerStyle={styles.langPickerContainer} showsVerticalScrollIndicator={false}>
                     <View style={styles.langIconCircle}>
                         <Ionicons name="language" size={50} color="#00d4ff" />
                     </View>
@@ -55,7 +55,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                             </TouchableOpacity>
                         ))}
                     </View>
-                </View>
+                </ScrollView>
             </View>
         );
     }
@@ -145,10 +145,11 @@ const styles = StyleSheet.create({
     },
     // Language picker styles
     langPickerContainer: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 40,
+        paddingVertical: 20,
     },
     langIconCircle: {
         width: 100,
