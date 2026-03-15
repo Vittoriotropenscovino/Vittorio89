@@ -16,39 +16,38 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'yarn'
+          node-version: 22
 
-      - name: Setup Expo & EAS CLI
-        uses: expo/expo-github-action@v8
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Build APK on EAS
-        run: |
-          eas build --platform android --profile preview --non-interactive --json > build-result.json
-          cat build-result.json
-          echo "Build submitted to EAS. Check Expo dashboard for download link."
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --clean
 
-      - name: Extract APK URL
-        id: apk_url
+      - name: Build APK with Gradle
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Find and rename APK
         run: |
-          APK_URL=$(cat build-result.json | python3 -c "import sys,json; data=json.load(sys.stdin); print(data[0].get('artifacts',{}).get('buildUrl','') if isinstance(data,list) else data.get('artifacts',{}).get('buildUrl',''))" 2>/dev/null || echo "")
-          echo "url=$APK_URL" >> $GITHUB_OUTPUT
-          if [ -n "$APK_URL" ]; then
-            echo "APK download URL: $APK_URL"
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" TravelSphere.apk
+            echo "APK built successfully: TravelSphere.apk"
+            ls -lh TravelSphere.apk
+          else
+            echo "ERROR: No APK found!"
+            find android/app/build/outputs/ -type f 2>/dev/null || echo "No build outputs found"
+            exit 1
           fi
 
-      - name: Download APK
-        if: steps.apk_url.outputs.url != ''
-        run: curl -L -o TravelSphere.apk "${{ steps.apk_url.outputs.url }}"
-
       - name: Upload APK artifact
-        if: steps.apk_url.outputs.url != ''
         uses: actions/upload-artifact@v4
         with:
           name: TravelSphere-APK
