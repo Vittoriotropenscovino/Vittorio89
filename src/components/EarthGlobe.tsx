@@ -43,8 +43,8 @@ window.onerror=function(m){S({type:'log',message:'ERR:'+m});return true;};
   function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
   resize();window.addEventListener('resize',resize);
   var stars=[];
-  for(var i=0;i<150;i++){
-    stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.2+0.2,a:Math.random()*0.6+0.1,speed:Math.random()*0.003+0.001,phase:Math.random()*Math.PI*2});
+  for(var i=0;i<250;i++){
+    stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.5+0.3,a:Math.random()*0.8+0.2,speed:Math.random()*0.003+0.001,phase:Math.random()*Math.PI*2});
   }
   function drawStars(){
     ctx.clearRect(0,0,c.width,c.height);
@@ -114,34 +114,34 @@ function go(countries){
       .showGlobe(true)
       .showAtmosphere(true)
       .atmosphereColor('#00d4ff')
-      .atmosphereAltitude(0.35)
+      .atmosphereAltitude(0.25)
 
       // COUNTRY HEX DOTS - Fog of War
       .hexPolygonsData(f)
       .hexPolygonResolution(3)
       .hexPolygonMargin(0.55)
       .hexPolygonColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.7)';
-        return 'rgba(0,220,255,0.12)';
+        if(isCountryVisited(d))return 'rgba(0,230,255,0.85)';
+        return 'rgba(0,180,255,0.2)';
       })
       .hexPolygonAltitude(function(d){
-        if(isCountryVisited(d))return 0.012;
-        return 0.005;
+        if(isCountryVisited(d))return 0.015;
+        return 0.006;
       })
 
       // COUNTRY BORDERS - visited countries glow
       .polygonsData(f)
       .polygonCapColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.06)';
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.1)';
         return 'rgba(0,0,0,0)';
       })
       .polygonSideColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.15)';
-        return 'rgba(0,200,255,0.03)';
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.25)';
+        return 'rgba(0,200,255,0.05)';
       })
       .polygonStrokeColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.7)';
-        return 'rgba(0,220,255,0.15)';
+        if(isCountryVisited(d))return 'rgba(0,230,255,0.8)';
+        return 'rgba(0,220,255,0.25)';
       })
       .polygonAltitude(0.009)
 
@@ -225,26 +225,30 @@ function go(countries){
     // Globe material
     try{
       var m=globe.globeMaterial();
-      m.color.set('#0a1e3d');
-      m.emissive.set('#0a2a4a');
-      m.emissiveIntensity=0.3;
-      m.shininess=0;
+      m.color.set('#122d54');
+      m.emissive.set('#0d3560');
+      m.emissiveIntensity=0.5;
+      m.shininess=5;
     }catch(e){}
 
     // Scene enhancements
     try{
       var scene=globe.scene();
       if(typeof THREE!=='undefined'){
-        var rimLight=new THREE.DirectionalLight(0x00d4ff,0.35);
-        rimLight.position.set(-200,0,-200);
+        var rimLight=new THREE.DirectionalLight(0x00d4ff,0.5);
+        rimLight.position.set(-200,100,-200);
         scene.add(rimLight);
 
-        var ambLight=new THREE.AmbientLight(0x111133,0.3);
+        var rimLight2=new THREE.DirectionalLight(0x4488ff,0.3);
+        rimLight2.position.set(200,-50,100);
+        scene.add(rimLight2);
+
+        var ambLight=new THREE.AmbientLight(0x1a1a44,0.5);
         scene.add(ambLight);
 
         // Outer glow halo
         var glowGeo=new THREE.SphereGeometry(102,64,64);
-        var glowMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.06,side:THREE.BackSide});
+        var glowMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.1,side:THREE.BackSide});
         var glowMesh=new THREE.Mesh(glowGeo,glowMat);
         scene.add(glowMesh);
 
@@ -253,13 +257,13 @@ function go(countries){
           var phi=(90-lat)*Math.PI/180,v=[];
           for(var lo=0;lo<=360;lo+=4){var th=lo*Math.PI/180;v.push(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th));}
           var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
-          scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.06})));
+          scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
         });
         for(var lo=0;lo<360;lo+=30){
           var th=lo*Math.PI/180,v=[];
           for(var lt=-90;lt<=90;lt+=4){var p=(90-lt)*Math.PI/180;v.push(R*Math.sin(p)*Math.cos(th),R*Math.cos(p),R*Math.sin(p)*Math.sin(th));}
           var g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
-          scene.add(new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.06})));
+          scene.add(new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
         }
 
         var scanRingGeo=new THREE.RingGeometry(100.2,100.8,48);
@@ -282,10 +286,10 @@ function go(countries){
     c.autoRotate=true;
     c.autoRotateSpeed=0.4;
     c.enableDamping=true;
-    c.dampingFactor=0.12;
+    c.dampingFactor=0.2;
     c.rotateSpeed=0.8;
-    c.zoomSpeed=1.0;
-    c.minDistance=110;
+    c.zoomSpeed=0.8;
+    c.minDistance=90;
     c.maxDistance=600;
     c.enablePan=false;
 
@@ -383,37 +387,32 @@ function startFlythrough(stops){
   flyNext();
 }
 
-// === ZOOM-AWARE PIN SPREADING ===
+// === PIN OFFSET FOR OVERLAPPING PINS ===
 function spreadPins(pins){
   if(pins.length<2)return pins;
-  // Threshold scales with altitude: zoomed out = bigger threshold = more spreading
-  var alt=Math.max(0.1,_currentAltitude);
-  var threshold=Math.min(12,Math.max(0.5,alt*5));
-  var strength=Math.min(1.5,alt*0.8);
-  // 5 passes of pairwise repulsion for better separation
-  for(var pass=0;pass<5;pass++){
-    for(var i=0;i<pins.length;i++){
-      for(var j=i+1;j<pins.length;j++){
-        var dlat=pins[i].lat-pins[j].lat;
-        var dlng=pins[i].lng-pins[j].lng;
-        var dist=Math.sqrt(dlat*dlat+dlng*dlng);
-        if(dist<threshold&&dist>0.0001){
-          var force=strength*(threshold-dist)/threshold;
-          var nx=dlat/dist,ny=dlng/dist;
-          var push=force*threshold*0.5;
-          pins[i].lat+=nx*push;
-          pins[i].lng+=ny*push;
-          pins[j].lat-=nx*push;
-          pins[j].lng-=ny*push;
-        }else if(dist<=0.0001){
-          // Identical coordinates: spread in circle
-          var angle=(2*Math.PI*j)/Math.max(2,pins.length);
-          var offset=threshold*0.25;
-          pins[i].lat+=offset*Math.sin(angle);
-          pins[i].lng+=offset*Math.cos(angle);
-          pins[j].lat-=offset*Math.sin(angle);
-          pins[j].lng-=offset*Math.cos(angle);
-        }
+  // Only apply small fixed offset for pins at identical or very close coordinates
+  // Pins stay at their real geographic positions
+  for(var i=0;i<pins.length;i++){
+    for(var j=i+1;j<pins.length;j++){
+      var dlat=pins[i].lat-pins[j].lat;
+      var dlng=pins[i].lng-pins[j].lng;
+      var dist=Math.sqrt(dlat*dlat+dlng*dlng);
+      if(dist<=0.0001){
+        // Identical coordinates: spread in small circle (0.3 degrees)
+        var angle=(2*Math.PI*j)/Math.max(2,pins.length);
+        var offset=0.3;
+        pins[i].lat+=offset*Math.sin(angle);
+        pins[i].lng+=offset*Math.cos(angle);
+        pins[j].lat-=offset*Math.sin(angle);
+        pins[j].lng-=offset*Math.cos(angle);
+      }else if(dist<0.5){
+        // Very close pins: tiny nudge apart (0.2 degrees)
+        var nx=dlat/dist,ny=dlng/dist;
+        var push=0.2*(0.5-dist)/0.5;
+        pins[i].lat+=nx*push;
+        pins[i].lng+=ny*push;
+        pins[j].lat-=nx*push;
+        pins[j].lng-=ny*push;
       }
     }
   }

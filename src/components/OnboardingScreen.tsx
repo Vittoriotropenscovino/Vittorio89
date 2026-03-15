@@ -7,17 +7,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const LANGUAGE_OPTIONS: { code: Language; flag: string; name: string }[] = [
-    { code: 'it', flag: 'IT', name: 'Italiano' },
-    { code: 'en', flag: 'EN', name: 'English' },
-    { code: 'es', flag: 'ES', name: 'Español' },
-    { code: 'fr', flag: 'FR', name: 'Français' },
-    { code: 'de', flag: 'DE', name: 'Deutsch' },
-    { code: 'pt', flag: 'PT', name: 'Português' },
-    { code: 'zh', flag: 'ZH', name: '中文' },
-    { code: 'ja', flag: 'JA', name: '日本語' },
+const LANGUAGE_OPTIONS: { code: Language; emoji: string; name: string }[] = [
+    { code: 'it', emoji: '\u{1F1EE}\u{1F1F9}', name: 'Italiano' },
+    { code: 'en', emoji: '\u{1F1EC}\u{1F1E7}', name: 'English' },
+    { code: 'es', emoji: '\u{1F1EA}\u{1F1F8}', name: 'Español' },
+    { code: 'fr', emoji: '\u{1F1EB}\u{1F1F7}', name: 'Français' },
+    { code: 'de', emoji: '\u{1F1E9}\u{1F1EA}', name: 'Deutsch' },
+    { code: 'pt', emoji: '\u{1F1E7}\u{1F1F7}', name: 'Português' },
+    { code: 'zh', emoji: '\u{1F1E8}\u{1F1F3}', name: '中文' },
+    { code: 'ja', emoji: '\u{1F1EF}\u{1F1F5}', name: '日本語' },
 ];
 
 interface OnboardingProps {
@@ -40,21 +40,35 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     if (!languageChosen) {
         return (
             <View style={styles.container}>
-                <ScrollView contentContainerStyle={styles.langPickerContainer} showsVerticalScrollIndicator={false}>
+                <View style={styles.langHeader}>
                     <View style={styles.langIconCircle}>
-                        <Ionicons name="language" size={50} color="#00d4ff" />
+                        <Ionicons name="language" size={36} color="#00d4ff" />
                     </View>
                     <Text style={styles.langPickerTitle}>
                         Seleziona la tua lingua{'\n'}Select your language
                     </Text>
-                    <View style={styles.langGrid}>
-                        {LANGUAGE_OPTIONS.map((lang) => (
-                            <TouchableOpacity key={lang.code} style={styles.langOption} onPress={() => handleLanguageSelect(lang.code)}>
-                                <Text style={styles.langFlag}>{lang.flag}</Text>
-                                <Text style={styles.langOptionText}>{lang.name}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.langScrollContent}
+                    decelerationRate="fast"
+                    snapToInterval={132}
+                >
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                        <TouchableOpacity
+                            key={lang.code}
+                            style={styles.langCard}
+                            onPress={() => handleLanguageSelect(lang.code)}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.langEmoji}>{lang.emoji}</Text>
+                            <Text style={styles.langName}>{lang.name}</Text>
+                            <View style={styles.langCodeBadge}>
+                                <Text style={styles.langCodeText}>{lang.code.toUpperCase()}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
                 </ScrollView>
             </View>
         );
@@ -142,63 +156,68 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#050510',
+        justifyContent: 'center',
     },
     // Language picker styles
-    langPickerContainer: {
-        flexGrow: 1,
-        justifyContent: 'center',
+    langHeader: {
         alignItems: 'center',
-        paddingHorizontal: 40,
-        paddingVertical: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
     },
     langIconCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         borderWidth: 2,
         borderColor: '#00d4ff',
-        backgroundColor: 'rgba(0, 212, 255, 0.05)',
+        backgroundColor: 'rgba(0, 212, 255, 0.08)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 12,
     },
     langPickerTitle: {
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: '700',
         color: '#F0F0F0',
         textAlign: 'center',
-        marginBottom: 32,
-        lineHeight: 32,
+        lineHeight: 26,
     },
-    langGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
+    langScrollContent: {
+        paddingHorizontal: 24,
+        paddingVertical: 8,
         gap: 12,
-        maxWidth: 400,
+        alignItems: 'center',
     },
-    langOption: {
-        backgroundColor: 'rgba(0,212,255,0.06)',
+    langCard: {
+        width: 120,
+        height: 140,
+        backgroundColor: 'rgba(0,212,255,0.04)',
         borderWidth: 1.5,
         borderColor: 'rgba(0,212,255,0.2)',
-        borderRadius: 16,
-        paddingVertical: 14,
-        paddingHorizontal: 20,
+        borderRadius: 20,
         alignItems: 'center',
-        gap: 4,
-        width: '45%',
-        minWidth: 140,
+        justifyContent: 'center',
+        gap: 6,
     },
-    langFlag: {
-        fontSize: 28,
-        fontWeight: '900',
-        color: '#00d4ff',
-        letterSpacing: 2,
+    langEmoji: {
+        fontSize: 36,
     },
-    langOptionText: {
-        fontSize: 18,
+    langName: {
+        fontSize: 14,
         fontWeight: '600',
         color: '#E5E7EB',
+    },
+    langCodeBadge: {
+        backgroundColor: 'rgba(0,212,255,0.12)',
+        paddingHorizontal: 10,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    langCodeText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#00d4ff',
+        letterSpacing: 1,
     },
     // Slide styles
     slide: {
