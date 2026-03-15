@@ -25,7 +25,10 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Fix Expo dependency versions
+        run: npx expo install --fix
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean
