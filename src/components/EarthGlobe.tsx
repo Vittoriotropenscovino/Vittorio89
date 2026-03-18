@@ -32,7 +32,6 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_scanAnimId=0;
 var _visitedCountries=[],_countryFeatures=[],_flythroughActive=false;
 var _currentAltitude=2.5;
-var _currentHexRes=3;
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -293,10 +292,10 @@ function go(countries){
     c.autoRotate=true;
     c.autoRotateSpeed=0.4;
     c.enableDamping=true;
-    c.dampingFactor=0.15;
+    c.dampingFactor=0.12;
     c.rotateSpeed=0.8;
-    c.zoomSpeed=0.6;
-    c.minDistance=90;
+    c.zoomSpeed=1.0;
+    c.minDistance=110;
     c.maxDistance=600;
     c.enablePan=false;
 
@@ -305,55 +304,22 @@ function go(countries){
     c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
     c.addEventListener('end',function(){if(_idleTimer)clearTimeout(_idleTimer);_idleTimer=setTimeout(function(){if(!_flythroughActive)c.autoRotate=true;},7000);});
 
-    // === PROGRESSIVE ZOOM RENDERING ===
+    // === ZOOM-ADAPTIVE RENDERING ===
     try{
       var lastZoomUpdate=0;
       c.addEventListener('change',function(){
         var now=Date.now();
-        if(now-lastZoomUpdate<60)return;
+        if(now-lastZoomUpdate<100)return;
         lastZoomUpdate=now;
         try{
           var dist=c.object.position.length();
-          // Logarithmic zoom curve for progressive feel
-          var normalizedDist=Math.max(0,Math.min(1,(dist-90)/510));
-          var f=0.15+Math.pow(normalizedDist,0.6)*1.35;
+          var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
           var alt=globe.pointOfView().altitude;
-          var altChanged=(Math.abs(alt-_currentAltitude)>0.03);
+          var altChanged=(Math.abs(alt-_currentAltitude)>0.05);
           _currentAltitude=alt;
-          if(Math.abs(f-_zoomFactor)>0.02||altChanged){
+          if(Math.abs(f-_zoomFactor)>0.03||altChanged){
             _zoomFactor=f;
             c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
-
-            // Dynamic hex resolution: res 4 when close, res 3 when far
-            var targetRes=3;
-            if(dist<140)targetRes=4;
-            if(targetRes!==_currentHexRes){
-              var shouldSwitch=false;
-              if(targetRes===4&&dist<135)shouldSwitch=true;
-              if(targetRes===3&&dist>150)shouldSwitch=true;
-              if(shouldSwitch){
-                _currentHexRes=targetRes;
-                globe.hexPolygonResolution(targetRes);
-                requestAnimationFrame(function(){
-                  globe.hexPolygonsData(_countryFeatures);
-                });
-              }
-            }
-
-            // Dynamic hex margin: tighter hexes when zoomed in
-            var hexMargin=0.55;
-            if(dist<200){
-              hexMargin=0.35+0.20*((dist-90)/110);
-              hexMargin=Math.max(0.35,Math.min(0.55,hexMargin));
-            }
-            globe.hexPolygonMargin(hexMargin);
-
-            // Surface richness: boost emissive when zoomed in
-            try{
-              var mat=globe.globeMaterial();
-              mat.emissiveIntensity=0.5+0.3*(1-Math.min(1,normalizedDist));
-            }catch(me){}
-
             renderPins();
           }
         }catch(ze){}
@@ -427,26 +393,25 @@ function startFlythrough(stops){
   flyNext();
 }
 
-// === ZOOM-AWARE PIN SPREADING ===
+// === PIN OVERLAP FIX (fixed offset, no zoom dependency) ===
 function spreadPins(pins){
   if(pins.length<2)return pins;
-  // Spread scales with zoom: less spread when zoomed in (camera naturally separates)
-  var spreadRadius=Math.max(0.15,0.3*_zoomFactor);
-  var threshold=Math.max(0.3,0.5*_zoomFactor);
   for(var i=0;i<pins.length;i++){
     for(var j=i+1;j<pins.length;j++){
       var dlat=pins[i].lat-pins[j].lat;
       var dlng=pins[i].lng-pins[j].lng;
       var dist=Math.sqrt(dlat*dlat+dlng*dlng);
       if(dist<=0.0001){
+        // Identical coords: fixed small circle offset
         var angle=(2*Math.PI*j)/Math.max(2,pins.length);
-        pins[i].lat+=spreadRadius*Math.sin(angle);
-        pins[i].lng+=spreadRadius*Math.cos(angle);
-        pins[j].lat-=spreadRadius*Math.sin(angle);
-        pins[j].lng-=spreadRadius*Math.cos(angle);
-      }else if(dist<threshold){
+        pins[i].lat+=0.3*Math.sin(angle);
+        pins[i].lng+=0.3*Math.cos(angle);
+        pins[j].lat-=0.3*Math.sin(angle);
+        pins[j].lng-=0.3*Math.cos(angle);
+      }else if(dist<0.5){
+        // Very close: tiny fixed nudge
         var nx=dlat/dist,ny=dlng/dist;
-        var push=(spreadRadius*0.67)*(threshold-dist)/threshold;
+        var push=0.15*(0.5-dist)/0.5;
         pins[i].lat+=nx*push;
         pins[i].lng+=ny*push;
         pins[j].lat-=nx*push;
