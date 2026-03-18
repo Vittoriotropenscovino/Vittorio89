@@ -32,6 +32,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_scanAnimId=0;
 var _visitedCountries=[],_countryFeatures=[],_flythroughActive=false;
 var _currentAltitude=2.5;
+var _currentHexRes=3;
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -157,8 +158,8 @@ function go(countries){
         return 0.01+0.04*_zoomFactor;
       })
       .pointRadius(function(d){
-        if(d.isHome)return 0.25+0.2*_zoomFactor;
-        return 0.12+0.18*_zoomFactor;
+        if(d.isHome)return 0.25+0.15*_zoomFactor;
+        return 0.12+0.10*_zoomFactor;
       })
       .pointResolution(8)
 
@@ -177,8 +178,6 @@ function go(countries){
       .labelsData([])
       .labelLat('lat').labelLng('lng')
       .labelText(function(d){
-        if(d.isHome)return d.label;
-        if(_currentAltitude>0.8)return '';
         return d.label;
       })
       .labelSize(function(d){
@@ -188,9 +187,17 @@ function go(countries){
         return 0.08+0.12*_zoomFactor;
       })
       .labelColor(function(d){
-        if(d.isHome)return 'rgba(255,215,0,0.95)';
-        if(d.isWishlist)return 'rgba(236,72,153,0.95)';
-        return 'rgba(255,255,255,0.95)';
+        var opacity=0;
+        if(d.isHome){
+          opacity=_currentAltitude>2.0?0.4:0.95;
+        }else{
+          if(_currentAltitude<=0.5)opacity=0.95;
+          else if(_currentAltitude>=1.2)opacity=0.0;
+          else opacity=0.95*(1-(_currentAltitude-0.5)/0.7);
+        }
+        if(d.isHome)return 'rgba(255,215,0,'+opacity+')';
+        if(d.isWishlist)return 'rgba(236,72,153,'+opacity+')';
+        return 'rgba(255,255,255,'+opacity+')';
       })
       .labelResolution(1)
       .labelAltitude(function(){
@@ -286,9 +293,9 @@ function go(countries){
     c.autoRotate=true;
     c.autoRotateSpeed=0.4;
     c.enableDamping=true;
-    c.dampingFactor=0.2;
+    c.dampingFactor=0.15;
     c.rotateSpeed=0.8;
-    c.zoomSpeed=0.8;
+    c.zoomSpeed=0.6;
     c.minDistance=90;
     c.maxDistance=600;
     c.enablePan=false;
@@ -298,22 +305,55 @@ function go(countries){
     c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
     c.addEventListener('end',function(){if(_idleTimer)clearTimeout(_idleTimer);_idleTimer=setTimeout(function(){if(!_flythroughActive)c.autoRotate=true;},7000);});
 
-    // === ZOOM-ADAPTIVE RENDERING ===
+    // === PROGRESSIVE ZOOM RENDERING ===
     try{
       var lastZoomUpdate=0;
       c.addEventListener('change',function(){
         var now=Date.now();
-        if(now-lastZoomUpdate<100)return;
+        if(now-lastZoomUpdate<60)return;
         lastZoomUpdate=now;
         try{
           var dist=c.object.position.length();
-          var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
+          // Logarithmic zoom curve for progressive feel
+          var normalizedDist=Math.max(0,Math.min(1,(dist-90)/510));
+          var f=0.15+Math.pow(normalizedDist,0.6)*1.35;
           var alt=globe.pointOfView().altitude;
-          var altChanged=(Math.abs(alt-_currentAltitude)>0.05);
+          var altChanged=(Math.abs(alt-_currentAltitude)>0.03);
           _currentAltitude=alt;
-          if(Math.abs(f-_zoomFactor)>0.03||altChanged){
+          if(Math.abs(f-_zoomFactor)>0.02||altChanged){
             _zoomFactor=f;
             c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
+
+            // Dynamic hex resolution: res 4 when close, res 3 when far
+            var targetRes=3;
+            if(dist<140)targetRes=4;
+            if(targetRes!==_currentHexRes){
+              var shouldSwitch=false;
+              if(targetRes===4&&dist<135)shouldSwitch=true;
+              if(targetRes===3&&dist>150)shouldSwitch=true;
+              if(shouldSwitch){
+                _currentHexRes=targetRes;
+                globe.hexPolygonResolution(targetRes);
+                requestAnimationFrame(function(){
+                  globe.hexPolygonsData(_countryFeatures);
+                });
+              }
+            }
+
+            // Dynamic hex margin: tighter hexes when zoomed in
+            var hexMargin=0.55;
+            if(dist<200){
+              hexMargin=0.35+0.20*((dist-90)/110);
+              hexMargin=Math.max(0.35,Math.min(0.55,hexMargin));
+            }
+            globe.hexPolygonMargin(hexMargin);
+
+            // Surface richness: boost emissive when zoomed in
+            try{
+              var mat=globe.globeMaterial();
+              mat.emissiveIntensity=0.5+0.3*(1-Math.min(1,normalizedDist));
+            }catch(me){}
+
             renderPins();
           }
         }catch(ze){}
@@ -387,28 +427,26 @@ function startFlythrough(stops){
   flyNext();
 }
 
-// === PIN OFFSET FOR OVERLAPPING PINS ===
+// === ZOOM-AWARE PIN SPREADING ===
 function spreadPins(pins){
   if(pins.length<2)return pins;
-  // Only apply small fixed offset for pins at identical or very close coordinates
-  // Pins stay at their real geographic positions
+  // Spread scales with zoom: less spread when zoomed in (camera naturally separates)
+  var spreadRadius=Math.max(0.15,0.3*_zoomFactor);
+  var threshold=Math.max(0.3,0.5*_zoomFactor);
   for(var i=0;i<pins.length;i++){
     for(var j=i+1;j<pins.length;j++){
       var dlat=pins[i].lat-pins[j].lat;
       var dlng=pins[i].lng-pins[j].lng;
       var dist=Math.sqrt(dlat*dlat+dlng*dlng);
       if(dist<=0.0001){
-        // Identical coordinates: spread in small circle (0.3 degrees)
         var angle=(2*Math.PI*j)/Math.max(2,pins.length);
-        var offset=0.3;
-        pins[i].lat+=offset*Math.sin(angle);
-        pins[i].lng+=offset*Math.cos(angle);
-        pins[j].lat-=offset*Math.sin(angle);
-        pins[j].lng-=offset*Math.cos(angle);
-      }else if(dist<0.5){
-        // Very close pins: tiny nudge apart (0.2 degrees)
+        pins[i].lat+=spreadRadius*Math.sin(angle);
+        pins[i].lng+=spreadRadius*Math.cos(angle);
+        pins[j].lat-=spreadRadius*Math.sin(angle);
+        pins[j].lng-=spreadRadius*Math.cos(angle);
+      }else if(dist<threshold){
         var nx=dlat/dist,ny=dlng/dist;
-        var push=0.2*(0.5-dist)/0.5;
+        var push=(spreadRadius*0.67)*(threshold-dist)/threshold;
         pins[i].lat+=nx*push;
         pins[i].lng+=ny*push;
         pins[j].lat-=nx*push;
