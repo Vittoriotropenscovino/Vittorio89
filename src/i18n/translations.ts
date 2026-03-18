@@ -200,6 +200,12 @@ const it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  // Stability & data protection
+  saveFailed: 'Salvataggio fallito. Riprovo...',
+  saveFailedFinal: 'Impossibile salvare i dati. Controlla lo spazio disponibile.',
+  offlineGeocode: 'Sei offline. La ricerca del luogo richiede connessione internet.',
+  exportPrivacyWarning: 'Il backup contiene le coordinate GPS dei tuoi viaggi. Condividilo solo con persone fidate.',
+  autoBackupDone: 'Backup automatico completato.',
 };
 
 const en: typeof it = {
@@ -402,6 +408,11 @@ const en: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: 'Save failed. Retrying...',
+  saveFailedFinal: 'Unable to save data. Check available storage.',
+  offlineGeocode: 'You are offline. Location search requires an internet connection.',
+  exportPrivacyWarning: 'The backup contains GPS coordinates of your trips. Share only with trusted people.',
+  autoBackupDone: 'Automatic backup completed.',
 };
 
 const es: typeof it = {
@@ -595,6 +606,11 @@ const es: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: 'Error al guardar. Reintentando...',
+  saveFailedFinal: 'No se pudieron guardar los datos. Verifica el espacio disponible.',
+  offlineGeocode: 'Estás sin conexión. La búsqueda de lugares requiere internet.',
+  exportPrivacyWarning: 'La copia contiene las coordenadas GPS de tus viajes. Compártela solo con personas de confianza.',
+  autoBackupDone: 'Copia de seguridad automática completada.',
 };
 
 const fr: typeof it = {
@@ -788,6 +804,11 @@ const fr: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: 'Échec de la sauvegarde. Nouvelle tentative...',
+  saveFailedFinal: 'Impossible de sauvegarder les données. Vérifiez l\'espace disponible.',
+  offlineGeocode: 'Vous êtes hors ligne. La recherche de lieu nécessite une connexion internet.',
+  exportPrivacyWarning: 'La sauvegarde contient les coordonnées GPS de vos voyages. Partagez-la uniquement avec des personnes de confiance.',
+  autoBackupDone: 'Sauvegarde automatique terminée.',
 };
 
 const de: typeof it = {
@@ -981,6 +1002,11 @@ const de: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: 'Speichern fehlgeschlagen. Erneuter Versuch...',
+  saveFailedFinal: 'Daten konnten nicht gespeichert werden. Überprüfen Sie den verfügbaren Speicher.',
+  offlineGeocode: 'Sie sind offline. Die Ortssuche erfordert eine Internetverbindung.',
+  exportPrivacyWarning: 'Das Backup enthält GPS-Koordinaten Ihrer Reisen. Teilen Sie es nur mit vertrauenswürdigen Personen.',
+  autoBackupDone: 'Automatisches Backup abgeschlossen.',
 };
 
 const pt: typeof it = {
@@ -1174,6 +1200,11 @@ const pt: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: 'Falha ao salvar. Tentando novamente...',
+  saveFailedFinal: 'Não foi possível salvar os dados. Verifique o espaço disponível.',
+  offlineGeocode: 'Você está offline. A busca de local requer conexão com a internet.',
+  exportPrivacyWarning: 'O backup contém as coordenadas GPS das suas viagens. Compartilhe apenas com pessoas de confiança.',
+  autoBackupDone: 'Backup automático concluído.',
 };
 
 const zh: typeof it = {
@@ -1367,6 +1398,11 @@ const zh: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: '保存失败。正在重试...',
+  saveFailedFinal: '无法保存数据。请检查可用空间。',
+  offlineGeocode: '您处于离线状态。位置搜索需要互联网连接。',
+  exportPrivacyWarning: '备份包含您旅行的GPS坐标。请仅与信任的人分享。',
+  autoBackupDone: '自动备份已完成。',
 };
 
 const ja: typeof it = {
@@ -1560,6 +1596,11 @@ const ja: typeof it = {
   portuguese: 'Português',
   chinese: '中文',
   japanese: '日本語',
+  saveFailed: '保存に失敗しました。再試行中...',
+  saveFailedFinal: 'データを保存できませんでした。利用可能なストレージを確認してください。',
+  offlineGeocode: 'オフラインです。場所の検索にはインターネット接続が必要です。',
+  exportPrivacyWarning: 'バックアップには旅行のGPS座標が含まれています。信頼できる人とのみ共有してください。',
+  autoBackupDone: '自動バックアップが完了しました。',
 };
 
 export const translations: Record<Language, typeof it> = { it, en, es, fr, de, pt, zh, ja };

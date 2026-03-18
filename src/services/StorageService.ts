@@ -5,7 +5,11 @@ import { Trip, Itinerary } from '../types';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
 const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
+const LAST_BACKUP_KEY = '@travelsphere_last_backup';
 export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
+const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_BACKUPS = 3;
 const isWeb = Platform.OS === 'web';
 
 /**
@@ -176,6 +180,39 @@ export const StorageService = {
         } catch (error) {
             console.error('Error getting storage info:', error);
             return { tripCount: 0, mediaSize: 0 };
+        }
+    },
+    /**
+     * Check if auto-backup is due and perform it if needed
+     */
+    checkAndPerformAutoBackup: async (trips: Trip[]): Promise<boolean> => {
+        if (isWeb || trips.length === 0) return false;
+        try {
+            const lastBackup = await AsyncStorage.getItem(LAST_BACKUP_KEY);
+            const lastBackupTime = lastBackup ? parseInt(lastBackup, 10) : 0;
+            if (Date.now() - lastBackupTime < BACKUP_INTERVAL_MS) return false;
+
+            // Ensure backup directory exists
+            const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+            if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
+
+            // Save backup
+            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+            const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            await FileSystem.writeAsStringAsync(BACKUP_DIR + filename, data);
+
+            // Clean old backups (keep only MAX_BACKUPS most recent)
+            const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+            const backupFiles = files.filter((f) => f.startsWith('backup_')).sort().reverse();
+            for (let i = MAX_BACKUPS; i < backupFiles.length; i++) {
+                await FileSystem.deleteAsync(BACKUP_DIR + backupFiles[i], { idempotent: true });
+            }
+
+            await AsyncStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
+            return true;
+        } catch (error) {
+            console.error('Auto-backup error:', error);
+            return false;
         }
     },
 };

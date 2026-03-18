@@ -27,17 +27,20 @@ import CalendarView from './src/components/CalendarView';
 import SaveConfirmation from './src/components/SaveConfirmation';
 import OfflineBanner from './src/components/OfflineBanner';
 import ItineraryManager from './src/components/ItineraryManager';
-import StorageService from './src/services/StorageService';
-import { Trip, Itinerary } from './src/types';
+import { useTrips } from './src/hooks/useTrips';
+import { Trip } from './src/types';
 
 type ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager';
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
 
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [itineraries, setItineraries] = useState<Itinerary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    trips, setTrips, itineraries, setItineraries, isLoading,
+    saveTrip, deleteTrip, toggleFavorite,
+    createItinerary, deleteItinerary, renameItinerary,
+  } = useTrips(t);
+
   const [activeModal, setActiveModal] = useState<ModalType>('none');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -136,38 +139,6 @@ const AppContent: React.FC = () => {
     return () => sub.remove();
   }, [settings.biometricEnabled, t]);
 
-  // Load trips and itineraries
-  useEffect(() => {
-    (async () => {
-      try {
-        const [savedTrips, savedItineraries] = await Promise.all([
-          StorageService.loadTrips(),
-          StorageService.loadItineraries(),
-        ]);
-        setTrips(savedTrips);
-        setItineraries(savedItineraries);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, []);
-
-  // Save trips when changed
-  useEffect(() => {
-    if (!isLoading) {
-      StorageService.saveTrips(trips).catch((error) => console.error('Error saving trips:', error));
-    }
-  }, [trips, isLoading]);
-
-  // Save itineraries when changed
-  useEffect(() => {
-    if (!isLoading) {
-      StorageService.saveItineraries(itineraries).catch((error) => console.error('Error saving itineraries:', error));
-    }
-  }, [itineraries, isLoading]);
-
   // Biometric auth on startup
   useEffect(() => {
     if (!isSettingsLoaded) return;
@@ -192,58 +163,19 @@ const AppContent: React.FC = () => {
     }
   }, [autoFlyTarget]);
 
-  const generateId = useCallback((): string => {
-    return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-  }, []);
-
   const handleSaveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>) => {
-    let tripId: string;
-    if (editingTrip) {
-      tripId = editingTrip.id;
-      setTrips((prev) => prev.map((tr) => tr.id === editingTrip.id ? { ...tr, ...tripData } : tr));
-      setEditingTrip(null);
-    } else {
-      tripId = generateId();
-      const newTrip: Trip = { ...tripData, id: tripId, createdAt: Date.now() };
-      setTrips((prev) => [...prev, newTrip]);
-    }
-    // Update itinerary membership
-    if (tripData.itineraryId) {
-      setItineraries((prev) => prev.map((it) => {
-        if (it.id === tripData.itineraryId) {
-          const ids = it.tripIds.includes(tripId) ? it.tripIds : [...it.tripIds, tripId];
-          return { ...it, tripIds: ids };
-        }
-        // Remove from other itineraries
-        return { ...it, tripIds: it.tripIds.filter((id) => id !== tripId) };
-      }));
-    } else {
-      // Remove from all itineraries
-      setItineraries((prev) => prev.map((it) => ({
-        ...it, tripIds: it.tripIds.filter((id) => id !== tripId),
-      })));
-    }
+    saveTrip(tripData, editingTrip);
+    setEditingTrip(null);
     setActiveModal('none');
     setSaveMsg(t('saved') as string);
     setShowSaveConfirm(true);
-    // Fly globe to the saved trip location
     setAutoFlyTarget({ latitude: tripData.latitude, longitude: tripData.longitude });
-  }, [editingTrip, generateId, t]);
+  }, [editingTrip, saveTrip, t]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
-    setTrips((prevTrips) => {
-      const updatedTrips = prevTrips.filter((t) => t.id !== tripId);
-      StorageService.saveTrips(updatedTrips);
-      return updatedTrips;
-    });
+    await deleteTrip(tripId);
     setSelectedTrip(null);
-  }, []);
-
-  const handleToggleFavorite = useCallback((tripId: string) => {
-    setTrips((prev) => prev.map((tr) =>
-      tr.id === tripId ? { ...tr, isFavorite: !tr.isFavorite } : tr
-    ));
-  }, []);
+  }, [deleteTrip]);
 
   const handleEditTrip = useCallback((trip: Trip) => {
     setEditingTrip(trip);
@@ -256,24 +188,10 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleCreateItinerary = useCallback((name: string) => {
-    const newIt: Itinerary = { id: generateId(), name, tripIds: [], createdAt: Date.now() };
-    setItineraries((prev) => [...prev, newIt]);
+    createItinerary(name);
     setSaveMsg(t('saved') as string);
     setShowSaveConfirm(true);
-  }, [generateId, t]);
-
-  const handleDeleteItinerary = useCallback((id: string) => {
-    setItineraries((prev) => prev.filter((it) => it.id !== id));
-    setTrips((prev) => prev.map((tr) =>
-      tr.itineraryId === id ? { ...tr, itineraryId: undefined } : tr
-    ));
-  }, []);
-
-  const handleRenameItinerary = useCallback((id: string, newName: string) => {
-    setItineraries((prev) => prev.map((it) =>
-      it.id === id ? { ...it, name: newName } : it
-    ));
-  }, []);
+  }, [createItinerary, t]);
 
   const handleOnboardingComplete = useCallback(() => {
     updateSettings({ hasSeenOnboarding: true });
@@ -459,7 +377,7 @@ const AppContent: React.FC = () => {
         onClose={() => setSelectedTrip(null)} onDelete={handleDeleteTrip} onEdit={handleEditTrip} />
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
         onTripSelect={(trip) => setSelectedTrip(trip)} onDelete={handleDeleteTrip}
-        onToggleFavorite={handleToggleFavorite}
+        onToggleFavorite={toggleFavorite}
         onOpenSettings={() => setActiveModal('settings')}
         onOpenStats={() => setActiveModal('stats')}
         onOpenCalendar={() => setActiveModal('calendar')}
@@ -478,8 +396,8 @@ const AppContent: React.FC = () => {
       <ItineraryManager visible={activeModal === 'itineraryManager'} onClose={() => setActiveModal('none')}
         itineraries={itineraries} trips={trips}
         onCreateItinerary={handleCreateItinerary}
-        onDeleteItinerary={handleDeleteItinerary}
-        onRenameItinerary={handleRenameItinerary}
+        onDeleteItinerary={deleteItinerary}
+        onRenameItinerary={renameItinerary}
         onFlythrough={(stops) => { setFlythroughStops(stops); setTimeout(() => setFlythroughStops(null), 500); }} />
     </View>
   );

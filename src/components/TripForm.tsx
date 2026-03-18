@@ -9,11 +9,13 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
+import * as Crypto from 'expo-crypto';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { MEDIA_DIR } from '../services/StorageService';
+import NetInfo from '@react-native-community/netinfo';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -170,6 +172,12 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     const handleGeocode = async () => {
         if (!locationQuery.trim()) { Alert.alert(t('error') as string, t('enterLocation') as string); return; }
+        // Check network connectivity before geocoding
+        const netState = await NetInfo.fetch();
+        if (!netState.isConnected) {
+            Alert.alert(t('error') as string, t('offlineGeocode') as string);
+            return;
+        }
         const now = Date.now();
         if (now - lastGeocodingTime.current < NOMINATIM_MIN_INTERVAL) {
             return;
@@ -236,7 +244,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         for (const item of items) {
             if (item.uri.startsWith(MEDIA_DIR)) { copiedMedia.push(item); continue; }
             const sourceUri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
-            const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}${item.type === 'video' ? '.mp4' : '.jpg'}`;
+            const filename = `${Crypto.randomUUID()}${item.type === 'video' ? '.mp4' : '.jpg'}`;
             const newUri = MEDIA_DIR + filename;
             try {
                 await FileSystem.copyAsync({ from: sourceUri, to: newUri });

@@ -46,21 +46,34 @@ const SettingsScreen: React.FC<Props> = ({
     const [searchingHome, setSearchingHome] = useState(false);
 
     const handleExport = async () => {
-        try {
-            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
-            const fileUri = FileSystem.cacheDirectory + 'travelsphere_backup.json';
-            await FileSystem.writeAsStringAsync(fileUri, data);
-            const canShare = await Sharing.isAvailableAsync();
-            if (canShare) {
-                await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'TravelSphere Backup' });
-            } else {
-                Alert.alert('', t('exportSuccess') as string);
-            }
-            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch (e) {
-            console.error('Export error:', e);
-            Alert.alert(t('error') as string, String(e));
-        }
+        // Privacy warning before export
+        Alert.alert(
+            t('privacy') as string,
+            t('exportPrivacyWarning') as string,
+            [
+                { text: t('cancel') as string, style: 'cancel' },
+                {
+                    text: t('confirm') as string,
+                    onPress: async () => {
+                        try {
+                            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+                            const fileUri = FileSystem.cacheDirectory + 'travelsphere_backup.json';
+                            await FileSystem.writeAsStringAsync(fileUri, data);
+                            const canShare = await Sharing.isAvailableAsync();
+                            if (canShare) {
+                                await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'TravelSphere Backup' });
+                            } else {
+                                Alert.alert('', t('exportSuccess') as string);
+                            }
+                            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        } catch (e) {
+                            console.error('Export error:', e);
+                            Alert.alert(t('error') as string, String(e));
+                        }
+                    },
+                },
+            ],
+        );
     };
 
     const handleImport = async () => {
