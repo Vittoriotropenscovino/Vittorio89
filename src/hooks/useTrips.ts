@@ -19,6 +19,7 @@ export function useTrips(t: TranslateFn) {
   useEffect(() => {
     (async () => {
       try {
+        await StorageService.migrateData();
         const [savedTrips, savedItineraries] = await Promise.all([
           StorageService.loadTrips(),
           StorageService.loadItineraries(),

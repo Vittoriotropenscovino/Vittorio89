@@ -10,6 +10,8 @@ export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
 const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
 const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_BACKUPS = 3;
+const CURRENT_SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = '@travelsphere_schema_version';
 const isWeb = Platform.OS === 'web';
 
 /**
@@ -185,6 +187,69 @@ export const StorageService = {
     /**
      * Check if auto-backup is due and perform it if needed
      */
+    /**
+     * Load trips without media verification (for migration)
+     */
+    loadTripsRaw: async (): Promise<any[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(TRIPS_STORAGE_KEY);
+            return jsonValue ? JSON.parse(jsonValue) : [];
+        } catch {
+            return [];
+        }
+    },
+
+    /**
+     * Load itineraries without type casting (for migration)
+     */
+    loadItinerariesRaw: async (): Promise<any[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
+            return jsonValue ? JSON.parse(jsonValue) : [];
+        } catch {
+            return [];
+        }
+    },
+
+    /**
+     * Run schema migrations if needed.
+     * Must be called BEFORE loadTrips/loadItineraries.
+     * Idempotent: safe to call multiple times.
+     */
+    migrateData: async (): Promise<void> => {
+        const stored = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
+        const currentVersion = stored ? parseInt(stored, 10) : 0;
+
+        if (currentVersion >= CURRENT_SCHEMA_VERSION) return;
+
+        const trips = await StorageService.loadTripsRaw();
+        const itineraries = await StorageService.loadItinerariesRaw();
+
+        let migratedTrips = trips;
+        let migratedItineraries = itineraries;
+
+        // Migration 0 → 1: ensure default fields exist on all trips
+        if (currentVersion < 1) {
+            console.log('[Migration] v0 → v1: adding default fields');
+            migratedTrips = trips.map((trip: any) => ({
+                tags: [],
+                isFavorite: false,
+                isWishlist: false,
+                media: [],
+                notes: '',
+                ...trip, // existing fields override defaults
+            }));
+        }
+
+        // Future migrations:
+        // if (currentVersion < 2) { ... }
+
+        await StorageService.saveTrips(migratedTrips);
+        await StorageService.saveItineraries(migratedItineraries);
+        await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION.toString());
+        console.log(`[Migration] Schema updated to v${CURRENT_SCHEMA_VERSION}`);
+    },
+
     checkAndPerformAutoBackup: async (trips: Trip[]): Promise<boolean> => {
         if (isWeb || trips.length === 0) return false;
         try {
