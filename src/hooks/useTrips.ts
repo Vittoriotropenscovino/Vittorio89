@@ -26,7 +26,7 @@ export function useTrips(t: TranslateFn) {
         ]);
         setTrips(savedTrips);
         setItineraries(savedItineraries);
-        StorageService.checkAndPerformAutoBackup(savedTrips).catch(() => {});
+        StorageService.checkAndPerformAutoBackup(savedTrips, savedItineraries).catch(() => {});
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {

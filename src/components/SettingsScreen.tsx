@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Crypto from 'expo-crypto';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 import { Trip } from '../types';
@@ -56,7 +57,13 @@ const SettingsScreen: React.FC<Props> = ({
                     text: t('confirm') as string,
                     onPress: async () => {
                         try {
-                            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+                            const backupData = { trips };
+                            const dataString = JSON.stringify(backupData);
+                            const checksum = await Crypto.digestStringAsync(
+                                Crypto.CryptoDigestAlgorithm.SHA256, dataString
+                            );
+                            const backup = { schemaVersion: 1, checksum, createdAt: new Date().toISOString(), data: backupData };
+                            const data = JSON.stringify(backup, null, 2);
                             const fileUri = FileSystem.cacheDirectory + 'travelsphere_backup.json';
                             await FileSystem.writeAsStringAsync(fileUri, data);
                             const canShare = await Sharing.isAvailableAsync();
@@ -83,27 +90,44 @@ const SettingsScreen: React.FC<Props> = ({
                 copyToCacheDirectory: true,
             });
             if (result.canceled || !result.assets || result.assets.length === 0) return;
-            const fileUri = result.assets[0].uri;
-            const content = await FileSystem.readAsStringAsync(fileUri);
-            const parsed = JSON.parse(content);
-            if (parsed.trips && Array.isArray(parsed.trips)) {
+            const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
+
+            const { valid, data, hasChecksum } = await StorageService.validateBackup(content);
+            const tripsToImport = data.trips;
+            if (!tripsToImport || !Array.isArray(tripsToImport)) {
+                Alert.alert(t('error') as string, t('importError') as string);
+                return;
+            }
+
+            const doImport = () => {
                 Alert.alert(
                     t('importData') as string,
-                    (t('importConfirmMessage') as string).replace('{count}', String(parsed.trips.length)),
+                    (t('importConfirmMessage') as string).replace('{count}', String(tripsToImport.length)),
                     [
                         { text: t('cancel') as string, style: 'cancel' },
                         {
                             text: t('confirm') as string,
                             onPress: () => {
-                                onTripsUpdate(parsed.trips);
+                                onTripsUpdate(tripsToImport);
                                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                 Alert.alert('', t('importSuccess') as string);
                             },
                         },
                     ],
                 );
+            };
+
+            if (hasChecksum && !valid) {
+                Alert.alert(
+                    t('warning') as string,
+                    t('backupCorruptWarning') as string,
+                    [
+                        { text: t('cancel') as string, style: 'cancel' },
+                        { text: t('confirm') as string, onPress: doImport },
+                    ],
+                );
             } else {
-                Alert.alert(t('error') as string, t('importError') as string);
+                doImport();
             }
         } catch (e) {
             console.error('Import error:', e);
@@ -152,12 +176,17 @@ const SettingsScreen: React.FC<Props> = ({
 
     const handleCloudBackup = async () => {
         try {
-            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+            const backupData = { trips };
+            const dataString = JSON.stringify(backupData);
+            const checksum = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256, dataString
+            );
+            const backup = { schemaVersion: 1, checksum, createdAt: new Date().toISOString(), data: backupData };
             const backupDir = FileSystem.documentDirectory + 'backups/';
             const dirInfo = await FileSystem.getInfoAsync(backupDir);
             if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(backupDir, { intermediates: true });
             const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-            await FileSystem.writeAsStringAsync(backupDir + filename, data);
+            await FileSystem.writeAsStringAsync(backupDir + filename, JSON.stringify(backup, null, 2));
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('', t('backupSuccess') as string);
         } catch (e) {

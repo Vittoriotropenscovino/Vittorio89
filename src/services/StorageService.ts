@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { Trip, Itinerary } from '../types';
 
@@ -250,23 +251,45 @@ export const StorageService = {
         console.log(`[Migration] Schema updated to v${CURRENT_SCHEMA_VERSION}`);
     },
 
-    checkAndPerformAutoBackup: async (trips: Trip[]): Promise<boolean> => {
+    checkAndPerformAutoBackup: async (trips: Trip[], itineraries: Itinerary[]): Promise<boolean> => {
         if (isWeb || trips.length === 0) return false;
         try {
             const lastBackup = await AsyncStorage.getItem(LAST_BACKUP_KEY);
             const lastBackupTime = lastBackup ? parseInt(lastBackup, 10) : 0;
             if (Date.now() - lastBackupTime < BACKUP_INTERVAL_MS) return false;
 
-            // Ensure backup directory exists
             const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
             if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
 
-            // Save backup
-            const data = JSON.stringify({ trips, exportDate: new Date().toISOString(), version: '1.0' }, null, 2);
+            // Build backup with checksum
+            const backupData = { trips, itineraries };
+            const dataString = JSON.stringify(backupData);
+            const checksum = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256, dataString
+            );
+            const backup = {
+                schemaVersion: CURRENT_SCHEMA_VERSION,
+                checksum,
+                createdAt: new Date().toISOString(),
+                data: backupData,
+            };
             const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-            await FileSystem.writeAsStringAsync(BACKUP_DIR + filename, data);
+            await FileSystem.writeAsStringAsync(BACKUP_DIR + filename, JSON.stringify(backup, null, 2));
 
-            // Clean old backups (keep only MAX_BACKUPS most recent)
+            // Verify written file before rotating old backups
+            const written = await FileSystem.readAsStringAsync(BACKUP_DIR + filename);
+            const parsed = JSON.parse(written);
+            const verifyString = JSON.stringify(parsed.data);
+            const verifyChecksum = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256, verifyString
+            );
+            if (verifyChecksum !== parsed.checksum) {
+                console.error('[Backup] Checksum mismatch, keeping old backups');
+                await FileSystem.deleteAsync(BACKUP_DIR + filename, { idempotent: true });
+                return false;
+            }
+
+            // Rotate old backups only after validation passed
             const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
             const backupFiles = files.filter((f) => f.startsWith('backup_')).sort().reverse();
             for (let i = MAX_BACKUPS; i < backupFiles.length; i++) {
@@ -279,6 +302,30 @@ export const StorageService = {
             console.error('Auto-backup error:', error);
             return false;
         }
+    },
+
+    /**
+     * Validate a backup file's integrity via SHA-256 checksum.
+     * Supports legacy format (no checksum) for backwards compatibility.
+     */
+    validateBackup: async (content: string): Promise<{ valid: boolean; data: any; hasChecksum: boolean }> => {
+        const parsed = JSON.parse(content);
+
+        // Legacy format (pre-checksum): { trips, exportDate, version }
+        if (!parsed.checksum) {
+            return { valid: true, data: parsed, hasChecksum: false };
+        }
+
+        // New format: { schemaVersion, checksum, createdAt, data: { trips, itineraries } }
+        const dataString = JSON.stringify(parsed.data);
+        const checksum = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256, dataString
+        );
+        return {
+            valid: checksum === parsed.checksum,
+            data: parsed.data,
+            hasChecksum: true,
+        };
     },
 };
 
