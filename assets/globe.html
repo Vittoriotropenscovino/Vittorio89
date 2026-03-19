@@ -103,27 +103,14 @@ function go(countries){
       .atmosphereColor('#00d4ff')
       .atmosphereAltitude(0.25)
 
-      // COUNTRY HEX DOTS - Fog of War
-      .hexPolygonsData(f)
-      .hexPolygonResolution(3)
-      .hexPolygonMargin(0.55)
-      .hexPolygonColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,230,255,0.85)';
-        return 'rgba(0,180,255,0.2)';
-      })
-      .hexPolygonAltitude(function(d){
-        if(isCountryVisited(d))return 0.015;
-        return 0.006;
-      })
-
       // COUNTRY BORDERS - visited countries glow
       .polygonsData(f)
       .polygonCapColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.1)';
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.12)';
         return 'rgba(0,0,0,0)';
       })
       .polygonSideColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.25)';
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.3)';
         return 'rgba(0,200,255,0.05)';
       })
       .polygonStrokeColor(function(d){
@@ -346,7 +333,6 @@ function handleCmd(d){
   else if(d.type==='updateVisitedCountries'){
     _visitedCountries=d.countries||[];
     if(globe&&_countryFeatures.length>0){
-      globe.hexPolygonsData(_countryFeatures);
       globe.polygonsData(_countryFeatures);
     }
   }

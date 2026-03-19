@@ -13,6 +13,8 @@
 - Autenticazione: expo-local-authentication (biometrica)
 - Animazioni: react-native-reanimated
 - Geocoding: Nominatim + Photon + expo-location (catena di fallback)
+- ID Generation: expo-crypto (UUID v4)
+- Testing: Jest + ts-jest
 - Build: EAS (Expo Application Services)
 
 **Orientamento:** Landscape (forzato via expo-screen-orientation)
@@ -65,11 +67,11 @@ App.tsx (root)
 /Vittorio89/
 ├── src/
 │   ├── components/ (16 file)
-│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~800 righe)
-│   │   ├── TripForm.tsx          (crea/modifica viaggi, ~500 righe)
+│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~198 righe - HTML caricato da asset)
+│   │   ├── TripForm.tsx          (crea/modifica viaggi, ~500 righe, check offline)
 │   │   ├── MemoryViewer.tsx      (galleria media, ~250 righe)
 │   │   ├── TripSidebar.tsx       (sidebar lista viaggi, ~400 righe)
-│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~400 righe)
+│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~400 righe, privacy warning export)
 │   │   ├── StatsScreen.tsx       (statistiche viaggio, ~157 righe)
 │   │   ├── CalendarView.tsx      (browser calendario, ~191 righe)
 │   │   ├── ItineraryManager.tsx  (UI itinerari, ~250 righe)
@@ -83,20 +85,29 @@ App.tsx (root)
 │   │   └── index.ts              (barrel export)
 │   ├── contexts/
 │   │   └── AppContext.tsx         (settings globali + lingua, ~107 righe)
+│   ├── hooks/
+│   │   └── useTrips.ts           (hook gestione trips + itinerari, ~141 righe)
 │   ├── services/
-│   │   └── StorageService.ts     (AsyncStorage + FileSystem, ~184 righe)
+│   │   ├── StorageService.ts     (AsyncStorage + FileSystem + auto-backup, ~217 righe)
+│   │   └── __tests__/
+│   │       └── StorageService.test.ts  (test StorageService)
 │   ├── types/
 │   │   └── index.ts              (interfacce TypeScript)
 │   ├── i18n/
 │   │   └── translations.ts       (8 lingue, 150+ chiavi)
 │   └── utils/
 │       ├── geocoding.ts           (Nominatim + fallback, ~62 righe)
-│       └── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
-├── App.tsx                        (entry point principale, ~24 KB)
+│       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
+│       └── __tests__/
+│           └── geocoding.test.ts  (test geocoding)
+├── assets/
+│   └── globe.html                (HTML/JS globo 3D, ~501 righe - file esterno)
+├── App.tsx                        (entry point principale, ~494 righe - logica estratta in hooks)
 ├── app.json                       (config Expo)
 ├── tsconfig.json
 ├── babel.config.js
 ├── metro.config.js
+├── jest.config.js                 (configurazione Jest + ts-jest)
 ├── eas.json                       (config build EAS)
 └── package.json
 ```
@@ -105,45 +116,63 @@ App.tsx (root)
 
 ## FILE PRINCIPALI - DETTAGLIO
 
-### App.tsx (~24 KB) - Shell Principale
+### App.tsx (~494 righe) - Shell Principale
 
-È il cuore dell'app. Gestisce TUTTO lo stato e orchestra tutti i modali.
+Orchestratore dell'app. La logica di gestione trips/itinerari è stata estratta nel hook `useTrips`.
 
-**Stato gestito:**
-- `trips: Trip[]` - array di tutti i viaggi salvati
-- `itineraries: Itinerary[]` - raggruppamenti itinerari
+**Stato gestito direttamente:**
 - `activeModal: string | null` - quale modale è attualmente visibile
 - `selectedTrip: Trip | null` - viaggio selezionato per il viewer
 - `sidebarOpen: boolean` - visibilità sidebar laterale
 - `authenticated: boolean` - stato blocco biometrico
 - `showSaveConfirm: boolean` - visibilità toast salvataggio
-- `isLoading: boolean` - stato caricamento iniziale
 
-**Funzioni chiave:**
-- `handleSaveTrip(tripData)` - crea nuovo viaggio (genera ID con Date.now()) o aggiorna esistente, gestisce appartenenza a itinerario, auto-fly globo alla posizione
-- `handleDeleteTrip(tripId)` - rimuove viaggio dallo stato e dal disco (media files)
-- `handleToggleFavorite(tripId)` - marca/smarca come preferito
-- `handleCreateItinerary(name)` - crea nuovo itinerario con ID unico
-- `handleDeleteItinerary(id)` - rimuove itinerario, orfana i viaggi (rimuove itineraryId)
-- `handleRenameItinerary(id, newName)` - aggiorna nome itinerario
-- `handleOnboardingComplete()` - marca onboarding come completato nelle settings
-- `handleGDPRAccept()` - accetta consenso privacy nelle settings
+**Stato delegato a useTrips hook:**
+- `trips`, `itineraries`, `isLoading`
+- `saveTrip`, `deleteTrip`, `toggleFavorite`
+- `createItinerary`, `deleteItinerary`, `renameItinerary`
 
 **Logica di avvio:**
 1. Carica fonts con expo-font
 2. AppProvider carica settings da AsyncStorage
 3. AppContent verifica isSettingsLoaded
-4. Carica trips + itineraries da StorageService
-5. Se biometricEnabled → prompt autenticazione
-6. Se !hasSeenOnboarding → mostra OnboardingScreen
-7. Se !hasAcceptedGDPR → mostra GDPRConsent
-8. Mostra UI principale (Globo + Overlay)
-
-**Auto-save:** useEffect osserva trips e itineraries → se non in loading, salva automaticamente su AsyncStorage
+4. useTrips carica trips + itineraries da StorageService
+5. useTrips esegue auto-backup se necessario (ogni 7 giorni)
+6. Se biometricEnabled → prompt autenticazione
+7. Se !hasSeenOnboarding → mostra OnboardingScreen
+8. Se !hasAcceptedGDPR → mostra GDPRConsent
+9. Mostra UI principale (Globo + Overlay)
 
 **Fog of War:** Calcola `visitedCountries` = Set di countryCode da tutti i viaggi non-wishlist
 
 **Nasconde barra Android:** Usa expo-navigation-bar per nascondere la barra di navigazione
+
+---
+
+### src/hooks/useTrips.ts (~141 righe) - Hook Gestione Dati
+
+Custom hook che gestisce tutto il CRUD di trips e itinerari, estratto da App.tsx.
+
+**ID Generation:** Usa `Crypto.randomUUID()` da expo-crypto (UUID v4) invece di `Date.now()`
+
+**Auto-save robusto:**
+- useEffect osserva trips → se cambiano, salva su AsyncStorage
+- Se il salvataggio fallisce: retry automatico dopo 2 secondi
+- Se anche il retry fallisce: mostra Alert all'utente ("Salvataggio fallito")
+- Stessa logica per itineraries
+
+**Auto-backup:**
+- Al caricamento iniziale, chiama `StorageService.checkAndPerformAutoBackup()`
+- Backup ogni 7 giorni, mantiene ultimi 3 backup
+- Backup salvati in `FileSystem.documentDirectory/backups/`
+
+**Funzioni esportate:**
+- `saveTrip(tripData)` - crea (UUID) o aggiorna viaggio, gestisce itinerario
+- `deleteTrip(tripId)` - rimuove dallo stato e dal disco
+- `toggleFavorite(tripId)` - marca/smarca preferito
+- `createItinerary(name)` - crea itinerario con UUID
+- `deleteItinerary(id)` - rimuove itinerario, orfana viaggi
+- `renameItinerary(id, newName)` - aggiorna nome
 
 ---
 
@@ -163,7 +192,7 @@ interface MediaItem {
 
 // Viaggio - entità principale
 interface Trip {
-  id: string;              // ID unico (Date.now().toString())
+  id: string;              // UUID v4 (generato da expo-crypto)
   title: string;           // nome del viaggio
   locationName: string;    // nome luogo (es. "Roma, Italia")
   latitude: number;        // coordinata GPS
@@ -252,11 +281,11 @@ interface AppSettings {
 
 ---
 
-### src/services/StorageService.ts - Servizio Storage
+### src/services/StorageService.ts (~217 righe) - Servizio Storage
 
-Astrazione unificata per AsyncStorage (metadati) + expo-file-system (media).
+Astrazione unificata per AsyncStorage (metadati) + expo-file-system (media) + auto-backup.
 
-**Metodi:**
+**Metodi principali:**
 ```typescript
 saveTrips(trips: Trip[]): Promise<void>
 // Serializza e salva in AsyncStorage[@travelsphere_trips]
@@ -276,20 +305,32 @@ clearAll(): Promise<void>
 getStorageInfo(): Promise<{ tripCount: number, mediaSize: number }>
 ```
 
+**Auto-backup (nuovo):**
+```typescript
+checkAndPerformAutoBackup(): Promise<void>
+// Controlla se sono passati 7+ giorni dall'ultimo backup
+// Se sì: salva JSON in FileSystem.documentDirectory/backups/
+// Mantiene ultimi 3 backup, elimina i più vecchi
+// Timestamp ultimo backup salvato in AsyncStorage[@travelsphere_last_backup]
+```
+
 **Directory media:** `FileSystem.documentDirectory + 'media/'`
+**Directory backup:** `FileSystem.documentDirectory + 'backups/'`
 
 ---
 
-### src/components/EarthGlobe.tsx (~800 righe) - Globo 3D
+### src/components/EarthGlobe.tsx (~198 righe) - Globo 3D
 
-Il componente più complesso. È una WebView che contiene una pagina HTML con globe.gl (libreria WebGL per globi 3D).
+Componente React che wrappa una WebView con globe.gl. L'HTML/JS del globo è caricato dal file esterno `assets/globe.html` tramite `expo-asset` + `expo-file-system`.
 
 **Struttura del file:**
-- Righe 1-13: Import React Native
-- Righe 14-520: Template HTML/JS inline (stringa `GLOBE_HTML`)
-- Righe 521+: Componente React che wrappa la WebView
+- Imports e costanti
+- Componente React con WebView
+- Caricamento HTML da asset con fallback
+- useEffect per comunicazione RN→WebView (trips, home, settings)
+- Handler onMessage per comunicazione WebView→RN (pinClick, ready)
 
-**Template HTML interno contiene:**
+**Il file `assets/globe.html` (~501 righe) contiene:**
 
 #### Sfondo Stelle (canvas separato)
 - 250 stelle con posizioni random
@@ -326,31 +367,22 @@ Il componente più complesso. È una WebView che contiene una pagina HTML con gl
 - 12 linee di longitudine (ogni 30°), cyan, opacity 0.09
 - Anello scanner rotante sull'equatore, opacity pulsante 0.06-0.12
 
-#### Fog of War (Esagoni Paese)
+#### Fog of War (Bordi Paesi)
+
+I paesi visitati sono evidenziati tramite bordi poligonali luminosi (senza esagoni hex, per non coprire i pin).
+
 ```javascript
-// Paesi visitati
-hexPolygonColor: 'rgba(0,230,255,0.85)'  // cyan luminoso
-hexPolygonAltitude: 0.015                 // leggermente elevati
+// Visitati - fill leggero + bordi luminosi
+polygonCapColor: 'rgba(0,220,255,0.12)'    // fill cyan sottile
+polygonSideColor: 'rgba(0,220,255,0.3)'     // bordi laterali visibili
+polygonStrokeColor: 'rgba(0,230,255,0.8)'   // contorno luminoso
 
-// Paesi non visitati
-hexPolygonColor: 'rgba(0,180,255,0.2)'   // blu scuro tenue
-hexPolygonAltitude: 0.006                 // piatti
+// Non visitati - quasi invisibili
+polygonCapColor: 'rgba(0,0,0,0)'            // trasparente
+polygonSideColor: 'rgba(0,200,255,0.05)'    // appena visibile
+polygonStrokeColor: 'rgba(0,220,255,0.25)'  // contorno tenue
 
-hexPolygonResolution: 3                    // dimensione esagoni
-hexPolygonMargin: 0.55                     // gap tra esagoni
-```
-
-#### Bordi Paesi (Poligoni)
-```javascript
-// Visitati
-polygonCapColor: 'rgba(0,220,255,0.1)'
-polygonSideColor: 'rgba(0,220,255,0.25)'
-polygonStrokeColor: 'rgba(0,230,255,0.8)'
-
-// Non visitati
-polygonCapColor: 'rgba(0,0,0,0)'
-polygonSideColor: 'rgba(0,200,255,0.05)'
-polygonStrokeColor: 'rgba(0,220,255,0.25)'
+polygonAltitude: 0.009                       // leggera elevazione 3D
 ```
 
 #### Pin dei Viaggi
@@ -470,6 +502,7 @@ Modale per creare o modificare un viaggio.
 - `showArc, isWishlist` - toggle switches
 
 **Pipeline Geocoding (3 provider in cascata):**
+0. **Check offline:** Verifica connessione con NetInfo. Se offline → Alert "Sei offline" e blocca la ricerca
 1. **Nominatim (OSM)** + **Photon (Komoot)** in parallelo (no permessi richiesti)
 2. Fallback: **expo-location** geocoder nativo (chiede permesso posizione)
 3. Il primo risultato valido vince → setta lat/lon + nome paese
@@ -720,12 +753,14 @@ Launch app
 ```
 Utente compila TripForm → preme Salva
   → TripForm chiama onSave(tripData)
-  → App.tsx handleSaveTrip():
-    → Se nuovo: genera id = Date.now().toString(), createdAt = new Date().toISOString()
+  → useTrips.saveTrip():
+    → Se nuovo: genera id = Crypto.randomUUID() (UUID v4), createdAt = ISO string
     → Se modifica: aggiorna trip esistente nell'array
     → setTrips([...]) aggiorna stato React
     → Se itineraryId: aggiorna itinerary.tripIds
   → useEffect rileva cambio trips → StorageService.saveTrips(trips)
+    → Se errore: retry dopo 2s
+    → Se retry fallisce: Alert visibile all'utente
   → Mostra SaveConfirmation toast
   → Fly globo alla posizione del viaggio salvato
 ```
@@ -773,8 +808,15 @@ Utente tocca un pin sul globo
 3. Rimuove riferimenti a file mancanti (cleanup)
 
 ### Salvataggio
-- Auto-save via useEffect ogni volta che trips o itineraries cambiano
+- Auto-save via useEffect (in useTrips hook) ogni volta che trips o itineraries cambiano
 - Scatta solo dopo il caricamento iniziale (previene sovrascrittura con array vuoto)
+- Retry automatico dopo 2s se il salvataggio fallisce
+- Alert visibile all'utente se anche il retry fallisce
+
+### Backup Automatico
+- Ogni 7 giorni, al caricamento iniziale dell'app
+- Salva JSON in `FileSystem.documentDirectory/backups/`
+- Mantiene ultimi 3 backup, elimina i più vecchi
 
 ---
 
@@ -804,7 +846,7 @@ Utente tocca un pin sul globo
 ## FUNZIONALITÀ CHIAVE SPIEGATE
 
 ### 1. Fog of War
-Ogni viaggio non-wishlist con countryCode popola il set `visitedCountries` in App.tsx. Questo set viene passato a EarthGlobe che lo invia alla WebView. Nel globo, i paesi nel set sono renderizzati con esagoni cyan luminosi e bordi brillanti. I paesi non visitati sono scuri e tenues. Effetto: "scopri il mondo" man mano che viaggi.
+Ogni viaggio non-wishlist con countryCode popola il set `visitedCountries` in App.tsx. Questo set viene passato a EarthGlobe che lo invia alla WebView. Nel globo, i paesi visitati sono evidenziati con bordi poligonali cyan luminosi e un fill leggero semi-trasparente. I paesi non visitati hanno bordi appena visibili. Effetto: "scopri il mondo" man mano che viaggi, senza che gli elementi grafici coprano i pin.
 
 ### 2. Itinerari
 Raggruppano viaggi sotto un nome. Ogni Trip ha un campo opzionale `itineraryId`. L'Itinerary tiene un array `tripIds`. Il pulsante "Play" nell'ItineraryManager attiva una flythrough animation: la camera vola sequenzialmente a ogni viaggio dell'itinerario. Gli archi animati collegano i viaggi dello stesso itinerario sul globo.
@@ -819,7 +861,7 @@ Per massimizzare affidabilità con API gratuite rate-limited:
 3. Primo risultato valido vince
 
 ### 5. Export/Import
-- **Export:** Serializza array trips in JSON → salva in cache FileSystem → condividi via share sheet nativo
+- **Export:** Mostra avviso privacy ("Il backup contiene coordinate GPS") → Serializza array trips in JSON → salva in cache FileSystem → condividi via share sheet nativo
 - **Import:** Seleziona file JSON tramite document picker → parse → mostra conferma con conteggio → merge nell'array trips esistente
 
 ### 6. Wishlist
@@ -845,9 +887,15 @@ Trip con `isWishlist: true`. Pin rosa sul globo. Non contribuiscono al Fog of Wa
 - expo-file-system, expo-sharing, expo-document-picker
 - expo-location (geocoding), expo-local-authentication (biometria)
 - expo-haptics (feedback tattile), expo-av (video), expo-asset
+- expo-crypto (generazione UUID v4)
 
 **Storage:** @react-native-async-storage/async-storage
 **Network:** @react-native-community/netinfo
+
+**Testing (devDependencies):**
+- jest ^30.3.0
+- ts-jest ^29.4.6
+- @types/jest ^30.0.0
 
 ---
 
