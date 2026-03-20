@@ -7,6 +7,7 @@ export interface MediaItem {
     type: 'image' | 'video';
     width?: number;
     height?: number;
+    thumbnailUri?: string;
 }
 
 // Trip/Memory Data

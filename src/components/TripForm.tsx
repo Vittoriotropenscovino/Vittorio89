@@ -237,6 +237,22 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         }
     };
 
+    const generateThumbnail = async (imageUri: string, baseFilename: string): Promise<string | undefined> => {
+        try {
+            const thumb = await ImageManipulator.manipulateAsync(
+                imageUri,
+                [{ resize: { width: 150 } }],
+                { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            const thumbFilename = baseFilename.replace(/\.jpg$/, '_thumb.jpg');
+            const thumbUri = MEDIA_DIR + thumbFilename;
+            await FileSystem.copyAsync({ from: thumb.uri, to: thumbUri });
+            return thumbUri;
+        } catch {
+            return undefined;
+        }
+    };
+
     const copyMediaToPersistentStorage = async (items: MediaItem[]): Promise<MediaItem[]> => {
         if (Platform.OS === 'web') return items;
         await ensureMediaDir();
@@ -248,7 +264,11 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             const newUri = MEDIA_DIR + filename;
             try {
                 await FileSystem.copyAsync({ from: sourceUri, to: newUri });
-                copiedMedia.push({ ...item, uri: newUri });
+                let thumbnailUri: string | undefined;
+                if (item.type === 'image') {
+                    thumbnailUri = await generateThumbnail(newUri, filename);
+                }
+                copiedMedia.push({ ...item, uri: newUri, thumbnailUri });
             } catch (error) {
                 copiedMedia.push(item);
             }

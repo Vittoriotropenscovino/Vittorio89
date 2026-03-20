@@ -102,7 +102,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     <Ionicons name="videocam" size={22} color="#00d4ff" />
                 </View>
             ) : (
-                <Image source={{ uri: item.uri }} style={styles.thumbImage} />
+                <Image source={{ uri: item.thumbnailUri || item.uri }} style={styles.thumbImage} />
             )}
         </TouchableOpacity>
     );
@@ -175,6 +175,10 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                             decelerationRate="fast"
                             onScroll={handleMainScroll}
                             scrollEventThrottle={16}
+                            windowSize={3}
+                            maxToRenderPerBatch={2}
+                            initialNumToRender={1}
+                            removeClippedSubviews={true}
                             contentContainerStyle={{ paddingHorizontal: (SCREEN_WIDTH - viewerWidth) / 2 }}
                             getItemLayout={(_, index) => ({
                                 length: viewerWidth, offset: viewerWidth * index, index,
