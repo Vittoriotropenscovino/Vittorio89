@@ -6,7 +6,6 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as NavigationBar from 'expo-navigation-bar';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -27,10 +26,8 @@ import CalendarView from './src/components/CalendarView';
 import SaveConfirmation from './src/components/SaveConfirmation';
 import OfflineBanner from './src/components/OfflineBanner';
 import ItineraryManager from './src/components/ItineraryManager';
-import { useTrips } from './src/hooks/useTrips';
+import { useTrips, useModals, useAuth, useFogOfWar } from './src/hooks';
 import { Trip } from './src/types';
-
-type ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager';
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
@@ -41,15 +38,16 @@ const AppContent: React.FC = () => {
     createItinerary, deleteItinerary, renameItinerary,
   } = useTrips(t);
 
-  const [activeModal, setActiveModal] = useState<ModalType>('none');
-  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
-  const [authenticated, setAuthenticated] = useState(false);
+  const {
+    activeModal, selectedTrip, sidebarOpen, editingTrip,
+    showSaveConfirm, saveMsg,
+    openModal, closeModal, selectTrip, startEditTrip, closeForm,
+    setSidebarOpen, showSaveToast, hideSaveToast,
+  } = useModals();
 
-  // Save confirmation
-  const [saveMsg, setSaveMsg] = useState('');
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const { authenticated } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
+  const visitedCountries = useFogOfWar(trips);
+
   // Flythrough animation
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
   // Auto-fly to newly saved trip
@@ -63,15 +61,6 @@ const AppContent: React.FC = () => {
     const totalMedia = trips.reduce((sum, tr) => sum + tr.media.length, 0);
     const uniqueLocations = new Set(trips.map((tr) => tr.locationName.split(',').pop()?.trim())).size;
     return { totalMedia, uniqueLocations };
-  }, [trips]);
-
-  // Fog of War - compute visited country codes from trips
-  const visitedCountries = useMemo(() => {
-    const codes = new Set<string>();
-    trips.forEach((tr) => {
-      if (tr.countryCode && !tr.isWishlist) codes.add(tr.countryCode);
-    });
-    return Array.from(codes);
   }, [trips]);
 
   // Pulse animation for empty state
@@ -113,48 +102,6 @@ const AppContent: React.FC = () => {
     return () => sub.remove();
   }, [hideNavigationBar]);
 
-  // Biometric re-auth when app returns from background
-  const appStateRef = useRef(AppState.currentState);
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (nextState) => {
-      if (
-        appStateRef.current.match(/background/) &&
-        nextState === 'active' &&
-        settings.biometricEnabled
-      ) {
-        setAuthenticated(false);
-        (async () => {
-          try {
-            const result = await LocalAuthentication.authenticateAsync({
-              promptMessage: t('biometricPrompt') as string,
-            });
-            setAuthenticated(result.success);
-          } catch {
-            setAuthenticated(false);
-          }
-        })();
-      }
-      appStateRef.current = nextState;
-    });
-    return () => sub.remove();
-  }, [settings.biometricEnabled, t]);
-
-  // Biometric auth on startup
-  useEffect(() => {
-    if (!isSettingsLoaded) return;
-    if (!settings.biometricEnabled) { setAuthenticated(true); return; }
-    (async () => {
-      try {
-        const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: t('biometricPrompt') as string,
-        });
-        setAuthenticated(result.success);
-      } catch {
-        setAuthenticated(false);
-      }
-    })();
-  }, [isSettingsLoaded, settings.biometricEnabled, t]);
-
   // Clear autoFlyTarget after it's been consumed
   useEffect(() => {
     if (autoFlyTarget) {
@@ -165,33 +112,20 @@ const AppContent: React.FC = () => {
 
   const handleSaveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>) => {
     saveTrip(tripData, editingTrip);
-    setEditingTrip(null);
-    setActiveModal('none');
-    setSaveMsg(t('saved') as string);
-    setShowSaveConfirm(true);
+    closeForm();
+    showSaveToast(t('saved') as string);
     setAutoFlyTarget({ latitude: tripData.latitude, longitude: tripData.longitude });
-  }, [editingTrip, saveTrip, t]);
+  }, [editingTrip, saveTrip, t, closeForm, showSaveToast]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
     await deleteTrip(tripId);
-    setSelectedTrip(null);
-  }, [deleteTrip]);
-
-  const handleEditTrip = useCallback((trip: Trip) => {
-    setEditingTrip(trip);
-    setActiveModal('form');
-  }, []);
-
-  const handleCloseForm = useCallback(() => {
-    setActiveModal('none');
-    setEditingTrip(null);
-  }, []);
+    selectTrip(null);
+  }, [deleteTrip, selectTrip]);
 
   const handleCreateItinerary = useCallback((name: string) => {
     createItinerary(name);
-    setSaveMsg(t('saved') as string);
-    setShowSaveConfirm(true);
-  }, [createItinerary, t]);
+    showSaveToast(t('saved') as string);
+  }, [createItinerary, t, showSaveToast]);
 
   const handleOnboardingComplete = useCallback(() => {
     updateSettings({ hasSeenOnboarding: true });
@@ -219,8 +153,6 @@ const AppContent: React.FC = () => {
       });
     }
   }, []);
-
-  const handleSaveConfirmDone = useCallback(() => setShowSaveConfirm(false), []);
 
   const handleToggleTravelLines = useCallback(() => {
     updateSettings({ showTravelLines: !(settings.showTravelLines !== false) });
@@ -257,7 +189,7 @@ const AppContent: React.FC = () => {
         <GDPRConsent
           visible={true}
           onAccept={handleGDPRAccept}
-          onShowPrivacy={() => setActiveModal('privacy')}
+          onShowPrivacy={() => openModal('privacy')}
         />
       </View>
     );
@@ -268,7 +200,7 @@ const AppContent: React.FC = () => {
       {/* Layer 0: Globe */}
       <EarthGlobe
         trips={trips}
-        onPinClick={(trip) => setSelectedTrip(trip)}
+        onPinClick={(trip) => selectTrip(trip)}
         targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
@@ -356,11 +288,11 @@ const AppContent: React.FC = () => {
           >
             <Ionicons name="git-network-outline" size={20} color={settings.showTravelLines !== false ? '#F59E0B' : '#6B7280'} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itineraryButton} onPress={() => setActiveModal('itineraryManager')}>
+          <TouchableOpacity style={styles.itineraryButton} onPress={() => openModal('itineraryManager')}>
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={styles.addButton} onPress={() => setActiveModal('form')} accessibilityLabel="Add Trip" accessibilityRole="button">
+            <TouchableOpacity style={styles.addButton} onPress={() => openModal('form')} accessibilityLabel="Add Trip" accessibilityRole="button">
               <Ionicons name="add" size={28} color="#fff" />
               <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
@@ -369,31 +301,31 @@ const AppContent: React.FC = () => {
       </View>
 
       {/* Save confirmation toast */}
-      <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={handleSaveConfirmDone} />
+      <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={hideSaveToast} />
 
       {/* Layer 2: Modals */}
-      <TripForm visible={activeModal === 'form'} onClose={handleCloseForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
+      <TripForm visible={activeModal === 'form'} onClose={closeForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
       <MemoryViewer trip={selectedTrip} visible={!!selectedTrip}
-        onClose={() => setSelectedTrip(null)} onDelete={handleDeleteTrip} onEdit={handleEditTrip} />
+        onClose={() => selectTrip(null)} onDelete={handleDeleteTrip} onEdit={startEditTrip} />
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
-        onTripSelect={(trip) => setSelectedTrip(trip)} onDelete={handleDeleteTrip}
+        onTripSelect={(trip) => selectTrip(trip)} onDelete={handleDeleteTrip}
         onToggleFavorite={toggleFavorite}
-        onOpenSettings={() => setActiveModal('settings')}
-        onOpenStats={() => setActiveModal('stats')}
-        onOpenCalendar={() => setActiveModal('calendar')}
+        onOpenSettings={() => openModal('settings')}
+        onOpenStats={() => openModal('stats')}
+        onOpenCalendar={() => openModal('calendar')}
         homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}
-      <SettingsScreen visible={activeModal === 'settings'} onClose={() => setActiveModal('none')}
+      <SettingsScreen visible={activeModal === 'settings'} onClose={() => closeModal()}
         trips={trips} onTripsUpdate={setTrips}
-        onShowPrivacy={() => setActiveModal('privacy')} onShowTerms={() => setActiveModal('terms')}
+        onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onItinerariesReset={() => setItineraries([])} />
-      {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => setActiveModal('none')} />}
-      {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => setActiveModal('none')} />}
-      {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => setActiveModal('none')} trips={trips} />}
-      {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => setActiveModal('none')}
-        trips={trips} onTripSelect={(trip) => { setSelectedTrip(trip); setActiveModal('none'); }} />}
-      <ItineraryManager visible={activeModal === 'itineraryManager'} onClose={() => setActiveModal('none')}
+      {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => closeModal()} />}
+      {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => closeModal()} />}
+      {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => closeModal()} trips={trips} />}
+      {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => closeModal()}
+        trips={trips} onTripSelect={(trip) => { selectTrip(trip); closeModal(); }} />}
+      <ItineraryManager visible={activeModal === 'itineraryManager'} onClose={() => closeModal()}
         itineraries={itineraries} trips={trips}
         onCreateItinerary={handleCreateItinerary}
         onDeleteItinerary={deleteItinerary}
