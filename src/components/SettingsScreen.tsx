@@ -16,6 +16,7 @@ import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 import { Trip } from '../types';
 import StorageService from '../services/StorageService';
+import { validateImportData } from '../utils/validateTrip';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
     { code: 'it', flag: 'IT', labelKey: 'italian' },
@@ -93,22 +94,28 @@ const SettingsScreen: React.FC<Props> = ({
             const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
 
             const { valid, data, hasChecksum } = await StorageService.validateBackup(content);
-            const tripsToImport = data.trips;
-            if (!tripsToImport || !Array.isArray(tripsToImport)) {
-                Alert.alert(t('error') as string, t('importError') as string);
-                return;
-            }
 
             const doImport = () => {
+                const importResult = validateImportData(data, trips);
+
+                if (importResult.trips.length === 0) {
+                    Alert.alert(t('error') as string, t('importNoValidTrips') as string);
+                    return;
+                }
+
+                const message = (t('importValidTrips') as string)
+                    .replace('{valid}', String(importResult.trips.length))
+                    .replace('{skipped}', String(importResult.skipped));
+
                 Alert.alert(
                     t('importData') as string,
-                    (t('importConfirmMessage') as string).replace('{count}', String(tripsToImport.length)),
+                    message,
                     [
                         { text: t('cancel') as string, style: 'cancel' },
                         {
                             text: t('confirm') as string,
                             onPress: () => {
-                                onTripsUpdate(tripsToImport);
+                                onTripsUpdate([...trips, ...importResult.trips]);
                                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                 Alert.alert('', t('importSuccess') as string);
                             },
