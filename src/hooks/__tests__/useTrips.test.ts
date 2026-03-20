@@ -29,9 +29,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 const mockAlert = jest.fn();
+const mockAppStateRemove = jest.fn();
 jest.mock('react-native', () => ({
   Platform: { OS: 'android' },
   Alert: { alert: (...args: any[]) => mockAlert(...args) },
+  AppState: { addEventListener: jest.fn(() => ({ remove: mockAppStateRemove })) },
 }));
 
 // Mock StorageService
@@ -42,6 +44,8 @@ const mockStorageService = {
   saveTrips: jest.fn().mockResolvedValue(undefined),
   saveItineraries: jest.fn().mockResolvedValue(undefined),
   checkAndPerformAutoBackup: jest.fn().mockResolvedValue(false),
+  checkAndCleanOrphanedMedia: jest.fn().mockResolvedValue(undefined),
+  saveAll: jest.fn().mockResolvedValue(undefined),
 };
 jest.mock('../../services/StorageService', () => ({
   __esModule: true,
@@ -58,6 +62,7 @@ jest.mock('react', () => ({
     effectCallbacks.push(cb);
   }),
   useCallback: jest.fn((cb: any) => cb),
+  useRef: jest.fn((initial: any) => ({ current: initial })),
 }));
 
 import { useTrips } from '../useTrips';

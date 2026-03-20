@@ -1,15 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import StorageService from '../services/StorageService';
 import { Trip, Itinerary } from '../types';
 
 type TranslateFn = (key: string) => string | string[];
 
+const SAVE_DEBOUNCE_MS = 800;
+
 export function useTrips(t: TranslateFn) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tripsRef = useRef(trips);
+  const itinerariesRef = useRef(itineraries);
+
+  // Keep refs in sync for the AppState listener
+  tripsRef.current = trips;
+  itinerariesRef.current = itineraries;
 
   const generateId = useCallback((): string => {
     return Crypto.randomUUID();
@@ -36,20 +45,48 @@ export function useTrips(t: TranslateFn) {
     })();
   }, []);
 
-  // Atomic auto-save trips + itineraries with retry
+  // Debounced auto-save: waits 800ms of inactivity before writing
   useEffect(() => {
     if (!isLoading) {
-      StorageService.saveAll(trips, itineraries).catch(async (error) => {
-        console.error('Error saving data:', error);
-        await new Promise((r) => setTimeout(r, 2000));
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      saveTimeoutRef.current = setTimeout(async () => {
         try {
           await StorageService.saveAll(trips, itineraries);
-        } catch {
-          Alert.alert(t('error') as string, t('saveFailedFinal') as string);
+          console.log('[TravelSphere] Auto-save completed');
+        } catch (error) {
+          console.error('[TravelSphere] Auto-save failed, retrying...', error);
+          setTimeout(async () => {
+            try {
+              await StorageService.saveAll(trips, itineraries);
+            } catch {
+              Alert.alert(t('error') as string, t('saveFailedFinal') as string);
+            }
+          }, 2000);
         }
-      });
+      }, SAVE_DEBOUNCE_MS);
+
+      return () => {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+      };
     }
   }, [trips, itineraries, isLoading, t]);
+
+  // Flush pending save immediately when app goes to background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' && saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+        StorageService.saveAll(tripsRef.current, itinerariesRef.current).catch(console.error);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const saveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>, editingTrip: Trip | null): string => {
     let tripId: string;
