@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
     Switch, Alert, Platform, TextInput, ActivityIndicator,
@@ -46,6 +46,26 @@ const SettingsScreen: React.FC<Props> = ({
     const [importing, setImporting] = useState(false);
     const [homeQuery, setHomeQuery] = useState('');
     const [searchingHome, setSearchingHome] = useState(false);
+    const [storageInfo, setStorageInfo] = useState<{
+        tripCount: number; mediaCount: number; mediaSize: number;
+        metadataSize: number; backupCount: number; backupSize: number; totalSize: number;
+    } | null>(null);
+    const [loadingStorage, setLoadingStorage] = useState(false);
+
+    useEffect(() => {
+        if (visible) {
+            setLoadingStorage(true);
+            StorageService.getStorageInfo()
+                .then(setStorageInfo)
+                .catch(() => setStorageInfo(null))
+                .finally(() => setLoadingStorage(false));
+        }
+    }, [visible]);
+
+    const formatBytes = (bytes: number): string => {
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
 
     const handleExport = async () => {
         // Privacy warning before export
@@ -371,6 +391,45 @@ const SettingsScreen: React.FC<Props> = ({
                             />
 
                             <SectionHeader title={t('dataManagement') as string} />
+
+                            {/* Storage Monitor */}
+                            <View style={styles.storageCard}>
+                                {loadingStorage ? (
+                                    <ActivityIndicator size="small" color="#00d4ff" style={{ paddingVertical: 12 }} />
+                                ) : storageInfo ? (
+                                    <>
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageLabel}>{t('tripsCount')}</Text>
+                                            <Text style={styles.storageValue}>{storageInfo.tripCount}</Text>
+                                        </View>
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageLabel}>{t('photosVideoCount')}</Text>
+                                            <Text style={styles.storageValue}>{storageInfo.mediaCount}</Text>
+                                        </View>
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageLabel}>{t('mediaStorage')}</Text>
+                                            <Text style={styles.storageValue}>{formatBytes(storageInfo.mediaSize)}</Text>
+                                        </View>
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageLabel}>{t('metadataStorage')}</Text>
+                                            <Text style={styles.storageValue}>{formatBytes(storageInfo.metadataSize)}</Text>
+                                        </View>
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageLabel}>{(t('backupStorage') as string).replace('{count}', String(storageInfo.backupCount))}</Text>
+                                            <Text style={styles.storageValue}>{formatBytes(storageInfo.backupSize)}</Text>
+                                        </View>
+                                        <View style={styles.storageDivider} />
+                                        <View style={styles.storageRow}>
+                                            <Text style={styles.storageTotalLabel}>{t('totalStorage')}</Text>
+                                            <Text style={styles.storageTotalValue}>{formatBytes(storageInfo.totalSize)}</Text>
+                                        </View>
+                                        {storageInfo.metadataSize > 4 * 1024 * 1024 && (
+                                            <Text style={styles.storageWarning}>{t('storageWarning')}</Text>
+                                        )}
+                                    </>
+                                ) : null}
+                            </View>
+
                             <SettingRow icon="download-outline" label={t('exportData') as string} onPress={handleExport} />
                             <SettingRow icon="push-outline" label={t('importData') as string} onPress={handleImport} />
                             <SettingRow icon="cloud-upload-outline" label={t('cloudBackup') as string} onPress={handleCloudBackup} />
@@ -460,6 +519,23 @@ const styles = StyleSheet.create({
     homeSearchBtn: {
         backgroundColor: 'rgba(0,212,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
         borderRadius: 12, width: 44, justifyContent: 'center', alignItems: 'center',
+    },
+    storageCard: {
+        backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 12, padding: 14, marginBottom: 12,
+    },
+    storageRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4,
+    },
+    storageLabel: { color: '#9CA3AF', fontSize: 13 },
+    storageValue: { color: '#E5E7EB', fontSize: 13, fontWeight: '500' },
+    storageDivider: {
+        height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 6,
+    },
+    storageTotalLabel: { color: '#E5E7EB', fontSize: 14, fontWeight: '700' },
+    storageTotalValue: { color: '#00d4ff', fontSize: 14, fontWeight: '700' },
+    storageWarning: {
+        color: '#F59E0B', fontSize: 12, marginTop: 8, lineHeight: 16,
     },
 });
 

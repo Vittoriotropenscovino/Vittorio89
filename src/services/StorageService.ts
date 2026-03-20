@@ -173,33 +173,62 @@ export const StorageService = {
     },
 
     /**
-     * Get storage info (for debugging)
+     * Get detailed storage info for the UI monitor
      */
-    getStorageInfo: async (): Promise<{ tripCount: number; mediaSize: number }> => {
+    getStorageInfo: async (): Promise<{
+        tripCount: number; mediaCount: number; mediaSize: number;
+        metadataSize: number; backupCount: number; backupSize: number; totalSize: number;
+    }> => {
         try {
             const trips = await StorageService.loadTrips();
+            const tripCount = trips.length;
+            const mediaCount = trips.reduce((sum, t) => sum + t.media.length, 0);
             let mediaSize = 0;
+            let backupCount = 0;
+            let backupSize = 0;
 
             if (!isWeb) {
-                const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-                if (dirInfo.exists) {
+                // Media directory size
+                const mediaDirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+                if (mediaDirInfo.exists) {
                     const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
                     for (const file of files) {
                         const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
                         if (fileInfo.exists && 'size' in fileInfo) {
-                            mediaSize += fileInfo.size || 0;
+                            mediaSize += (fileInfo as any).size || 0;
+                        }
+                    }
+                }
+
+                // Backup directory size
+                const backupDirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+                if (backupDirInfo.exists) {
+                    const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+                    backupCount = files.length;
+                    for (const file of files) {
+                        const fileInfo = await FileSystem.getInfoAsync(BACKUP_DIR + file);
+                        if (fileInfo.exists && 'size' in fileInfo) {
+                            backupSize += (fileInfo as any).size || 0;
                         }
                     }
                 }
             }
 
+            // Metadata size approximation from AsyncStorage
+            let metadataSize = 0;
+            const tripsJson = await AsyncStorage.getItem(TRIPS_STORAGE_KEY);
+            const itinerariesJson = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
+            if (tripsJson) metadataSize += tripsJson.length;
+            if (itinerariesJson) metadataSize += itinerariesJson.length;
+
             return {
-                tripCount: trips.length,
-                mediaSize,
+                tripCount, mediaCount, mediaSize, metadataSize,
+                backupCount, backupSize,
+                totalSize: mediaSize + metadataSize + backupSize,
             };
         } catch (error) {
             console.error('Error getting storage info:', error);
-            return { tripCount: 0, mediaSize: 0 };
+            return { tripCount: 0, mediaCount: 0, mediaSize: 0, metadataSize: 0, backupCount: 0, backupSize: 0, totalSize: 0 };
         }
     },
     /**
