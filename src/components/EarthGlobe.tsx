@@ -7,11 +7,13 @@
  */
 
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
+import { Ionicons } from '@expo/vector-icons';
 import { EarthGlobeProps, Trip } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 // Globe HTML and vendor libraries loaded from asset files
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -89,11 +91,17 @@ async function loadGlobeHtml(): Promise<string> {
 // CDN origins kept for fallback if local vendor files fail to load
 const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'about:*'];
 
+const READY_TIMEOUT_MS = 15000;
+
 function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops }: EarthGlobeProps) {
+  const { t } = useApp();
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
   const pendingTrips = useRef<Trip[]>([]);
   const [globeHtml, setGlobeHtml] = useState<string | null>(globeHtmlCache);
+  const [globeReady, setGlobeReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load HTML from asset on mount
   useEffect(() => {
@@ -103,6 +111,33 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
       });
     }
   }, [globeHtml]);
+
+  // Timeout: if WebView doesn't send "ready" within 15s, show error
+  useEffect(() => {
+    readyTimeoutRef.current = setTimeout(() => {
+      if (!isReady.current) {
+        setLoadError(true);
+        console.error('[TravelSphere] Globe WebView failed to load within 15s');
+      }
+    }, READY_TIMEOUT_MS);
+    return () => {
+      if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
+    };
+  }, []);
+
+  const retryLoad = useCallback(() => {
+    setLoadError(false);
+    setGlobeReady(false);
+    isReady.current = false;
+    webViewRef.current?.reload();
+    if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
+    readyTimeoutRef.current = setTimeout(() => {
+      if (!isReady.current) {
+        setLoadError(true);
+        console.error('[TravelSphere] Globe WebView failed to load within 15s');
+      }
+    }, READY_TIMEOUT_MS);
+  }, []);
 
   const webViewSource = useMemo(() => {
     if (!globeHtml) return null;
@@ -174,7 +209,10 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
       try {
         const data = JSON.parse(event.nativeEvent.data);
         if (data.type === 'ready') {
+          if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
           isReady.current = true;
+          setGlobeReady(true);
+          setLoadError(false);
           const src = pendingTrips.current.length > 0 ? pendingTrips.current : trips;
           const itinData = (itineraries || []).map((it) => ({
             id: it.id, name: it.name, tripIds: it.tripIds,
@@ -238,6 +276,17 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
         setDisplayZoomControls={false}
         nestedScrollEnabled={false}
       />
+      {loadError && (
+        <View style={styles.globeError}>
+          <Ionicons name="globe-outline" size={48} color="#6B7280" />
+          <Text style={styles.errorTitle}>{t('globeLoadError')}</Text>
+          <Text style={styles.errorSubtitle}>{t('globeLoadErrorHint')}</Text>
+          <TouchableOpacity onPress={retryLoad} style={styles.retryButton}>
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={styles.retryText}>{t('retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -246,6 +295,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050510' },
   webview: { flex: 1, backgroundColor: '#050510' },
   loading: { justifyContent: 'center', alignItems: 'center' },
+  globeError: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5,5,16,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  errorTitle: { color: '#E5E7EB', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  errorSubtitle: { color: '#6B7280', fontSize: 13, textAlign: 'center' },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  retryText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
 export default React.memo(EarthGlobe);
