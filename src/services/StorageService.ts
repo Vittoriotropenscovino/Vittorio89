@@ -7,9 +7,11 @@ import { Trip, Itinerary } from '../types';
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
 const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
 const LAST_BACKUP_KEY = '@travelsphere_last_backup';
+const LAST_CLEANUP_KEY = '@travelsphere_last_cleanup';
 export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
 const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
 const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_BACKUPS = 3;
 const CURRENT_SCHEMA_VERSION = 1;
 const SCHEMA_VERSION_KEY = '@travelsphere_schema_version';
@@ -316,6 +318,76 @@ export const StorageService = {
         } catch (error) {
             console.error('Auto-backup error:', error);
             return false;
+        }
+    },
+
+    /**
+     * Clean orphaned media files not referenced by any trip.
+     * Only runs on native platforms.
+     */
+    cleanOrphanedMedia: async (): Promise<{ deletedCount: number; freedBytes: number }> => {
+        if (isWeb) return { deletedCount: 0, freedBytes: 0 };
+
+        try {
+            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+            if (!dirInfo.exists) return { deletedCount: 0, freedBytes: 0 };
+
+            const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+            const trips = await StorageService.loadTrips();
+
+            // Collect all filenames referenced by trips
+            const referencedFiles = new Set<string>();
+            trips.forEach((trip) => {
+                trip.media.forEach((m) => {
+                    const filename = m.uri.split('/').pop();
+                    if (filename) referencedFiles.add(filename);
+                });
+            });
+
+            let deletedCount = 0;
+            let freedBytes = 0;
+
+            for (const file of files) {
+                if (!referencedFiles.has(file)) {
+                    try {
+                        const info = await FileSystem.getInfoAsync(MEDIA_DIR + file);
+                        if (info.exists && 'size' in info) {
+                            freedBytes += (info as any).size || 0;
+                        }
+                        await FileSystem.deleteAsync(MEDIA_DIR + file, { idempotent: true });
+                        deletedCount++;
+                        console.log(`[TravelSphere] Cleaned orphaned media: ${file}`);
+                    } catch (error) {
+                        console.warn(`[TravelSphere] Failed to clean: ${file}`, error);
+                    }
+                }
+            }
+
+            return { deletedCount, freedBytes };
+        } catch (error) {
+            console.warn('[TravelSphere] cleanOrphanedMedia error:', error);
+            return { deletedCount: 0, freedBytes: 0 };
+        }
+    },
+
+    /**
+     * Run cleanup if at least 1 week since last cleanup.
+     * Non-blocking — intended to be called without await after UI loads.
+     */
+    checkAndCleanOrphanedMedia: async (): Promise<void> => {
+        if (isWeb) return;
+        try {
+            const last = await AsyncStorage.getItem(LAST_CLEANUP_KEY);
+            const lastTime = last ? parseInt(last, 10) : 0;
+            if (Date.now() - lastTime < CLEANUP_INTERVAL_MS) return;
+
+            const result = await StorageService.cleanOrphanedMedia();
+            if (result.deletedCount > 0) {
+                console.log(`[TravelSphere] Auto-cleanup: removed ${result.deletedCount} orphaned files, freed ${result.freedBytes} bytes`);
+            }
+            await AsyncStorage.setItem(LAST_CLEANUP_KEY, String(Date.now()));
+        } catch (error) {
+            console.warn('[TravelSphere] Auto-cleanup error:', error);
         }
     },
 

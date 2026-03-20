@@ -142,6 +142,25 @@ const SettingsScreen: React.FC<Props> = ({
         }
     };
 
+    const handleCleanMedia = async () => {
+        try {
+            const result = await StorageService.cleanOrphanedMedia();
+            if (result.deletedCount === 0) {
+                Alert.alert('', t('cleanMediaNone') as string);
+            } else {
+                const mb = (result.freedBytes / (1024 * 1024)).toFixed(1);
+                const message = (t('cleanMediaResult') as string)
+                    .replace('{count}', String(result.deletedCount))
+                    .replace('{size}', mb);
+                Alert.alert('', message);
+            }
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {
+            console.error('Clean media error:', e);
+            Alert.alert(t('error') as string, String(e));
+        }
+    };
+
     const handleDeleteAll = () => {
         Alert.alert(
             t('deleteAllData') as string,
@@ -355,6 +374,9 @@ const SettingsScreen: React.FC<Props> = ({
                             <SettingRow icon="download-outline" label={t('exportData') as string} onPress={handleExport} />
                             <SettingRow icon="push-outline" label={t('importData') as string} onPress={handleImport} />
                             <SettingRow icon="cloud-upload-outline" label={t('cloudBackup') as string} onPress={handleCloudBackup} />
+                            {Platform.OS !== 'web' && (
+                                <SettingRow icon="images-outline" iconColor="#F59E0B" label={t('cleanMedia') as string} onPress={handleCleanMedia} />
+                            )}
                             <SettingRow icon="trash-outline" label={t('deleteAllData') as string} onPress={handleDeleteAll} destructive iconColor="#EF4444" />
 
                             <SectionHeader title={t('privacy') as string} />
