@@ -13,27 +13,80 @@ import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import { EarthGlobeProps, Trip } from '../types';
 
-// Globe HTML loaded from external asset file
+// Globe HTML and vendor libraries loaded from asset files
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const globeHtmlModule = require('../../assets/globe.html');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const topojsonModule = require('../../assets/vendor/topojson-client.min.txt');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const globeGlModule = require('../../assets/vendor/globe.gl.min.txt');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const countriesModule = require('../../assets/vendor/countries-110m.txt');
 
 let globeHtmlCache: string | null = null;
+
+async function loadAssetString(module: number): Promise<string> {
+  try {
+    const asset = Asset.fromModule(module);
+    await asset.downloadAsync();
+    if (asset.localUri) {
+      return await FileSystem.readAsStringAsync(asset.localUri);
+    }
+  } catch (e) {
+    console.warn('Failed to load asset:', e);
+  }
+  return '';
+}
 
 async function loadGlobeHtml(): Promise<string> {
   if (globeHtmlCache) return globeHtmlCache;
   try {
-    const asset = Asset.fromModule(globeHtmlModule);
-    await asset.downloadAsync();
-    if (asset.localUri) {
-      globeHtmlCache = await FileSystem.readAsStringAsync(asset.localUri);
-      return globeHtmlCache;
+    const html = await loadAssetString(globeHtmlModule);
+    if (!html) return '';
+
+    // Load vendor scripts in parallel
+    const [topojsonJs, globeGlJs, countriesJson] = await Promise.all([
+      loadAssetString(topojsonModule),
+      loadAssetString(globeGlModule),
+      loadAssetString(countriesModule),
+    ]);
+
+    // Build inline vendor script block
+    let vendorBlock = '';
+    if (topojsonJs) {
+      vendorBlock += `<script>${topojsonJs}</script>\n`;
     }
+    if (globeGlJs) {
+      vendorBlock += `<script>${globeGlJs}</script>\n`;
+    }
+    if (countriesJson) {
+      vendorBlock += `<script>window.__COUNTRIES_DATA=${countriesJson};</script>\n`;
+    }
+
+    // Inject vendor scripts before the main script in the HTML
+    // Insert right after the placeholder comment, or before the first <script> tag
+    let injectedHtml = html;
+    if (vendorBlock) {
+      const placeholder = '// <!--VENDOR_SCRIPTS_PLACEHOLDER-->';
+      const placeholderIdx = html.indexOf(placeholder);
+      if (placeholderIdx !== -1) {
+        // Find the <script> tag containing the placeholder and insert vendor scripts before it
+        const scriptOpenIdx = html.lastIndexOf('<script>', placeholderIdx);
+        if (scriptOpenIdx !== -1) {
+          injectedHtml = html.slice(0, scriptOpenIdx) + vendorBlock + html.slice(scriptOpenIdx);
+        }
+      }
+    }
+
+    globeHtmlCache = injectedHtml;
+    return injectedHtml;
   } catch (e) {
     console.error('Failed to load globe HTML asset:', e);
   }
   return '';
 }
 
+// CDN origins kept for fallback if local vendor files fail to load
 const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'about:*'];
 
 function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops }: EarthGlobeProps) {
