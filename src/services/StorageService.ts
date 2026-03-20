@@ -127,6 +127,21 @@ export const StorageService = {
     },
 
     /**
+     * Atomically save both trips and itineraries in a single multiSet call
+     */
+    saveAll: async (trips: Trip[], itineraries: Itinerary[]): Promise<void> => {
+        try {
+            await AsyncStorage.multiSet([
+                [TRIPS_STORAGE_KEY, JSON.stringify(trips)],
+                [ITINERARIES_STORAGE_KEY, JSON.stringify(itineraries)],
+            ]);
+        } catch (error) {
+            console.error('Error saving all data:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Save itineraries to persistent storage
      */
     saveItineraries: async (itineraries: Itinerary[]): Promise<void> => {

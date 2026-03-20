@@ -35,35 +35,20 @@ export function useTrips(t: TranslateFn) {
     })();
   }, []);
 
-  // Robust auto-save trips with retry
+  // Atomic auto-save trips + itineraries with retry
   useEffect(() => {
     if (!isLoading) {
-      StorageService.saveTrips(trips).catch(async (error) => {
-        console.error('Error saving trips:', error);
+      StorageService.saveAll(trips, itineraries).catch(async (error) => {
+        console.error('Error saving data:', error);
         await new Promise((r) => setTimeout(r, 2000));
         try {
-          await StorageService.saveTrips(trips);
+          await StorageService.saveAll(trips, itineraries);
         } catch {
           Alert.alert(t('error') as string, t('saveFailedFinal') as string);
         }
       });
     }
-  }, [trips, isLoading, t]);
-
-  // Robust auto-save itineraries with retry
-  useEffect(() => {
-    if (!isLoading) {
-      StorageService.saveItineraries(itineraries).catch(async (error) => {
-        console.error('Error saving itineraries:', error);
-        await new Promise((r) => setTimeout(r, 2000));
-        try {
-          await StorageService.saveItineraries(itineraries);
-        } catch {
-          Alert.alert(t('error') as string, t('saveFailedFinal') as string);
-        }
-      });
-    }
-  }, [itineraries, isLoading, t]);
+  }, [trips, itineraries, isLoading, t]);
 
   const saveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>, editingTrip: Trip | null): string => {
     let tripId: string;
