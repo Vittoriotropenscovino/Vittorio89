@@ -67,11 +67,11 @@ App.tsx (root)
 /Vittorio89/
 ├── src/
 │   ├── components/ (16 file)
-│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~198 righe - HTML caricato da asset)
+│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~321 righe - vendor bundling + timeout)
 │   │   ├── TripForm.tsx          (crea/modifica viaggi, ~500 righe, check offline)
-│   │   ├── MemoryViewer.tsx      (galleria media, ~250 righe)
+│   │   ├── MemoryViewer.tsx      (galleria media, ~271 righe, FlatList windowing)
 │   │   ├── TripSidebar.tsx       (sidebar lista viaggi, ~400 righe)
-│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~400 righe, privacy warning export)
+│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~542 righe, storage monitor)
 │   │   ├── StatsScreen.tsx       (statistiche viaggio, ~157 righe)
 │   │   ├── CalendarView.tsx      (browser calendario, ~191 righe)
 │   │   ├── ItineraryManager.tsx  (UI itinerari, ~250 righe)
@@ -86,11 +86,17 @@ App.tsx (root)
 │   ├── contexts/
 │   │   └── AppContext.tsx         (settings globali + lingua, ~107 righe)
 │   ├── hooks/
-│   │   └── useTrips.ts           (hook gestione trips + itinerari, ~141 righe)
-│   ├── services/
-│   │   ├── StorageService.ts     (AsyncStorage + FileSystem + auto-backup, ~217 righe)
+│   │   ├── useTrips.ts           (hook gestione trips + itinerari, ~164 righe)
+│   │   ├── useModals.ts          (hook gestione stato modali, ~61 righe)
+│   │   ├── useAuth.ts            (hook autenticazione biometrica, ~56 righe)
+│   │   ├── useFogOfWar.ts        (hook calcolo paesi visitati, ~14 righe)
+│   │   ├── index.ts              (barrel export hooks)
 │   │   └── __tests__/
-│   │       └── StorageService.test.ts  (test StorageService)
+│   │       └── useTrips.test.ts  (test useTrips hook, ~309 righe)
+│   ├── services/
+│   │   ├── StorageService.ts     (AsyncStorage + FileSystem + backup + migration, ~448 righe)
+│   │   └── __tests__/
+│   │       └── StorageService.test.ts  (test StorageService, ~534 righe)
 │   ├── types/
 │   │   └── index.ts              (interfacce TypeScript)
 │   ├── i18n/
@@ -99,10 +105,14 @@ App.tsx (root)
 │       ├── geocoding.ts           (Nominatim + fallback, ~62 righe)
 │       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
 │       └── __tests__/
-│           └── geocoding.test.ts  (test geocoding)
+│           └── geocoding.test.ts  (test geocoding, ~110 righe)
 ├── assets/
-│   └── globe.html                (HTML/JS globo 3D, ~501 righe - file esterno)
-├── App.tsx                        (entry point principale, ~494 righe - logica estratta in hooks)
+│   ├── globe.html                (HTML/JS globo 3D, ~531 righe - vendor injection)
+│   └── vendor/
+│       ├── topojson-client.min.txt  (topojson-client v3.1.0, 7.2 KB)
+│       ├── globe.gl.min.txt         (globe.gl v2.45.1, 1.76 MB)
+│       └── countries-110m.txt       (world atlas TopoJSON, 107.7 KB)
+├── App.tsx                        (entry point principale, ~426 righe - logica estratta in hooks)
 ├── app.json                       (config Expo)
 ├── tsconfig.json
 ├── babel.config.js
@@ -116,63 +126,105 @@ App.tsx (root)
 
 ## FILE PRINCIPALI - DETTAGLIO
 
-### App.tsx (~494 righe) - Shell Principale
+### App.tsx (~426 righe) - Shell Principale
 
-Orchestratore dell'app. La logica di gestione trips/itinerari è stata estratta nel hook `useTrips`.
+Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `useTrips`, `useModals`, `useAuth`, `useFogOfWar`.
 
-**Stato gestito direttamente:**
-- `activeModal: string | null` - quale modale è attualmente visibile
-- `selectedTrip: Trip | null` - viaggio selezionato per il viewer
-- `sidebarOpen: boolean` - visibilità sidebar laterale
-- `authenticated: boolean` - stato blocco biometrico
-- `showSaveConfirm: boolean` - visibilità toast salvataggio
-
-**Stato delegato a useTrips hook:**
-- `trips`, `itineraries`, `isLoading`
-- `saveTrip`, `deleteTrip`, `toggleFavorite`
-- `createItinerary`, `deleteItinerary`, `renameItinerary`
+**Stato delegato a hook estratti:**
+- `useTrips(t)` → `trips`, `itineraries`, `isLoading`, `saveTrip`, `deleteTrip`, `toggleFavorite`, `createItinerary`, `deleteItinerary`, `renameItinerary`
+- `useModals()` → `activeModal`, `selectedTrip`, `sidebarOpen`, `editingTrip`, `showSaveConfirm`, `saveMsg` + funzioni di gestione
+- `useAuth(biometricEnabled, isSettingsLoaded, t)` → `authenticated`
+- `useFogOfWar(trips)` → `visitedCountries` (array codici paese)
 
 **Logica di avvio:**
 1. Carica fonts con expo-font
 2. AppProvider carica settings da AsyncStorage
 3. AppContent verifica isSettingsLoaded
-4. useTrips carica trips + itineraries da StorageService
-5. useTrips esegue auto-backup se necessario (ogni 7 giorni)
-6. Se biometricEnabled → prompt autenticazione
-7. Se !hasSeenOnboarding → mostra OnboardingScreen
-8. Se !hasAcceptedGDPR → mostra GDPRConsent
-9. Mostra UI principale (Globo + Overlay)
-
-**Fog of War:** Calcola `visitedCountries` = Set di countryCode da tutti i viaggi non-wishlist
+4. useTrips: `migrateData()` → carica trips + itineraries → auto-backup + orphaned media cleanup
+5. useAuth: Se biometricEnabled → prompt autenticazione biometrica
+6. Se !hasSeenOnboarding → mostra OnboardingScreen
+7. Se !hasAcceptedGDPR → mostra GDPRConsent
+8. Mostra UI principale (Globo + Overlay)
 
 **Nasconde barra Android:** Usa expo-navigation-bar per nascondere la barra di navigazione
 
 ---
 
-### src/hooks/useTrips.ts (~141 righe) - Hook Gestione Dati
+### src/hooks/useTrips.ts (~164 righe) - Hook Gestione Dati
 
 Custom hook che gestisce tutto il CRUD di trips e itinerari, estratto da App.tsx.
 
 **ID Generation:** Usa `Crypto.randomUUID()` da expo-crypto (UUID v4) invece di `Date.now()`
 
-**Auto-save robusto:**
-- useEffect osserva trips → se cambiano, salva su AsyncStorage
+**Auto-save con debounce (800ms):**
+- Costante `SAVE_DEBOUNCE_MS = 800` - ritardo prima del salvataggio effettivo
+- Quando trips/itineraries cambiano → timer 800ms → `StorageService.saveAll()` (atomic multiSet)
 - Se il salvataggio fallisce: retry automatico dopo 2 secondi
 - Se anche il retry fallisce: mostra Alert all'utente ("Salvataggio fallito")
-- Stessa logica per itineraries
 
-**Auto-backup:**
-- Al caricamento iniziale, chiama `StorageService.checkAndPerformAutoBackup()`
-- Backup ogni 7 giorni, mantiene ultimi 3 backup
-- Backup salvati in `FileSystem.documentDirectory/backups/`
+**Background flush:**
+- Listener su AppState (inactive/background)
+- Quando l'app va in background → flush immediato di qualsiasi save pendente (cancella debounce)
 
-**Funzioni esportate:**
-- `saveTrip(tripData)` - crea (UUID) o aggiorna viaggio, gestisce itinerario
+**Inizializzazione:**
+1. Chiama `StorageService.migrateData()` (schema v0 → v1)
+2. Carica trips + itineraries in parallelo
+3. Esegue auto-backup (`checkAndPerformAutoBackup()`) in background
+4. Avvia pulizia media orfani (`checkAndCleanOrphanedMedia()`) in background
+
+**Funzioni esportate (tutte useCallback):**
+- `saveTrip(tripData, editingTrip)` - crea (UUID + createdAt) o aggiorna viaggio, gestisce itinerario
 - `deleteTrip(tripId)` - rimuove dallo stato e dal disco
 - `toggleFavorite(tripId)` - marca/smarca preferito
 - `createItinerary(name)` - crea itinerario con UUID
 - `deleteItinerary(id)` - rimuove itinerario, orfana viaggi
 - `renameItinerary(id, newName)` - aggiorna nome
+
+---
+
+### src/hooks/useModals.ts (~61 righe) - Hook Gestione Modali
+
+Centralizza tutto lo stato e la logica dei modali, estratto da App.tsx.
+
+**Tipo:** `ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager'`
+
+**Stato gestito:**
+- `activeModal` - modale attualmente visibile
+- `selectedTrip` - viaggio selezionato per il viewer
+- `sidebarOpen` - visibilità sidebar
+- `editingTrip` - viaggio in modifica
+- `showSaveConfirm` - visibilità toast salvataggio
+- `saveMsg` - messaggio di conferma
+
+**Funzioni (tutte useCallback):**
+- `openModal(modal)`, `closeModal()`, `selectTrip(trip)`, `startEditTrip(trip)`, `closeForm()`, `showSaveToast(message)`, `hideSaveToast()`
+
+---
+
+### src/hooks/useAuth.ts (~56 righe) - Hook Autenticazione Biometrica
+
+Gestisce l'autenticazione biometrica con lifecycle AppState.
+
+**Parametri:** `useAuth(biometricEnabled, isSettingsLoaded, t)`
+
+**Comportamento:**
+- All'avvio: esegue autenticazione biometrica se abilitata e settings caricati
+- Al ritorno da background: ri-autentica (listener AppState inactive/background → active)
+- Usa `expo-local-authentication` per l'API biometrica
+
+**Ritorna:** `{ authenticated: boolean }`
+
+---
+
+### src/hooks/useFogOfWar.ts (~14 righe) - Hook Fog of War
+
+Calcola il set di paesi visitati dai viaggi.
+
+**Parametri:** `useFogOfWar(trips)`
+
+**Logica:** Raccoglie tutti i `countryCode` dai viaggi non-wishlist, memoizzato con `useMemo`.
+
+**Ritorna:** `string[]` di codici paese ISO
 
 ---
 
@@ -281,66 +333,134 @@ interface AppSettings {
 
 ---
 
-### src/services/StorageService.ts (~217 righe) - Servizio Storage
+### src/services/StorageService.ts (~448 righe) - Servizio Storage
 
-Astrazione unificata per AsyncStorage (metadati) + expo-file-system (media) + auto-backup.
+Astrazione unificata per AsyncStorage (metadati) + expo-file-system (media) + auto-backup + migrazione schema + validazione checksum + pulizia media orfani.
 
-**Metodi principali:**
+**Costanti:**
+```typescript
+BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000  // 7 giorni
+CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000  // 7 giorni
+MAX_BACKUPS = 3
+CURRENT_SCHEMA_VERSION = 1
+```
+
+**Metodi CRUD base:**
 ```typescript
 saveTrips(trips: Trip[]): Promise<void>
-// Serializza e salva in AsyncStorage[@travelsphere_trips]
-
-loadTrips(): Promise<Trip[]>
-// Carica da AsyncStorage, su native verifica che i file media esistano ancora
-
-deleteTrip(tripId: string, trips: Trip[]): Promise<Trip[]>
-// Rimuove viaggio dall'array + cancella file media dal disco
-
-saveItineraries(itineraries: Itinerary[]): Promise<void>
+loadTrips(): Promise<Trip[]>        // su native verifica esistenza file media
+deleteTrip(tripId, trips): Promise<Trip[]>  // rimuove + cancella media dal disco
+saveItineraries(itineraries): Promise<void>
 loadItineraries(): Promise<Itinerary[]>
-
-clearAll(): Promise<void>
-// Cancella TUTTO: AsyncStorage + directory media
-
-getStorageInfo(): Promise<{ tripCount: number, mediaSize: number }>
+clearAll(): Promise<void>           // cancella TUTTO: AsyncStorage + directory media
 ```
 
-**Auto-backup (nuovo):**
+**Salvataggio atomico (NUOVO):**
 ```typescript
-checkAndPerformAutoBackup(): Promise<void>
-// Controlla se sono passati 7+ giorni dall'ultimo backup
-// Se sì: salva JSON in FileSystem.documentDirectory/backups/
-// Mantiene ultimi 3 backup, elimina i più vecchi
-// Timestamp ultimo backup salvato in AsyncStorage[@travelsphere_last_backup]
+saveAll(trips, itineraries): Promise<void>
+// Usa AsyncStorage.multiSet() per salvare trips + itineraries atomicamente
+// Garantisce consistenza tra le due strutture dati
 ```
+
+**Schema Versioning & Migrazione (NUOVO):**
+```typescript
+migrateData(): Promise<void>
+// Controlla versione schema salvata vs CURRENT_SCHEMA_VERSION (v1)
+// v0 → v1: aggiunge campi default (tags:[], isFavorite:false, isWishlist:false, media:[], notes:'')
+// Preserva campi esistenti, riempie solo quelli mancanti
+// Idempotente: sicuro chiamare più volte
+
+loadTripsRaw(): Promise<any[]>       // carica senza verifica media (per migrazione)
+loadItinerariesRaw(): Promise<any[]>  // carica senza type casting (per migrazione)
+```
+
+**Auto-backup con SHA-256 (MIGLIORATO):**
+```typescript
+checkAndPerformAutoBackup(): Promise<boolean>
+// Crea backup con: data + checksum SHA-256 + schemaVersion + createdAt
+// Verifica file scritto rileggendo e ri-calcolando hash
+// Rileva corruzione tramite mismatch checksum
+// Ruota vecchi backup (mantiene MAX_BACKUPS=3) SOLO dopo verifica
+// Ritorna boolean successo
+
+validateBackup(content): { valid, data, hasChecksum }
+// Formato NUOVO: { schemaVersion, checksum, createdAt, data: { trips, itineraries } }
+// Formato LEGACY: { trips, exportDate, version } (senza checksum)
+// Valida checksum se presente
+```
+
+**Pulizia Media Orfani (NUOVO):**
+```typescript
+cleanOrphanedMedia(): Promise<{ deletedCount, freedBytes }>
+// Scansiona directory media e trips
+// Identifica file non referenziati da nessun trip
+// Elimina file orfani, traccia conteggio + byte liberati
+// Solo native (skip su web)
+
+checkAndCleanOrphanedMedia(): Promise<void>
+// Scheduler non-bloccante: esegue solo se 7+ giorni dall'ultima pulizia
+// Pensato per esecuzione in background senza await
+```
+
+**Monitor Storage (NUOVO):**
+```typescript
+getStorageInfo(): Promise<StorageInfo>
+// Calcola metriche storage per UI:
+//   tripCount, mediaCount, mediaSize, metadataSize
+//   backupCount, backupSize, totalSize
+// Scansiona directory media e backup per dimensioni file (solo native)
+```
+
+**Platform awareness:** `isWeb = Platform.OS === 'web'` — operazioni media/backup/cleanup saltate su web
 
 **Directory media:** `FileSystem.documentDirectory + 'media/'`
 **Directory backup:** `FileSystem.documentDirectory + 'backups/'`
 
 ---
 
-### src/components/EarthGlobe.tsx (~198 righe) - Globo 3D
+### src/components/EarthGlobe.tsx (~321 righe) - Globo 3D
 
-Componente React che wrappa una WebView con globe.gl. L'HTML/JS del globo è caricato dal file esterno `assets/globe.html` tramite `expo-asset` + `expo-file-system`.
+Componente React che wrappa una WebView con globe.gl. Librerie vendor bundlate localmente per supporto offline.
+
+**Vendor Bundling (NUOVO):**
+```typescript
+const globeHtmlModule = require('../../assets/globe.html');
+const topojsonModule = require('../../assets/vendor/topojson-client.min.txt');
+const globeGlModule = require('../../assets/vendor/globe.gl.min.txt');
+const countriesModule = require('../../assets/vendor/countries-110m.txt');
+```
+- Carica tutti gli asset vendor in parallelo con `loadAssetString()`
+- Inietta script vendor inline nell'HTML tramite placeholder `// <!--VENDOR_SCRIPTS_PLACEHOLDER-->`
+- Cache del risultato in `globeHtmlCache` per riutilizzo
+- Fallback CDN (`unpkg.com`, `cdn.jsdelivr.net`) se i file locali falliscono
+
+**Timeout WebView con Error Overlay (NUOVO):**
+```typescript
+READY_TIMEOUT_MS = 15000  // 15 secondi timeout
+```
+- Timer 15s all'avvio: se la WebView non segnala `ready`, mostra errore
+- Overlay semi-trasparente con icona globo, messaggio errore, pulsante "Riprova"
+- `retryLoad()`: resetta stato, ricarica WebView, reimmposta timeout
 
 **Struttura del file:**
-- Imports e costanti
-- Componente React con WebView
-- Caricamento HTML da asset con fallback
+- Imports, costanti, funzioni di caricamento asset
+- Componente React con WebView + timeout + error overlay
 - useEffect per comunicazione RN→WebView (trips, home, settings)
 - Handler onMessage per comunicazione WebView→RN (pinClick, ready)
 
-**Il file `assets/globe.html` (~501 righe) contiene:**
+**Il file `assets/globe.html` (~531 righe) contiene:**
 
 #### Sfondo Stelle (canvas separato)
 - 250 stelle con posizioni random
 - Effetto tremolio (flicker) con seno + fase random
 - Disegnate su canvas 2D sotto il globo
 
-#### Librerie Caricate da CDN
-- topojson-client v3 (per parsare dati mappa)
-- globe.gl v2 (libreria globo 3D basata su Three.js)
-- world-atlas v2 countries-110m.json (dati geometria paesi)
+#### Librerie Vendor (bundlate localmente, fallback CDN)
+- topojson-client v3.1.0 (per parsare dati mappa) - bundlato in `assets/vendor/topojson-client.min.txt`
+- globe.gl v2.45.1 (libreria globo 3D basata su Three.js) - bundlato in `assets/vendor/globe.gl.min.txt`
+- world-atlas countries-110m (dati geometria paesi) - bundlato in `assets/vendor/countries-110m.txt`
+- Placeholder `// <!--VENDOR_SCRIPTS_PLACEHOLDER-->` iniettato inline da EarthGlobe.tsx
+- Fallback: se i vendor bundlati non sono disponibili, carica da CDN (unpkg.com, cdn.jsdelivr.net)
 
 #### Configurazione Globo (funzione `go()`)
 
@@ -521,15 +641,22 @@ Modale per creare o modificare un viaggio.
 
 ---
 
-### src/components/MemoryViewer.tsx (~250 righe) - Galleria Media
+### src/components/MemoryViewer.tsx (~271 righe) - Galleria Media
 
-Visualizzatore fullscreen per foto e video di un viaggio.
+Visualizzatore fullscreen per foto e video di un viaggio, ottimizzato con FlatList windowing.
 
 **Layout:**
 - Header: titolo viaggio, luogo, data, note, pulsanti azione
 - Area principale: FlatList orizzontale di immagini/video (90% larghezza schermo)
-- Thumbnails: strip in basso con miniature cliccabili
+- Thumbnails: strip in basso con miniature cliccabili (FlatList separata)
 - Contatore: "X / Y" in alto a destra
+
+**Ottimizzazioni FlatList (NUOVO):**
+- `windowSize={3}` - renderizza solo 3 schermi di contenuto
+- `maxToRenderPerBatch={2}` - 2 elementi per batch di rendering
+- `initialNumToRender={1}` - parte con 1 elemento
+- `removeClippedSubviews={true}` - rimuove viste fuori schermo (risparmio memoria)
+- `getItemLayout` - layout pre-calcolato per scrolling fluido per indice
 
 **Funzionalità:**
 - Player video con expo-av e controlli nativi
@@ -556,7 +683,7 @@ Pannello laterale animato che elenca tutti i viaggi.
 
 ---
 
-### src/components/SettingsScreen.tsx (~400 righe) - Impostazioni
+### src/components/SettingsScreen.tsx (~542 righe) - Impostazioni
 
 **Sezioni:**
 
@@ -564,12 +691,21 @@ Pannello laterale animato che elenca tutti i viaggi.
 2. **Posizione Casa:** Cerca tramite Nominatim + imposta, mostra con bandiera, pulsante rimuovi
 3. **Sicurezza:** Toggle blocco biometrico (verifica capability dispositivo, richiede test auth prima di abilitare)
 4. **Gestione Dati:**
-   - Export: serializza trips in JSON → condividi via share sheet nativo
-   - Import: seleziona file JSON → parse → conferma → merge nell'array trips
+   - Export: serializza trips in JSON → condividi via share sheet nativo (con import validation + sanitizzazione)
+   - Import: seleziona file JSON → validazione e sanitizzazione dati → parse → conferma → merge
    - Elimina tutto: clearAll() da StorageService (con warning)
    - Backup cloud: salva in cartella backups del dispositivo
+   - Pulizia media orfani: manuale + automatica ogni 7 giorni
+   - **Storage Monitor (NUOVO):** Widget dettagliato con metriche storage
 5. **Info:** Versione app, pulsante per rivedere onboarding
 6. **Legale:** Link a Privacy Policy e Terms of Service (aprono modali)
+
+**Storage Monitor (NUOVO):**
+- Stato: `storageInfo`, `loadingStorage`
+- Funzione `formatBytes(bytes)` per display KB/MB
+- Carica dati con `StorageService.getStorageInfo()` quando il modale è visibile
+- Mostra: tripCount, mediaCount, mediaSize, metadataSize, backupCount+Size, totalSize
+- Warning ambra se metadataSize > 4 MB (limite AsyncStorage)
 
 ---
 
@@ -670,7 +806,7 @@ Indicatore stato rete:
 - Mostra quando offline (isConnected = false)
 - Posizionato top-left
 - Icona warning ambra
-- Testo: "Sei offline" + "Il globo necessita di internet per caricarsi"
+- Testo: "Sei offline" (il globo ora funziona offline grazie alle librerie vendor bundlate)
 - Usa @react-native-community/netinfo
 
 ---
@@ -742,8 +878,11 @@ Launch app
   → App.tsx monta ErrorBoundary + AppProvider
   → AppProvider carica settings da AsyncStorage (useEffect)
   → AppContent verifica isSettingsLoaded (spinner se no)
-  → Carica trips + itineraries da StorageService (useEffect)
-  → Se biometricEnabled → prompt autenticazione biometrica
+  → useTrips: migrateData() (schema v0→v1 se necessario)
+  → useTrips: carica trips + itineraries in parallelo da StorageService
+  → useTrips: checkAndPerformAutoBackup() (background, ogni 7 giorni, con SHA-256)
+  → useTrips: checkAndCleanOrphanedMedia() (background, ogni 7 giorni)
+  → useAuth: se biometricEnabled → prompt autenticazione biometrica
   → Se !hasSeenOnboarding → mostra OnboardingScreen
   → Se !hasAcceptedGDPR → mostra GDPRConsent
   → Render UI principale: Globo + Header + Sidebar + Pulsanti
@@ -758,9 +897,10 @@ Utente compila TripForm → preme Salva
     → Se modifica: aggiorna trip esistente nell'array
     → setTrips([...]) aggiorna stato React
     → Se itineraryId: aggiorna itinerary.tripIds
-  → useEffect rileva cambio trips → StorageService.saveTrips(trips)
+  → Debounce 800ms → StorageService.saveAll(trips, itineraries) (atomic multiSet)
     → Se errore: retry dopo 2s
     → Se retry fallisce: Alert visibile all'utente
+  → Se app va in background: flush immediato del save pendente
   → Mostra SaveConfirmation toast
   → Fly globo alla posizione del viaggio salvato
 ```
@@ -796,6 +936,9 @@ Utente tocca un pin sul globo
 - `@travelsphere_trips` → JSON array di Trip
 - `@travelsphere_itineraries` → JSON array di Itinerary
 - `@travelsphere_settings` → JSON oggetto AppSettings
+- `@travelsphere_schema_version` → versione schema corrente (v1)
+- `@travelsphere_last_backup` → timestamp ultimo backup
+- `@travelsphere_last_cleanup` → timestamp ultima pulizia media orfani
 
 ### Livello 2: Media (expo-file-system)
 - Directory: `FileSystem.documentDirectory/media/`
@@ -803,20 +946,38 @@ Utente tocca un pin sul globo
 - Riferiti tramite URI completo in Trip.media[].uri
 
 ### Caricamento
-1. Carica JSON da AsyncStorage
-2. Su piattaforma nativa: verifica che tutti i file media esistano ancora
-3. Rimuove riferimenti a file mancanti (cleanup)
+1. `migrateData()` - migra schema se necessario (v0 → v1)
+2. Carica JSON da AsyncStorage (trips + itineraries in parallelo)
+3. Su piattaforma nativa: verifica che tutti i file media esistano ancora
+4. Rimuove riferimenti a file mancanti (cleanup)
 
-### Salvataggio
-- Auto-save via useEffect (in useTrips hook) ogni volta che trips o itineraries cambiano
-- Scatta solo dopo il caricamento iniziale (previene sovrascrittura con array vuoto)
+### Salvataggio (Debounced + Atomico)
+- Auto-save con debounce 800ms via useTrips hook
+- Usa `StorageService.saveAll()` con `AsyncStorage.multiSet()` per atomicità
+- Background flush: quando l'app va in background, flush immediato del save pendente
 - Retry automatico dopo 2s se il salvataggio fallisce
 - Alert visibile all'utente se anche il retry fallisce
 
-### Backup Automatico
+### Schema Versioning & Migrazione
+- Versione corrente: `CURRENT_SCHEMA_VERSION = 1`
+- v0 → v1: aggiunge campi default (`tags:[], isFavorite:false, isWishlist:false, media:[], notes:''`)
+- Migrazione idempotente, preserva campi esistenti
+- Eseguita automaticamente all'avvio in useTrips
+
+### Backup Automatico con Checksum SHA-256
 - Ogni 7 giorni, al caricamento iniziale dell'app
-- Salva JSON in `FileSystem.documentDirectory/backups/`
-- Mantiene ultimi 3 backup, elimina i più vecchi
+- Backup include: dati + checksum SHA-256 + schemaVersion + createdAt
+- Verifica integrità: rilegge il file scritto e ricalcola l'hash
+- Rotazione solo dopo verifica positiva (non perde backup validi)
+- Mantiene ultimi 3 backup (`MAX_BACKUPS`)
+- Supporto retrocompatibile per backup legacy (senza checksum)
+
+### Pulizia Media Orfani
+- Automatica ogni 7 giorni (`CLEANUP_INTERVAL_MS`)
+- Manuale tramite pulsante in Settings
+- Scansiona directory media, confronta con riferimenti nei trips
+- Elimina file non referenziati, riporta conteggio e byte liberati
+- Solo piattaforma nativa (skip su web)
 
 ---
 
@@ -852,7 +1013,7 @@ Ogni viaggio non-wishlist con countryCode popola il set `visitedCountries` in Ap
 Raggruppano viaggi sotto un nome. Ogni Trip ha un campo opzionale `itineraryId`. L'Itinerary tiene un array `tripIds`. Il pulsante "Play" nell'ItineraryManager attiva una flythrough animation: la camera vola sequenzialmente a ogni viaggio dell'itinerario. Gli archi animati collegano i viaggi dello stesso itinerario sul globo.
 
 ### 3. Sicurezza Biometrica
-Opzionale. Usa expo-local-authentication per fingerprint/Face ID. Prompt all'apertura app e al ritorno da background (AppState listener). Prima di abilitare, testa se il dispositivo supporta biometria e fa un test di autenticazione.
+Opzionale. Usa expo-local-authentication per fingerprint/Face ID. Gestita dal hook `useAuth`: prompt all'apertura app e al ritorno da background (AppState listener). Prima di abilitare, testa se il dispositivo supporta biometria e fa un test di autenticazione.
 
 ### 4. Geocoding a Catena
 Per massimizzare affidabilità con API gratuite rate-limited:
@@ -860,12 +1021,25 @@ Per massimizzare affidabilità con API gratuite rate-limited:
 2. Se entrambi falliscono: expo-location geocoder nativo → chiede permesso posizione
 3. Primo risultato valido vince
 
-### 5. Export/Import
+### 5. Export/Import con Validazione
 - **Export:** Mostra avviso privacy ("Il backup contiene coordinate GPS") → Serializza array trips in JSON → salva in cache FileSystem → condividi via share sheet nativo
-- **Import:** Seleziona file JSON tramite document picker → parse → mostra conferma con conteggio → merge nell'array trips esistente
+- **Import:** Seleziona file JSON tramite document picker → **validazione e sanitizzazione dati** (verifica struttura, tipi, valori) → parse → mostra conferma con conteggio → merge nell'array trips esistente
+- **Validazione backup:** Supporta formato nuovo (con checksum SHA-256) e legacy (senza checksum)
 
 ### 6. Wishlist
 Trip con `isWishlist: true`. Pin rosa sul globo. Non contribuiscono al Fog of War (non sono stati visitati). Particelle flottanti rosa invece di rosse.
+
+### 7. Supporto Offline Globo (NUOVO)
+Le librerie vendor (globe.gl, topojson-client, dati paesi) sono bundlate localmente in `assets/vendor/`. EarthGlobe.tsx le inietta inline nell'HTML prima del caricamento. Fallback CDN disponibile se i file locali non sono accessibili.
+
+### 8. Storage Monitor (NUOVO)
+Widget nell'area "Gestione Dati" di Settings che mostra metriche dettagliate: conteggio trips, media count/size, metadata size, backup count/size, totale. Warning se metadata > 4 MB (limite AsyncStorage).
+
+### 9. Timeout e Retry del Globo (NUOVO)
+Se la WebView non segnala `ready` entro 15 secondi, viene mostrato un overlay di errore con pulsante "Riprova" che ricarica la WebView e resetta il timeout.
+
+### 10. Schema Versioning (NUOVO)
+Sistema di migrazione automatica dei dati. Versione corrente v1. Al primo avvio dopo aggiornamento, i trip esistenti vengono arricchiti con campi default mancanti (tags, isFavorite, isWishlist, media, notes) senza sovrascrivere dati esistenti.
 
 ---
 
@@ -897,6 +1071,11 @@ Trip con `isWishlist: true`. Pin rosa sul globo. Non contribuiscono al Fog of Wa
 - ts-jest ^29.4.6
 - @types/jest ^30.0.0
 
+**Test Coverage (843 righe totali):**
+- `StorageService.test.ts` (~534 righe) - save/load, delete, migration, checksum backup, clear
+- `useTrips.test.ts` (~309 righe) - saveTrip, deleteTrip, toggleFavorite, itineraries CRUD
+- `geocoding.test.ts` (~110 righe) - geocode, reverseGeocode, extractCountry
+
 ---
 
 ## CONFIGURAZIONE BUILD
@@ -913,6 +1092,9 @@ Trip con `isWishlist: true`. Pin rosa sul globo. Non contribuiscono al Fog of Wa
 - Development: distribuzione interna
 - Production: Android AAB, auto-increment versione
 
+**GitHub Actions:**
+- Aggiornate da v4 a v5 per supporto Node.js 24
+
 ---
 
 ## DECISIONI ARCHITETTURALI
@@ -924,3 +1106,8 @@ Trip con `isWishlist: true`. Pin rosa sul globo. Non contribuiscono al Fog of Wa
 5. **Orientamento landscape** → Il globo 3D ha bisogno di spazio orizzontale per essere utilizzabile
 6. **Context API, non Redux** → Sufficiente per un'app diario di viaggio senza flussi async complessi
 7. **Tema scuro** → Riduce affaticamento visivo, fa risaltare gli accent luminosi (cyan, oro)
+8. **Hook Extraction** → Logica estratta da App.tsx in 4 hook dedicati (useTrips, useModals, useAuth, useFogOfWar) per riusabilità e testabilità
+9. **Vendor Bundling** → Librerie globe.gl bundlate localmente per supporto offline completo, con fallback CDN
+10. **Atomic Save con Debounce** → `AsyncStorage.multiSet()` per consistenza trips/itineraries, debounce 800ms per performance, flush immediato su background
+11. **Schema Versioning** → Sistema di migrazione dati per evoluzione dello schema senza perdita dati
+12. **Backup con Checksum SHA-256** → Verifica integrità backup prima di ruotare i vecchi, retrocompatibile con formato legacy
