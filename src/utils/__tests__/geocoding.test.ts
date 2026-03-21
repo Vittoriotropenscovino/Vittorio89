@@ -104,7 +104,7 @@ describe('geocoding', () => {
     });
 
     it('should handle empty string', () => {
-      expect(extractCountryFromLocationName('')).toBe('Sconosciuto');
+      expect(extractCountryFromLocationName('')).toBe('');
     });
   });
 });

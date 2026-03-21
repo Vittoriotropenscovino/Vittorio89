@@ -47,6 +47,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const [isWishlist, setIsWishlist] = useState(false);
 
     const lastGeocodingTime = useRef(0);
+    const isSavingRef = useRef(false);
 
     useEffect(() => {
         if (editTrip && visible) {
@@ -80,7 +81,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const resetForm = () => {
         setLocationQuery(''); setFoundLocation(null); setTitle('');
         setDate(''); setNotes(''); setMedia([]); setSelectedTags([]);
-        setIsSearching(false); setIsSaving(false); setShowDatePicker(false);
+        setIsSearching(false); setIsSaving(false); isSavingRef.current = false; setShowDatePicker(false);
         setDateYear(new Date().getFullYear());
         setDateMonth(new Date().getMonth());
         setDateDay(new Date().getDate());
@@ -385,6 +386,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     const handleSubmit = async () => {
+        if (isSavingRef.current) return;
         if (!foundLocation) { Alert.alert(t('error') as string, t('searchLocation') as string); return; }
         if (!title.trim()) { Alert.alert(t('error') as string, t('enterTitle') as string); return; }
         const lat = foundLocation.latitude;
@@ -394,6 +396,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             Alert.alert(t('error') as string, t('invalidCoordinates') as string);
             return;
         }
+        isSavingRef.current = true;
         setIsSaving(true);
         try {
             const persistentMedia = await copyMediaToPersistentStorage(media);
@@ -418,6 +421,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         } catch (error) {
             Alert.alert(t('error') as string, t('saveError') as string);
             setIsSaving(false);
+            isSavingRef.current = false;
         }
     };
 

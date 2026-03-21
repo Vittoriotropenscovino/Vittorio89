@@ -230,7 +230,9 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
           const trip = trips.find((t) => t.id === data.tripId);
           if (trip) onPinClick(trip);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[TravelSphere] WebView message parse error:', e);
+      }
     },
     [trips, itineraries, onPinClick, sendToWebView, homeLocation, showTravelLines, visitedCountries, tripData]
   );

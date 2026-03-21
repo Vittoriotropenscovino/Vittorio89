@@ -43,9 +43,9 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.content}>
             <Ionicons name="warning" size={64} color="#EF4444" />
-            <Text style={styles.title}>Oops! Qualcosa è andato storto.</Text>
+            <Text style={styles.title}>Oops! Something went wrong.</Text>
             <Text style={styles.subtitle}>
-              L'applicazione ha riscontrato un errore imprevisto.
+              The app encountered an unexpected error.
             </Text>
 
             {__DEV__ && (
@@ -63,7 +63,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
             <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
               <Ionicons name="refresh" size={20} color="#fff" />
-              <Text style={styles.buttonText}>Riavvia App</Text>
+              <Text style={styles.buttonText}>Restart App</Text>
             </TouchableOpacity>
           </View>
         </View>

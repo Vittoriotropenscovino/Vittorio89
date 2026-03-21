@@ -47,7 +47,7 @@ export const reverseGeocodeCountry = async (lat: number, lon: number): Promise<{
         const data = await response.json();
         if (data?.address) {
             return {
-                country: data.address.country || 'Sconosciuto',
+                country: data.address.country || '',
                 countryCode: data.address.country_code?.toUpperCase() || '',
             };
         }
@@ -57,5 +57,5 @@ export const reverseGeocodeCountry = async (lat: number, lon: number): Promise<{
 
 export const extractCountryFromLocationName = (locationName: string): string => {
     const parts = locationName.split(',').map(s => s.trim());
-    return parts[parts.length - 1] || 'Sconosciuto';
+    return parts[parts.length - 1] || '';
 };

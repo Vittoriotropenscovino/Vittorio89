@@ -437,6 +437,13 @@ describe('StorageService', () => {
       expect(result.hasChecksum).toBe(true);
     });
 
+    it('should handle malformed JSON in validateBackup without crashing', async () => {
+      const result = await StorageService.validateBackup('not valid json{{{');
+      expect(result.valid).toBe(false);
+      expect(result.data).toBeNull();
+      expect(result.hasChecksum).toBe(false);
+    });
+
     it('should load legacy backup without checksum without errors', async () => {
       const content = JSON.stringify({
         trips: [mockTrip],

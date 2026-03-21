@@ -14,7 +14,7 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
     const { t } = useApp();
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
+        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={() => {/* GDPR consent is mandatory */}}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.iconRow}>

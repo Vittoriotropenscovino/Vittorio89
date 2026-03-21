@@ -105,13 +105,14 @@ function extractTripsArray(json: unknown): unknown[] | null {
   return null;
 }
 
-export function validateImportData(json: unknown, existingTrips: Trip[]): ImportResult {
+export function validateImportData(json: unknown, existingTrips: Trip[], existingItineraryIds?: string[]): ImportResult {
   const raw = extractTripsArray(json);
   if (!raw) {
     return { trips: [], skipped: 0, errors: ['No trips array found in import data'] };
   }
 
   const existingById = new Map(existingTrips.map((t) => [t.id, t]));
+  const knownItineraryIds = existingItineraryIds ? new Set(existingItineraryIds) : null;
   const validTrips: Trip[] = [];
   let skipped = 0;
   const allErrors: string[] = [];
@@ -128,6 +129,12 @@ export function validateImportData(json: unknown, existingTrips: Trip[]): Import
     }
 
     const sanitized = result.sanitized;
+
+    // Clear itineraryId if it references a non-existent itinerary
+    if (sanitized.itineraryId && knownItineraryIds && !knownItineraryIds.has(sanitized.itineraryId)) {
+      sanitized.itineraryId = undefined;
+    }
+
     const existing = existingById.get(sanitized.id);
 
     if (existing) {

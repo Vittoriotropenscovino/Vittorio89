@@ -195,7 +195,7 @@ export const StorageService = {
                     for (const file of files) {
                         const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
                         if (fileInfo.exists && 'size' in fileInfo) {
-                            mediaSize += (fileInfo as any).size || 0;
+                            mediaSize += ('size' in fileInfo ? (fileInfo as { size: number }).size : 0);
                         }
                     }
                 }
@@ -208,7 +208,7 @@ export const StorageService = {
                     for (const file of files) {
                         const fileInfo = await FileSystem.getInfoAsync(BACKUP_DIR + file);
                         if (fileInfo.exists && 'size' in fileInfo) {
-                            backupSize += (fileInfo as any).size || 0;
+                            backupSize += ('size' in fileInfo ? (fileInfo as { size: number }).size : 0);
                         }
                     }
                 }
@@ -425,7 +425,13 @@ export const StorageService = {
      * Supports legacy format (no checksum) for backwards compatibility.
      */
     validateBackup: async (content: string): Promise<{ valid: boolean; data: any; hasChecksum: boolean }> => {
-        const parsed = JSON.parse(content);
+        let parsed: any;
+        try {
+            parsed = JSON.parse(content);
+        } catch (e) {
+            console.error('[TravelSphere] Failed to parse backup JSON:', e);
+            return { valid: false, data: null, hasChecksum: false };
+        }
 
         // Legacy format (pre-checksum): { trips, exportDate, version }
         if (!parsed.checksum) {

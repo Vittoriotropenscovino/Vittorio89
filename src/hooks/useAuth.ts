@@ -17,6 +17,13 @@ export function useAuth(biometricEnabled: boolean, isSettingsLoaded: boolean, t:
     }
     (async () => {
       try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        if (!hasHardware || !isEnrolled) {
+          console.warn('[TravelSphere] Biometric hardware unavailable or not enrolled, skipping auth');
+          setAuthenticated(true);
+          return;
+        }
         const result = await LocalAuthentication.authenticateAsync({
           promptMessage: t('biometricPrompt') as string,
         });

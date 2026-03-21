@@ -100,13 +100,17 @@ export function useTrips(t: TranslateFn) {
     }
     // Update itinerary membership
     if (tripData.itineraryId) {
-      setItineraries((prev) => prev.map((it) => {
-        if (it.id === tripData.itineraryId) {
-          const ids = it.tripIds.includes(tripId) ? it.tripIds : [...it.tripIds, tripId];
-          return { ...it, tripIds: ids };
-        }
-        return { ...it, tripIds: it.tripIds.filter((id) => id !== tripId) };
-      }));
+      setItineraries((prev) => {
+        const targetExists = prev.some((it) => it.id === tripData.itineraryId);
+        if (!targetExists) return prev; // Don't modify itineraries if target doesn't exist
+        return prev.map((it) => {
+          if (it.id === tripData.itineraryId) {
+            const ids = it.tripIds.includes(tripId) ? it.tripIds : [...it.tripIds, tripId];
+            return { ...it, tripIds: ids };
+          }
+          return { ...it, tripIds: it.tripIds.filter((id) => id !== tripId) };
+        });
+      });
     } else {
       setItineraries((prev) => prev.map((it) => ({
         ...it, tripIds: it.tripIds.filter((id) => id !== tripId),
@@ -116,11 +120,11 @@ export function useTrips(t: TranslateFn) {
   }, [generateId]);
 
   const deleteTrip = useCallback(async (tripId: string) => {
-    setTrips((prevTrips) => {
-      const updatedTrips = prevTrips.filter((t) => t.id !== tripId);
-      StorageService.saveTrips(updatedTrips);
-      return updatedTrips;
-    });
+    setTrips((prevTrips) => prevTrips.filter((t) => t.id !== tripId));
+    // Also remove from itineraries
+    setItineraries((prev) => prev.map((it) => ({
+      ...it, tripIds: it.tripIds.filter((id) => id !== tripId),
+    })));
   }, []);
 
   const toggleFavorite = useCallback((tripId: string) => {

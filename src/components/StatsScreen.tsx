@@ -18,7 +18,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     const stats = useMemo(() => {
         const totalPhotos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'image').length, 0);
         const totalVideos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'video').length, 0);
-        const countries = new Set(trips.map(tr => tr.locationName.split(',').pop()?.trim())).size;
+        const countries = new Set(trips.map(tr => tr.countryCode || tr.country || tr.locationName.split(',').pop()?.trim()).filter(Boolean)).size;
 
         // Trips by month
         const monthCounts = new Array(12).fill(0);
@@ -41,7 +41,8 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
         return { totalPhotos, totalVideos, countries, monthCounts, maxMonth, firstDate, lastDate, favCount };
     }, [trips]);
 
-    const months = t('months') as string[];
+    const rawMonths = t('months');
+    const months = Array.isArray(rawMonths) ? rawMonths : [];
 
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
