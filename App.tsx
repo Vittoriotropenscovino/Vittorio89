@@ -27,7 +27,8 @@ import SaveConfirmation from './src/components/SaveConfirmation';
 import OfflineBanner from './src/components/OfflineBanner';
 import ItineraryManager from './src/components/ItineraryManager';
 import HelpGuide from './src/components/HelpGuide';
-import { useTrips, useModals, useAuth, useFogOfWar } from './src/hooks';
+import PaywallScreen from './src/components/PaywallScreen';
+import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
 
 const AppContent: React.FC = () => {
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
 
   const { authenticated } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
   const visitedCountries = useFogOfWar(trips);
+  const { isPremium, price, purchase, restore, canAddTrip, remainingFreeTrips, FREE_TRIP_LIMIT } = usePurchase();
 
   // Flythrough animation
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
@@ -117,6 +119,15 @@ const AppContent: React.FC = () => {
     showSaveToast(t('saved') as string);
     setAutoFlyTarget({ latitude: tripData.latitude, longitude: tripData.longitude });
   }, [editingTrip, saveTrip, t, closeForm, showSaveToast]);
+
+  const handleAddTrip = useCallback(() => {
+    const nonWishlistTrips = trips.filter(t => !t.isWishlist).length;
+    if (canAddTrip(nonWishlistTrips)) {
+      openModal('form');
+    } else {
+      openModal('paywall');
+    }
+  }, [trips, canAddTrip, openModal]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
     await deleteTrip(tripId);
@@ -293,11 +304,23 @@ const AppContent: React.FC = () => {
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={styles.addButton} onPress={() => openModal('form')} accessibilityLabel="Add Trip" accessibilityRole="button">
+            <TouchableOpacity style={styles.addButton} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
               <Ionicons name="add" size={28} color="#fff" />
               <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
           </Animated.View>
+          {!isPremium && (() => {
+            const nwc = trips.filter(tr => !tr.isWishlist).length;
+            const rem = FREE_TRIP_LIMIT - nwc;
+            if (nwc > 0 && rem > 0) {
+              return (
+                <Text style={[styles.freeTripsIndicator, rem <= 1 && { color: '#EF4444' }]}>
+                  {String(t('freeTripsRemaining')).replace('{0}', String(rem))}
+                </Text>
+              );
+            }
+            return null;
+          })()}
         </View>
       </View>
 
@@ -322,10 +345,29 @@ const AppContent: React.FC = () => {
         trips={trips} itineraries={itineraries} onTripsUpdate={setTrips}
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onShowHelpGuide={() => openModal('helpGuide')}
-        onItinerariesReset={() => setItineraries([])} />
+        onItinerariesReset={() => setItineraries([])}
+        isPremium={isPremium} price={price} onPurchase={purchase} onRestore={restore} />
       {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => closeModal()} />}
       {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => closeModal()} />}
       {activeModal === 'helpGuide' && <HelpGuide visible={activeModal === 'helpGuide'} onClose={() => closeModal()} />}
+      {activeModal === 'paywall' && (
+        <PaywallScreen
+          visible={activeModal === 'paywall'}
+          onClose={() => closeModal()}
+          price={price}
+          freeLimit={FREE_TRIP_LIMIT}
+          onPurchase={async () => {
+            const success = await purchase();
+            if (success) closeModal();
+            return success;
+          }}
+          onRestore={async () => {
+            const success = await restore();
+            if (success) closeModal();
+            return success;
+          }}
+        />
+      )}
       {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => closeModal()} trips={trips} />}
       {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => closeModal()}
         trips={trips} onTripSelect={(trip) => { selectTrip(trip); closeModal(); }} />}
@@ -425,6 +467,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ android: { elevation: 12 } }),
   },
   addButtonText: { color: '#fff', fontWeight: '600' },
+  freeTripsIndicator: { color: '#F59E0B', fontSize: 11, fontWeight: '600', marginTop: 4 },
 });
 
 export default App;

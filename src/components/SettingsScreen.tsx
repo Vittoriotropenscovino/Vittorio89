@@ -40,10 +40,15 @@ interface Props {
     onShowTerms: () => void;
     onShowHelpGuide: () => void;
     onItinerariesReset?: () => void;
+    isPremium?: boolean;
+    price?: string;
+    onPurchase?: () => Promise<boolean>;
+    onRestore?: () => Promise<boolean>;
 }
 
 const SettingsScreen: React.FC<Props> = ({
     visible, onClose, trips, itineraries, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
+    isPremium, price, onPurchase, onRestore,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
@@ -501,6 +506,20 @@ const SettingsScreen: React.FC<Props> = ({
                                 <SettingRow icon="images-outline" iconColor="#F59E0B" label={t('cleanMedia') as string} onPress={handleCleanMedia} />
                             )}
                             <SettingRow icon="trash-outline" label={t('deleteAllData') as string} onPress={handleDeleteAll} destructive iconColor="#EF4444" />
+
+                            <SectionHeader title={t('account') as string} />
+                            <View style={styles.settingRow}>
+                                <View style={[styles.settingIcon, { backgroundColor: isPremium ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)' }]}>
+                                    <Ionicons name={isPremium ? 'checkmark-circle' : 'close-circle'} size={18} color={isPremium ? '#10B981' : '#EF4444'} />
+                                </View>
+                                <Text style={styles.settingLabel}>{isPremium ? t('premiumActive') : t('freeVersion')}</Text>
+                            </View>
+                            {!isPremium && onPurchase && (
+                                <SettingRow icon="star-outline" iconColor="#F59E0B" label={`${t('upgradePremium')} — ${price || '€3,49'}`} onPress={onPurchase} />
+                            )}
+                            {onRestore && (
+                                <SettingRow icon="refresh-outline" iconColor="#60A5FA" label={t('restorePurchases') as string} onPress={onRestore} />
+                            )}
 
                             <SectionHeader title={t('privacy') as string} />
                             <SettingRow icon="shield-checkmark-outline" label={t('privacyPolicy') as string} onPress={onShowPrivacy} />
