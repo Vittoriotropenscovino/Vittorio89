@@ -249,6 +249,19 @@ const it = {
   backupSaved: 'Backup Salvato',
   backupSavedMessage: 'Il file è stato salvato nella cartella selezionata.',
   backupSaveFailed: 'Impossibile salvare il backup. Riprova.',
+  privacyUpdated: 'Ultimo aggiornamento: Marzo 2026',
+  privacyDataCollection: '1. Raccolta Dati',
+  privacyDataCollectionBody: 'TravelSphere NON raccoglie, trasmette o condivide alcun dato personale. Tutte le informazioni (viaggi, foto, note) sono salvate esclusivamente sul tuo dispositivo.',
+  privacyLocalData: '2. Dati Salvati Localmente',
+  privacyLocalDataBody: '• Informazioni sui viaggi (titolo, luogo, date, note)\n• Coordinate GPS dei luoghi\n• Foto e video associati ai viaggi\n• Preferenze dell\'app (lingua, impostazioni)',
+  privacyExternalServices: '3. Servizi Esterni',
+  privacyExternalServicesBody: 'L\'app comunica con servizi esterni esclusivamente per la geocodifica dei luoghi cercati. Nessun altro dato viene trasmesso.',
+  privacyGeocodingServices: '4. Servizi di Geocoding',
+  privacyGeocodingBody: 'Quando cerchi una località nell\'app, la tua ricerca viene inviata ai seguenti servizi esterni per ottenere le coordinate geografiche:\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — servizio gratuito di geocoding\n• Photon by Komoot (photon.komoot.io) — servizio gratuito di geocoding\n• Sistema di geocoding nativo del dispositivo (come fallback)\n\nQuesti servizi ricevono SOLO il testo della ricerca (es. "Roma, Italia"), NON la tua posizione GPS, identità o altri dati personali. Le richieste sono inviate via HTTPS (connessione cifrata). Nessun dato di ricerca viene salvato dall\'app.',
+  privacyRights: '5. I Tuoi Diritti',
+  privacyRightsBody: 'Puoi in qualsiasi momento:\n• Eliminare singoli viaggi\n• Eliminare tutti i dati dell\'app dalle Impostazioni\n• Disinstallare l\'app (rimuove tutti i dati)',
+  privacyContact: '6. Contatti',
+  privacyContactBody: 'Per domande sulla privacy: travelsphere@app.com',
 };
 
 const en: typeof it = {
@@ -499,6 +512,19 @@ const en: typeof it = {
   backupSaved: 'Backup Saved',
   backupSavedMessage: 'The file has been saved to the selected folder.',
   backupSaveFailed: 'Unable to save the backup. Try again.',
+  privacyUpdated: 'Last updated: March 2026',
+  privacyDataCollection: '1. Data Collection',
+  privacyDataCollectionBody: 'TravelSphere does NOT collect, transmit or share any personal data. All information (trips, photos, notes) is stored exclusively on your device.',
+  privacyLocalData: '2. Locally Stored Data',
+  privacyLocalDataBody: '• Trip information (title, location, dates, notes)\n• GPS coordinates of places\n• Photos and videos associated with trips\n• App preferences (language, settings)',
+  privacyExternalServices: '3. External Services',
+  privacyExternalServicesBody: 'The app communicates with external services exclusively for geocoding searched locations. No other data is transmitted.',
+  privacyGeocodingServices: '4. Geocoding Services',
+  privacyGeocodingBody: 'When you search for a location in the app, your search is sent to the following external services to obtain geographic coordinates:\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — free geocoding service\n• Photon by Komoot (photon.komoot.io) — free geocoding service\n• Device native geocoding system (as fallback)\n\nThese services receive ONLY the search text (e.g. "Rome, Italy"), NOT your GPS location, identity or other personal data. Requests are sent via HTTPS (encrypted connection). No search data is stored by the app.',
+  privacyRights: '5. Your Rights',
+  privacyRightsBody: 'You can at any time:\n• Delete individual trips\n• Delete all app data from Settings\n• Uninstall the app (removes all data)',
+  privacyContact: '6. Contact',
+  privacyContactBody: 'For privacy questions: travelsphere@app.com',
 };
 
 const es: typeof it = {
@@ -740,6 +766,19 @@ const es: typeof it = {
   backupSaved: 'Backup Guardado',
   backupSavedMessage: 'El archivo se ha guardado en la carpeta seleccionada.',
   backupSaveFailed: 'No se pudo guardar el backup. Inténtalo de nuevo.',
+  privacyUpdated: 'Última actualización: Marzo 2026',
+  privacyDataCollection: '1. Recopilación de Datos',
+  privacyDataCollectionBody: 'TravelSphere NO recopila, transmite ni comparte ningún dato personal. Toda la información (viajes, fotos, notas) se almacena exclusivamente en tu dispositivo.',
+  privacyLocalData: '2. Datos Almacenados Localmente',
+  privacyLocalDataBody: '• Información de viajes (título, lugar, fechas, notas)\n• Coordenadas GPS de los lugares\n• Fotos y videos asociados a los viajes\n• Preferencias de la app (idioma, ajustes)',
+  privacyExternalServices: '3. Servicios Externos',
+  privacyExternalServicesBody: 'La app se comunica con servicios externos exclusivamente para la geocodificación de los lugares buscados. No se transmite ningún otro dato.',
+  privacyGeocodingServices: '4. Servicios de Geocodificación',
+  privacyGeocodingBody: 'Cuando buscas una ubicación en la app, tu búsqueda se envía a los siguientes servicios externos para obtener las coordenadas geográficas:\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — servicio gratuito de geocodificación\n• Photon by Komoot (photon.komoot.io) — servicio gratuito de geocodificación\n• Sistema de geocodificación nativo del dispositivo (como fallback)\n\nEstos servicios reciben SOLO el texto de la búsqueda (ej. "Roma, Italia"), NO tu ubicación GPS, identidad u otros datos personales. Las solicitudes se envían por HTTPS (conexión cifrada). La app no guarda ningún dato de búsqueda.',
+  privacyRights: '5. Tus Derechos',
+  privacyRightsBody: 'Puedes en cualquier momento:\n• Eliminar viajes individuales\n• Eliminar todos los datos de la app desde Ajustes\n• Desinstalar la app (elimina todos los datos)',
+  privacyContact: '6. Contacto',
+  privacyContactBody: 'Para preguntas sobre privacidad: travelsphere@app.com',
 };
 
 const fr: typeof it = {
@@ -981,6 +1020,19 @@ const fr: typeof it = {
   backupSaved: 'Backup Enregistré',
   backupSavedMessage: 'Le fichier a été enregistré dans le dossier sélectionné.',
   backupSaveFailed: 'Impossible d\'enregistrer le backup. Réessayez.',
+  privacyUpdated: 'Dernière mise à jour : Mars 2026',
+  privacyDataCollection: '1. Collecte de Données',
+  privacyDataCollectionBody: 'TravelSphere NE collecte, transmet ni partage aucune donnée personnelle. Toutes les informations (voyages, photos, notes) sont stockées exclusivement sur votre appareil.',
+  privacyLocalData: '2. Données Stockées Localement',
+  privacyLocalDataBody: '• Informations sur les voyages (titre, lieu, dates, notes)\n• Coordonnées GPS des lieux\n• Photos et vidéos associées aux voyages\n• Préférences de l\'app (langue, paramètres)',
+  privacyExternalServices: '3. Services Externes',
+  privacyExternalServicesBody: 'L\'app communique avec des services externes exclusivement pour le géocodage des lieux recherchés. Aucune autre donnée n\'est transmise.',
+  privacyGeocodingServices: '4. Services de Géocodage',
+  privacyGeocodingBody: 'Lorsque vous recherchez un lieu dans l\'app, votre recherche est envoyée aux services externes suivants pour obtenir les coordonnées géographiques :\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — service gratuit de géocodage\n• Photon by Komoot (photon.komoot.io) — service gratuit de géocodage\n• Système de géocodage natif de l\'appareil (en secours)\n\nCes services reçoivent UNIQUEMENT le texte de la recherche (ex. « Rome, Italie »), PAS votre position GPS, votre identité ou d\'autres données personnelles. Les requêtes sont envoyées via HTTPS (connexion chiffrée). Aucune donnée de recherche n\'est enregistrée par l\'app.',
+  privacyRights: '5. Vos Droits',
+  privacyRightsBody: 'Vous pouvez à tout moment :\n• Supprimer des voyages individuels\n• Supprimer toutes les données de l\'app depuis les Paramètres\n• Désinstaller l\'app (supprime toutes les données)',
+  privacyContact: '6. Contact',
+  privacyContactBody: 'Pour toute question sur la vie privée : travelsphere@app.com',
 };
 
 const de: typeof it = {
@@ -1222,6 +1274,19 @@ const de: typeof it = {
   backupSaved: 'Backup Gespeichert',
   backupSavedMessage: 'Die Datei wurde im ausgewählten Ordner gespeichert.',
   backupSaveFailed: 'Backup konnte nicht gespeichert werden. Versuchen Sie es erneut.',
+  privacyUpdated: 'Letzte Aktualisierung: März 2026',
+  privacyDataCollection: '1. Datenerfassung',
+  privacyDataCollectionBody: 'TravelSphere erfasst, überträgt oder teilt KEINE persönlichen Daten. Alle Informationen (Reisen, Fotos, Notizen) werden ausschließlich auf Ihrem Gerät gespeichert.',
+  privacyLocalData: '2. Lokal Gespeicherte Daten',
+  privacyLocalDataBody: '• Reiseinformationen (Titel, Ort, Daten, Notizen)\n• GPS-Koordinaten der Orte\n• Fotos und Videos zu den Reisen\n• App-Einstellungen (Sprache, Einstellungen)',
+  privacyExternalServices: '3. Externe Dienste',
+  privacyExternalServicesBody: 'Die App kommuniziert mit externen Diensten ausschließlich zur Geokodierung gesuchter Orte. Es werden keine anderen Daten übertragen.',
+  privacyGeocodingServices: '4. Geokodierungsdienste',
+  privacyGeocodingBody: 'Wenn Sie in der App nach einem Ort suchen, wird Ihre Suche an folgende externe Dienste gesendet, um geografische Koordinaten zu erhalten:\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — kostenloser Geokodierungsdienst\n• Photon by Komoot (photon.komoot.io) — kostenloser Geokodierungsdienst\n• Natives Geokodierungssystem des Geräts (als Fallback)\n\nDiese Dienste erhalten NUR den Suchtext (z.B. „Rom, Italien"), NICHT Ihren GPS-Standort, Ihre Identität oder andere persönliche Daten. Anfragen werden über HTTPS (verschlüsselte Verbindung) gesendet. Keine Suchdaten werden von der App gespeichert.',
+  privacyRights: '5. Ihre Rechte',
+  privacyRightsBody: 'Sie können jederzeit:\n• Einzelne Reisen löschen\n• Alle App-Daten über die Einstellungen löschen\n• Die App deinstallieren (entfernt alle Daten)',
+  privacyContact: '6. Kontakt',
+  privacyContactBody: 'Bei Fragen zum Datenschutz: travelsphere@app.com',
 };
 
 const pt: typeof it = {
@@ -1463,6 +1528,19 @@ const pt: typeof it = {
   backupSaved: 'Backup Salvo',
   backupSavedMessage: 'O arquivo foi salvo na pasta selecionada.',
   backupSaveFailed: 'Não foi possível salvar o backup. Tente novamente.',
+  privacyUpdated: 'Última atualização: Março 2026',
+  privacyDataCollection: '1. Coleta de Dados',
+  privacyDataCollectionBody: 'TravelSphere NÃO coleta, transmite ou compartilha nenhum dado pessoal. Todas as informações (viagens, fotos, notas) são armazenadas exclusivamente no seu dispositivo.',
+  privacyLocalData: '2. Dados Armazenados Localmente',
+  privacyLocalDataBody: '• Informações de viagens (título, local, datas, notas)\n• Coordenadas GPS dos locais\n• Fotos e vídeos associados às viagens\n• Preferências do app (idioma, configurações)',
+  privacyExternalServices: '3. Serviços Externos',
+  privacyExternalServicesBody: 'O app se comunica com serviços externos exclusivamente para a geocodificação dos locais pesquisados. Nenhum outro dado é transmitido.',
+  privacyGeocodingServices: '4. Serviços de Geocodificação',
+  privacyGeocodingBody: 'Quando você pesquisa um local no app, sua busca é enviada aos seguintes serviços externos para obter as coordenadas geográficas:\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — serviço gratuito de geocodificação\n• Photon by Komoot (photon.komoot.io) — serviço gratuito de geocodificação\n• Sistema de geocodificação nativo do dispositivo (como fallback)\n\nEstes serviços recebem APENAS o texto da pesquisa (ex. "Roma, Itália"), NÃO sua localização GPS, identidade ou outros dados pessoais. As solicitações são enviadas via HTTPS (conexão criptografada). Nenhum dado de pesquisa é armazenado pelo app.',
+  privacyRights: '5. Seus Direitos',
+  privacyRightsBody: 'Você pode a qualquer momento:\n• Excluir viagens individuais\n• Excluir todos os dados do app nas Configurações\n• Desinstalar o app (remove todos os dados)',
+  privacyContact: '6. Contato',
+  privacyContactBody: 'Para questões sobre privacidade: travelsphere@app.com',
 };
 
 const zh: typeof it = {
@@ -1704,6 +1782,19 @@ const zh: typeof it = {
   backupSaved: '备份已保存',
   backupSavedMessage: '文件已保存到所选文件夹。',
   backupSaveFailed: '无法保存备份。请重试。',
+  privacyUpdated: '最后更新：2026年3月',
+  privacyDataCollection: '1. 数据收集',
+  privacyDataCollectionBody: 'TravelSphere不会收集、传输或分享任何个人数据。所有信息（旅行、照片、笔记）仅存储在您的设备上。',
+  privacyLocalData: '2. 本地存储的数据',
+  privacyLocalDataBody: '• 旅行信息（标题、地点、日期、笔记）\n• 地点的GPS坐标\n• 与旅行相关的照片和视频\n• 应用偏好设置（语言、设置）',
+  privacyExternalServices: '3. 外部服务',
+  privacyExternalServicesBody: '应用仅为搜索地点的地理编码与外部服务通信。不会传输任何其他数据。',
+  privacyGeocodingServices: '4. 地理编码服务',
+  privacyGeocodingBody: '当您在应用中搜索地点时，您的搜索会被发送到以下外部服务以获取地理坐标：\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — 免费地理编码服务\n• Photon by Komoot (photon.komoot.io) — 免费地理编码服务\n• 设备原生地理编码系统（作为备选）\n\n这些服务仅接收搜索文本（例如"罗马，意大利"），不会接收您的GPS位置、身份或其他个人数据。请求通过HTTPS（加密连接）发送。应用不会保存任何搜索数据。',
+  privacyRights: '5. 您的权利',
+  privacyRightsBody: '您可以随时：\n• 删除单个旅行\n• 在设置中删除所有应用数据\n• 卸载应用（删除所有数据）',
+  privacyContact: '6. 联系方式',
+  privacyContactBody: '隐私问题请联系：travelsphere@app.com',
 };
 
 const ja: typeof it = {
@@ -1945,6 +2036,19 @@ const ja: typeof it = {
   backupSaved: 'バックアップ保存完了',
   backupSavedMessage: 'ファイルが選択したフォルダに保存されました。',
   backupSaveFailed: 'バックアップを保存できませんでした。もう一度お試しください。',
+  privacyUpdated: '最終更新：2026年3月',
+  privacyDataCollection: '1. データ収集',
+  privacyDataCollectionBody: 'TravelSphereは個人データを収集、送信、共有しません。すべての情報（旅行、写真、メモ）はお使いのデバイスにのみ保存されます。',
+  privacyLocalData: '2. ローカルに保存されるデータ',
+  privacyLocalDataBody: '• 旅行情報（タイトル、場所、日付、メモ）\n• 場所のGPS座標\n• 旅行に関連する写真と動画\n• アプリの設定（言語、設定）',
+  privacyExternalServices: '3. 外部サービス',
+  privacyExternalServicesBody: 'アプリは、検索された場所のジオコーディングのためにのみ外部サービスと通信します。他のデータは送信されません。',
+  privacyGeocodingServices: '4. ジオコーディングサービス',
+  privacyGeocodingBody: 'アプリで場所を検索すると、地理座標を取得するために検索が以下の外部サービスに送信されます：\n\n• OpenStreetMap Nominatim (nominatim.openstreetmap.org) — 無料ジオコーディングサービス\n• Photon by Komoot (photon.komoot.io) — 無料ジオコーディングサービス\n• デバイスネイティブのジオコーディングシステム（フォールバック）\n\nこれらのサービスは検索テキスト（例：「ローマ、イタリア」）のみを受信し、GPS位置情報、身元、その他の個人データは受信しません。リクエストはHTTPS（暗号化接続）で送信されます。アプリは検索データを保存しません。',
+  privacyRights: '5. あなたの権利',
+  privacyRightsBody: 'いつでも以下のことができます：\n• 個々の旅行を削除\n• 設定からすべてのアプリデータを削除\n• アプリをアンインストール（すべてのデータを削除）',
+  privacyContact: '6. お問い合わせ',
+  privacyContactBody: 'プライバシーに関するご質問：travelsphere@app.com',
 };
 
 export const translations: Record<Language, typeof it> = { it, en, es, fr, de, pt, zh, ja };

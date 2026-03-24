@@ -10,8 +10,7 @@ interface Props {
 }
 
 const PrivacyPolicy: React.FC<Props> = ({ visible, onClose }) => {
-    const { t, language } = useApp();
-    const isIT = language === 'it';
+    const { t } = useApp();
     const { height: screenH, width: screenW } = useWindowDimensions();
     const cardHeight = Math.min(screenH * 0.85, screenW < screenH ? screenH * 0.8 : screenH * 0.9);
 
@@ -35,42 +34,25 @@ const PrivacyPolicy: React.FC<Props> = ({ visible, onClose }) => {
                         bounces={true}
                         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
                     >
-                        <Text style={styles.updated}>{isIT ? 'Ultimo aggiornamento: Febbraio 2026' : 'Last updated: February 2026'}</Text>
+                        <Text style={styles.updated}>{t('privacyUpdated')}</Text>
 
-                        <Text style={styles.sectionTitle}>{isIT ? '1. Raccolta Dati' : '1. Data Collection'}</Text>
-                        <Text style={styles.body}>
-                            {isIT
-                                ? 'TravelSphere NON raccoglie, trasmette o condivide alcun dato personale. Tutte le informazioni (viaggi, foto, note) sono salvate esclusivamente sul tuo dispositivo.'
-                                : 'TravelSphere does NOT collect, transmit or share any personal data. All information (trips, photos, notes) is stored exclusively on your device.'}
-                        </Text>
+                        <Text style={styles.sectionTitle}>{t('privacyDataCollection')}</Text>
+                        <Text style={styles.body}>{t('privacyDataCollectionBody')}</Text>
 
-                        <Text style={styles.sectionTitle}>{isIT ? '2. Dati Salvati Localmente' : '2. Locally Stored Data'}</Text>
-                        <Text style={styles.body}>
-                            {isIT
-                                ? '• Informazioni sui viaggi (titolo, luogo, date, note)\n• Coordinate GPS dei luoghi\n• Foto e video associati ai viaggi\n• Preferenze dell\'app (lingua, impostazioni)'
-                                : '• Trip information (title, location, dates, notes)\n• GPS coordinates of places\n• Photos and videos associated with trips\n• App preferences (language, settings)'}
-                        </Text>
+                        <Text style={styles.sectionTitle}>{t('privacyLocalData')}</Text>
+                        <Text style={styles.body}>{t('privacyLocalDataBody')}</Text>
 
-                        <Text style={styles.sectionTitle}>{isIT ? '3. Servizi Esterni' : '3. External Services'}</Text>
-                        <Text style={styles.body}>
-                            {isIT
-                                ? 'L\'app utilizza OpenStreetMap Nominatim per la geocodifica dei luoghi. Questo servizio riceve solo il nome del luogo cercato, senza alcun identificativo personale.'
-                                : 'The app uses OpenStreetMap Nominatim for geocoding places. This service only receives the searched place name, without any personal identifier.'}
-                        </Text>
+                        <Text style={styles.sectionTitle}>{t('privacyExternalServices')}</Text>
+                        <Text style={styles.body}>{t('privacyExternalServicesBody')}</Text>
 
-                        <Text style={styles.sectionTitle}>{isIT ? '4. I Tuoi Diritti' : '4. Your Rights'}</Text>
-                        <Text style={styles.body}>
-                            {isIT
-                                ? 'Puoi in qualsiasi momento:\n• Eliminare singoli viaggi\n• Eliminare tutti i dati dell\'app dalle Impostazioni\n• Disinstallare l\'app (rimuove tutti i dati)'
-                                : 'You can at any time:\n• Delete individual trips\n• Delete all app data from Settings\n• Uninstall the app (removes all data)'}
-                        </Text>
+                        <Text style={styles.sectionTitle}>{t('privacyGeocodingServices')}</Text>
+                        <Text style={styles.body}>{t('privacyGeocodingBody')}</Text>
 
-                        <Text style={styles.sectionTitle}>{isIT ? '5. Contatti' : '5. Contact'}</Text>
-                        <Text style={styles.body}>
-                            {isIT
-                                ? 'Per domande sulla privacy: travelsphere@app.com'
-                                : 'For privacy questions: travelsphere@app.com'}
-                        </Text>
+                        <Text style={styles.sectionTitle}>{t('privacyRights')}</Text>
+                        <Text style={styles.body}>{t('privacyRightsBody')}</Text>
+
+                        <Text style={styles.sectionTitle}>{t('privacyContact')}</Text>
+                        <Text style={styles.body}>{t('privacyContactBody')}</Text>
                     </ScrollView>
                 </View>
             </View>
