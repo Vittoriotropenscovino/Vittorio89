@@ -36,11 +36,12 @@ interface Props {
     onTripsUpdate: (trips: Trip[]) => void;
     onShowPrivacy: () => void;
     onShowTerms: () => void;
+    onShowHelpGuide: () => void;
     onItinerariesReset?: () => void;
 }
 
 const SettingsScreen: React.FC<Props> = ({
-    visible, onClose, trips, onTripsUpdate, onShowPrivacy, onShowTerms, onItinerariesReset,
+    visible, onClose, trips, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
@@ -468,6 +469,7 @@ const SettingsScreen: React.FC<Props> = ({
                             />
 
                             <SectionHeader title={t('about') as string} />
+                            <SettingRow icon="help-circle-outline" label={t('helpGuideTitle') as string} onPress={onShowHelpGuide} />
                             <SettingRow
                                 icon="information-circle-outline"
                                 label={t('appVersion') as string}

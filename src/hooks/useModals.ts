@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Trip } from '../types';
 
-export type ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager';
+export type ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager' | 'helpGuide';
 
 export function useModals() {
   const [activeModal, setActiveModal] = useState<ModalType>('none');

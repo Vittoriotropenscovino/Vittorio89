@@ -26,6 +26,7 @@ import CalendarView from './src/components/CalendarView';
 import SaveConfirmation from './src/components/SaveConfirmation';
 import OfflineBanner from './src/components/OfflineBanner';
 import ItineraryManager from './src/components/ItineraryManager';
+import HelpGuide from './src/components/HelpGuide';
 import { useTrips, useModals, useAuth, useFogOfWar } from './src/hooks';
 import { Trip } from './src/types';
 
@@ -313,15 +314,18 @@ const AppContent: React.FC = () => {
         onOpenSettings={() => openModal('settings')}
         onOpenStats={() => openModal('stats')}
         onOpenCalendar={() => openModal('calendar')}
+        onOpenHelpGuide={() => openModal('helpGuide')}
         homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}
       <SettingsScreen visible={activeModal === 'settings'} onClose={() => closeModal()}
         trips={trips} onTripsUpdate={setTrips}
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
+        onShowHelpGuide={() => openModal('helpGuide')}
         onItinerariesReset={() => setItineraries([])} />
       {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => closeModal()} />}
       {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => closeModal()} />}
+      {activeModal === 'helpGuide' && <HelpGuide visible={activeModal === 'helpGuide'} onClose={() => closeModal()} />}
       {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => closeModal()} trips={trips} />}
       {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => closeModal()}
         trips={trips} onTripSelect={(trip) => { selectTrip(trip); closeModal(); }} />}

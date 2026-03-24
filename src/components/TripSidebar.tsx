@@ -23,6 +23,7 @@ interface Props {
     onOpenSettings?: () => void;
     onOpenStats?: () => void;
     onOpenCalendar?: () => void;
+    onOpenHelpGuide?: () => void;
     homeLocation?: HomeLocation | null;
 }
 
@@ -35,7 +36,7 @@ interface CountrySection {
 
 const TripSidebar: React.FC<Props> = ({
     trips, visible, onClose, onTripSelect, onDelete,
-    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, homeLocation,
+    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, onOpenHelpGuide, homeLocation,
 }) => {
     const { t } = useApp();
     const { width: screenWidth } = useWindowDimensions();
@@ -229,6 +230,12 @@ const TripSidebar: React.FC<Props> = ({
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenSettings(); onClose(); }}>
                                     <Ionicons name="settings" size={16} color="#00d4ff" />
                                     <Text style={styles.quickActionText}>{t('settings')}</Text>
+                                </TouchableOpacity>
+                            )}
+                            {onOpenHelpGuide && (
+                                <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenHelpGuide(); onClose(); }}>
+                                    <Ionicons name="help-circle" size={16} color="#00d4ff" />
+                                    <Text style={styles.quickActionText}>{t('helpGuideMenuItem')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
