@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as FileSystem from 'expo-file-system';
+import { StorageAccessFramework } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -14,7 +15,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Crypto from 'expo-crypto';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
-import { Trip } from '../types';
+import { Trip, Itinerary } from '../types';
 import StorageService from '../services/StorageService';
 import { validateImportData } from '../utils/validateTrip';
 
@@ -33,6 +34,7 @@ interface Props {
     visible: boolean;
     onClose: () => void;
     trips: Trip[];
+    itineraries: Itinerary[];
     onTripsUpdate: (trips: Trip[]) => void;
     onShowPrivacy: () => void;
     onShowTerms: () => void;
@@ -41,7 +43,7 @@ interface Props {
 }
 
 const SettingsScreen: React.FC<Props> = ({
-    visible, onClose, trips, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
+    visible, onClose, trips, itineraries, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
@@ -69,7 +71,6 @@ const SettingsScreen: React.FC<Props> = ({
     };
 
     const handleExport = async () => {
-        // Privacy warning before export
         Alert.alert(
             t('privacy') as string,
             t('exportPrivacyWarning') as string,
@@ -79,7 +80,7 @@ const SettingsScreen: React.FC<Props> = ({
                     text: t('confirm') as string,
                     onPress: async () => {
                         try {
-                            const backupData = { trips };
+                            const backupData = { trips, itineraries };
                             const dataString = JSON.stringify(backupData);
                             const checksum = await Crypto.digestStringAsync(
                                 Crypto.CryptoDigestAlgorithm.SHA256, dataString
@@ -223,7 +224,7 @@ const SettingsScreen: React.FC<Props> = ({
 
     const handleCloudBackup = async () => {
         try {
-            const backupData = { trips };
+            const backupData = { trips, itineraries };
             const dataString = JSON.stringify(backupData);
             const checksum = await Crypto.digestStringAsync(
                 Crypto.CryptoDigestAlgorithm.SHA256, dataString
@@ -239,6 +240,59 @@ const SettingsScreen: React.FC<Props> = ({
         } catch (e) {
             Alert.alert(t('error') as string, String(e));
         }
+    };
+
+    const handleSaveBackup = async () => {
+        Alert.alert(
+            t('privacy') as string,
+            t('exportPrivacyWarning') as string,
+            [
+                { text: t('cancel') as string, style: 'cancel' },
+                {
+                    text: t('confirm') as string,
+                    onPress: async () => {
+                        try {
+                            const backupData = { trips, itineraries };
+                            const dataString = JSON.stringify(backupData);
+                            const checksum = await Crypto.digestStringAsync(
+                                Crypto.CryptoDigestAlgorithm.SHA256, dataString
+                            );
+                            const backup = {
+                                schemaVersion: 1,
+                                checksum,
+                                createdAt: new Date().toISOString(),
+                                data: backupData,
+                            };
+                            const content = JSON.stringify(backup, null, 2);
+
+                            if (Platform.OS === 'web') {
+                                const fileUri = FileSystem.cacheDirectory + 'travelsphere_backup.json';
+                                await FileSystem.writeAsStringAsync(fileUri, content);
+                                const canShare = await Sharing.isAvailableAsync();
+                                if (canShare) await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'TravelSphere Backup' });
+                                else Alert.alert('', t('exportSuccess') as string);
+                            } else {
+                                const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+                                if (!permissions.granted) return;
+
+                                const fileName = `TravelSphere_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                                const fileUri = await StorageAccessFramework.createFileAsync(
+                                    permissions.directoryUri, fileName, 'application/json'
+                                );
+                                await FileSystem.writeAsStringAsync(fileUri, content, {
+                                    encoding: FileSystem.EncodingType.UTF8,
+                                });
+                                Alert.alert(t('backupSaved') as string, t('backupSavedMessage') as string);
+                            }
+                            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        } catch (error) {
+                            console.error('[TravelSphere] Save backup to device failed:', error);
+                            Alert.alert(t('error') as string, t('backupSaveFailed') as string);
+                        }
+                    },
+                },
+            ],
+        );
     };
 
     const handleSearchHome = async () => {
@@ -431,9 +485,18 @@ const SettingsScreen: React.FC<Props> = ({
                                 ) : null}
                             </View>
 
-                            <SettingRow icon="download-outline" label={t('exportData') as string} onPress={handleExport} />
-                            <SettingRow icon="push-outline" label={t('importData') as string} onPress={handleImport} />
-                            <SettingRow icon="cloud-upload-outline" label={t('cloudBackup') as string} onPress={handleCloudBackup} />
+                            <SettingRow icon="save-outline" label={t('saveBackup') as string} onPress={handleSaveBackup} />
+                            <SettingRow icon="share-outline" label={t('shareBackup') as string} onPress={handleExport} />
+                            <SettingRow icon="download-outline" label={t('importBackup') as string} onPress={handleImport} />
+                            <View style={styles.settingRow}>
+                                <View style={[styles.settingIcon, { backgroundColor: 'rgba(0,212,255,0.08)' }]}>
+                                    <Ionicons name="sync-outline" size={18} color="#00d4ff" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.settingLabel}>{t('autoBackup')}</Text>
+                                    <Text style={styles.autoBackupDesc}>{t('autoBackupDesc')}</Text>
+                                </View>
+                            </View>
                             {Platform.OS !== 'web' && (
                                 <SettingRow icon="images-outline" iconColor="#F59E0B" label={t('cleanMedia') as string} onPress={handleCleanMedia} />
                             )}
@@ -539,6 +602,7 @@ const styles = StyleSheet.create({
     storageWarning: {
         color: '#F59E0B', fontSize: 12, marginTop: 8, lineHeight: 16,
     },
+    autoBackupDesc: { fontSize: 11, color: '#6B7280', marginTop: 2 },
 });
 
 export default SettingsScreen;

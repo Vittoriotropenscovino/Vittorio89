@@ -241,6 +241,14 @@ const it = {
   helpWishlistText: 'Aggiungi luoghi che vuoi visitare come wishlist. Appariranno come pin rosa sul globo, pronti per quando partirai.',
   helpStatsTitle: 'Statistiche e Calendario',
   helpStatsText: 'Dal menu, accedi alle statistiche dei tuoi viaggi e al calendario per navigare i ricordi per data.',
+  saveBackup: 'Salva Backup',
+  shareBackup: 'Condividi Backup',
+  importBackup: 'Importa Backup',
+  autoBackup: 'Backup Automatico',
+  autoBackupDesc: 'Salvataggio automatico ogni 7 giorni. Mantiene gli ultimi 3 backup.',
+  backupSaved: 'Backup Salvato',
+  backupSavedMessage: 'Il file è stato salvato nella cartella selezionata.',
+  backupSaveFailed: 'Impossibile salvare il backup. Riprova.',
 };
 
 const en: typeof it = {
@@ -483,6 +491,14 @@ const en: typeof it = {
   helpWishlistText: 'Add places you want to visit as wishlist. They will appear as pink pins on the globe, ready for when you depart.',
   helpStatsTitle: 'Statistics & Calendar',
   helpStatsText: 'From the menu, access your trip statistics and the calendar to browse memories by date.',
+  saveBackup: 'Save Backup',
+  shareBackup: 'Share Backup',
+  importBackup: 'Import Backup',
+  autoBackup: 'Auto Backup',
+  autoBackupDesc: 'Automatic save every 7 days. Keeps the last 3 backups.',
+  backupSaved: 'Backup Saved',
+  backupSavedMessage: 'The file has been saved to the selected folder.',
+  backupSaveFailed: 'Unable to save the backup. Try again.',
 };
 
 const es: typeof it = {
@@ -716,6 +732,14 @@ const es: typeof it = {
   helpWishlistText: 'Añade lugares que quieras visitar como wishlist. Aparecerán como pines rosas en el globo, listos para cuando partas.',
   helpStatsTitle: 'Estadísticas y Calendario',
   helpStatsText: 'Desde el menú, accede a las estadísticas de tus viajes y al calendario para navegar los recuerdos por fecha.',
+  saveBackup: 'Guardar Backup',
+  shareBackup: 'Compartir Backup',
+  importBackup: 'Importar Backup',
+  autoBackup: 'Backup Automático',
+  autoBackupDesc: 'Guardado automático cada 7 días. Mantiene los últimos 3 backups.',
+  backupSaved: 'Backup Guardado',
+  backupSavedMessage: 'El archivo se ha guardado en la carpeta seleccionada.',
+  backupSaveFailed: 'No se pudo guardar el backup. Inténtalo de nuevo.',
 };
 
 const fr: typeof it = {
@@ -949,6 +973,14 @@ const fr: typeof it = {
   helpWishlistText: 'Ajoutez des lieux que vous souhaitez visiter en wishlist. Ils apparaîtront comme épingles roses sur le globe, prêts pour votre départ.',
   helpStatsTitle: 'Statistiques et Calendrier',
   helpStatsText: 'Depuis le menu, accédez aux statistiques de vos voyages et au calendrier pour parcourir vos souvenirs par date.',
+  saveBackup: 'Enregistrer Backup',
+  shareBackup: 'Partager Backup',
+  importBackup: 'Importer Backup',
+  autoBackup: 'Backup Automatique',
+  autoBackupDesc: 'Sauvegarde automatique tous les 7 jours. Conserve les 3 derniers backups.',
+  backupSaved: 'Backup Enregistré',
+  backupSavedMessage: 'Le fichier a été enregistré dans le dossier sélectionné.',
+  backupSaveFailed: 'Impossible d\'enregistrer le backup. Réessayez.',
 };
 
 const de: typeof it = {
@@ -1182,6 +1214,14 @@ const de: typeof it = {
   helpWishlistText: 'Fügen Sie Orte hinzu, die Sie besuchen möchten. Sie erscheinen als rosa Pins auf dem Globus, bereit für Ihre Abreise.',
   helpStatsTitle: 'Statistiken & Kalender',
   helpStatsText: 'Greifen Sie über das Menü auf Ihre Reisestatistiken und den Kalender zu, um Erinnerungen nach Datum zu durchsuchen.',
+  saveBackup: 'Backup Speichern',
+  shareBackup: 'Backup Teilen',
+  importBackup: 'Backup Importieren',
+  autoBackup: 'Automatisches Backup',
+  autoBackupDesc: 'Automatische Speicherung alle 7 Tage. Behält die letzten 3 Backups.',
+  backupSaved: 'Backup Gespeichert',
+  backupSavedMessage: 'Die Datei wurde im ausgewählten Ordner gespeichert.',
+  backupSaveFailed: 'Backup konnte nicht gespeichert werden. Versuchen Sie es erneut.',
 };
 
 const pt: typeof it = {
@@ -1415,6 +1455,14 @@ const pt: typeof it = {
   helpWishlistText: 'Adicione lugares que deseja visitar como wishlist. Eles aparecerão como pins rosas no globo, prontos para quando você partir.',
   helpStatsTitle: 'Estatísticas e Calendário',
   helpStatsText: 'No menu, acesse as estatísticas das suas viagens e o calendário para navegar as memórias por data.',
+  saveBackup: 'Salvar Backup',
+  shareBackup: 'Compartilhar Backup',
+  importBackup: 'Importar Backup',
+  autoBackup: 'Backup Automático',
+  autoBackupDesc: 'Salvamento automático a cada 7 dias. Mantém os últimos 3 backups.',
+  backupSaved: 'Backup Salvo',
+  backupSavedMessage: 'O arquivo foi salvo na pasta selecionada.',
+  backupSaveFailed: 'Não foi possível salvar o backup. Tente novamente.',
 };
 
 const zh: typeof it = {
@@ -1648,6 +1696,14 @@ const zh: typeof it = {
   helpWishlistText: '添加您想去的地方到心愿单。它们将作为粉色图钉显示在地球上，等待您出发。',
   helpStatsTitle: '统计与日历',
   helpStatsText: '从菜单访问旅行统计和日历，按日期浏览回忆。',
+  saveBackup: '保存备份',
+  shareBackup: '分享备份',
+  importBackup: '导入备份',
+  autoBackup: '自动备份',
+  autoBackupDesc: '每7天自动保存。保留最近3个备份。',
+  backupSaved: '备份已保存',
+  backupSavedMessage: '文件已保存到所选文件夹。',
+  backupSaveFailed: '无法保存备份。请重试。',
 };
 
 const ja: typeof it = {
@@ -1881,6 +1937,14 @@ const ja: typeof it = {
   helpWishlistText: '訪れたい場所をウィッシュリストに追加。ピンクのピンとして地球上に表示され、出発の準備ができます。',
   helpStatsTitle: '統計とカレンダー',
   helpStatsText: 'メニューから旅行統計とカレンダーにアクセスし、日付ごとに思い出をブラウズ。',
+  saveBackup: 'バックアップを保存',
+  shareBackup: 'バックアップを共有',
+  importBackup: 'バックアップをインポート',
+  autoBackup: '自動バックアップ',
+  autoBackupDesc: '7日ごとに自動保存。最新の3つのバックアップを保持。',
+  backupSaved: 'バックアップ保存完了',
+  backupSavedMessage: 'ファイルが選択したフォルダに保存されました。',
+  backupSaveFailed: 'バックアップを保存できませんでした。もう一度お試しください。',
 };
 
 export const translations: Record<Language, typeof it> = { it, en, es, fr, de, pt, zh, ja };

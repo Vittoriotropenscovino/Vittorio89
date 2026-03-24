@@ -319,7 +319,7 @@ const AppContent: React.FC = () => {
 
       {/* Settings & screens */}
       <SettingsScreen visible={activeModal === 'settings'} onClose={() => closeModal()}
-        trips={trips} onTripsUpdate={setTrips}
+        trips={trips} itineraries={itineraries} onTripsUpdate={setTrips}
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onShowHelpGuide={() => openModal('helpGuide')}
         onItinerariesReset={() => setItineraries([])} />
