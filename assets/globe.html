@@ -261,19 +261,23 @@ function go(countries){
         var glowMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.1,side:THREE.BackSide});
         var glowMesh=new THREE.Mesh(glowGeo,glowMat);
         scene.add(glowMesh);
+        window._haloMesh=glowMesh;
 
+        window._gridLines=[];
         var R=100.4;
         [-60,-30,0,30,60].forEach(function(lat){
           var phi=(90-lat)*Math.PI/180,v=[];
           for(var lo=0;lo<=360;lo+=4){var th=lo*Math.PI/180;v.push(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th));}
           var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
-          scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
+          var line=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09}));
+          scene.add(line);window._gridLines.push(line);
         });
         for(var lo=0;lo<360;lo+=30){
           var th=lo*Math.PI/180,v=[];
           for(var lt=-90;lt<=90;lt+=4){var p=(90-lt)*Math.PI/180;v.push(R*Math.sin(p)*Math.cos(th),R*Math.cos(p),R*Math.sin(p)*Math.sin(th));}
           var g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
-          scene.add(new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
+          var line2=new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09}));
+          scene.add(line2);window._gridLines.push(line2);
         }
 
         var scanRingGeo=new THREE.RingGeometry(100.2,100.8,48);
@@ -281,11 +285,11 @@ function go(countries){
         var scanRing=new THREE.Mesh(scanRingGeo,scanRingMat);
         scanRing.rotation.x=Math.PI/2;
         scene.add(scanRing);
+        window._scannerRing=scanRing;
 
         function animateScanner(){
           _scanAnimId=requestAnimationFrame(animateScanner);
           scanRing.rotation.z+=0.003;
-          scanRingMat.opacity=0.06+0.06*Math.sin(Date.now()*0.001);
         }
         animateScanner();
       }
@@ -299,7 +303,7 @@ function go(countries){
     c.dampingFactor=0.12;
     c.rotateSpeed=0.8;
     c.zoomSpeed=1.0;
-    c.minDistance=110;
+    c.minDistance=70;
     c.maxDistance=600;
     c.enablePan=false;
 
@@ -307,6 +311,43 @@ function go(countries){
     var _idleTimer=null;
     c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
     c.addEventListener('end',function(){if(_idleTimer)clearTimeout(_idleTimer);_idleTimer=setTimeout(function(){if(!_flythroughActive)c.autoRotate=true;},7000);});
+
+    // === ZOOM-ADAPTIVE VISUALS ===
+    function updateZoomVisuals(dist){
+      var t=Math.max(0,Math.min(1,(dist-70)/130));
+      var visitedStrokeOp=0.8*t+0.15*(1-t);
+      var visitedCapOp=0.12*t+0.02*(1-t);
+      var visitedSideOp=0.3*t+0.05*(1-t);
+      var unvisitedStrokeOp=0.25*t+0.08*(1-t);
+      if(globe.polygonsData().length>0){
+        globe
+          .polygonStrokeColor(function(feat){
+            return isCountryVisited(feat)
+              ?'rgba(0,230,255,'+visitedStrokeOp+')'
+              :'rgba(0,220,255,'+unvisitedStrokeOp+')';
+          })
+          .polygonCapColor(function(feat){
+            return isCountryVisited(feat)
+              ?'rgba(0,220,255,'+visitedCapOp+')'
+              :'rgba(0,0,0,0)';
+          })
+          .polygonSideColor(function(feat){
+            return isCountryVisited(feat)
+              ?'rgba(0,220,255,'+visitedSideOp+')'
+              :'rgba(0,200,255,'+(0.05*t)+')';
+          });
+      }
+      globe.polygonAltitude(0.009*t+0.001*(1-t));
+      globe.atmosphereAltitude(0.25*t+0.08*(1-t));
+      if(window._haloMesh){window._haloMesh.material.opacity=0.1*t;}
+      if(window._gridLines){
+        var gridOp=0.09*t+0.01*(1-t);
+        window._gridLines.forEach(function(l){l.material.opacity=gridOp;});
+      }
+      if(window._scannerRing){
+        window._scannerRing.material.opacity=(0.06+0.06*Math.sin(Date.now()*0.001))*t;
+      }
+    }
 
     // === ZOOM-ADAPTIVE RENDERING ===
     try{
@@ -317,13 +358,14 @@ function go(countries){
         lastZoomUpdate=now;
         try{
           var dist=c.object.position.length();
+          updateZoomVisuals(dist);
           var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
           var alt=globe.pointOfView().altitude;
           var altChanged=(Math.abs(alt-_currentAltitude)>0.05);
           _currentAltitude=alt;
           if(Math.abs(f-_zoomFactor)>0.03||altChanged){
             _zoomFactor=f;
-            c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
+            c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.02,(_zoomFactor-0.1)/1.0));
             renderPins();
           }
         }catch(ze){}
