@@ -61,8 +61,8 @@ class PurchaseService {
 
       const { customerInfo } = await Purchases.purchasePackage(pkg);
       return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-    } catch (error: any) {
-      if (error.userCancelled) {
+    } catch (error) {
+      if (error && typeof error === 'object' && 'userCancelled' in error && (error as { userCancelled: boolean }).userCancelled) {
         console.log('[TravelSphere] Purchase cancelled by user');
         return false;
       }

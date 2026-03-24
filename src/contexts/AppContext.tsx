@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 interface AppContextType {
   settings: AppSettings;
-  t: (key: TranslationKey) => any;
+  t: (key: TranslationKey) => string;
   language: Language;
   setLanguage: (lang: Language) => void;
   updateSettings: (partial: Partial<AppSettings>) => void;

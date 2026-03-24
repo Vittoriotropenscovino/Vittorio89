@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { TranslationKey } from '../i18n/translations';
 
 interface Props {
   visible: boolean;
@@ -100,7 +101,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
                 {features.map((f) => (
                   <View key={f.key} style={styles.featureRow}>
                     <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                    <Text style={styles.featureText}>{t(f.key as any)}</Text>
+                    <Text style={styles.featureText}>{t(f.key as TranslationKey)}</Text>
                   </View>
                 ))}
               </View>
