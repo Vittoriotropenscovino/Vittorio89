@@ -13,6 +13,7 @@
 - Autenticazione: expo-local-authentication (biometrica)
 - Animazioni: react-native-reanimated
 - Geocoding: Nominatim + Photon + expo-location (catena di fallback)
+- Acquisti in-app: RevenueCat (react-native-purchases)
 - ID Generation: expo-crypto (UUID v4)
 - Testing: Jest + ts-jest
 - Build: EAS (Expo Application Services)
@@ -53,6 +54,8 @@ App.tsx (root)
                 │   ├── ItineraryManager
                 │   ├── PrivacyPolicy
                 │   ├── TermsOfService
+                │   ├── HelpGuide (guida in-app)
+                │   ├── PaywallScreen (acquisto premium)
                 │   └── SaveConfirmation (toast)
                 ├── Gate 1: OnboardingScreen (primo avvio)
                 ├── Gate 2: GDPRConsent (gate privacy)
@@ -66,7 +69,7 @@ App.tsx (root)
 ```
 /Vittorio89/
 ├── src/
-│   ├── components/ (16 file)
+│   ├── components/ (18 file)
 │   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~321 righe - vendor bundling + timeout)
 │   │   ├── TripForm.tsx          (crea/modifica viaggi, ~500 righe, check offline)
 │   │   ├── MemoryViewer.tsx      (galleria media, ~271 righe, FlatList windowing)
@@ -79,6 +82,8 @@ App.tsx (root)
 │   │   ├── GDPRConsent.tsx       (gate consenso privacy, ~125 righe)
 │   │   ├── PrivacyPolicy.tsx     (testo legale privacy, ~94 righe)
 │   │   ├── TermsOfService.tsx    (testo legale termini, ~94 righe)
+│   │   ├── HelpGuide.tsx         (guida in-app, ~93 righe, 8 sezioni tradotte)
+│   │   ├── PaywallScreen.tsx     (paywall freemium, ~249 righe, acquisto/restore)
 │   │   ├── SaveConfirmation.tsx  (toast notifica, ~69 righe)
 │   │   ├── OfflineBanner.tsx     (stato rete, ~52 righe)
 │   │   ├── ErrorBoundary.tsx     (recovery errori, ~139 righe)
@@ -90,24 +95,26 @@ App.tsx (root)
 │   │   ├── useModals.ts          (hook gestione stato modali, ~61 righe)
 │   │   ├── useAuth.ts            (hook autenticazione biometrica, ~56 righe)
 │   │   ├── useFogOfWar.ts        (hook calcolo paesi visitati, ~14 righe)
+│   │   ├── usePurchase.ts        (hook gestione acquisti freemium, ~66 righe)
 │   │   ├── index.ts              (barrel export hooks)
 │   │   └── __tests__/
 │   │       └── useTrips.test.ts  (test useTrips hook, ~309 righe)
 │   ├── services/
 │   │   ├── StorageService.ts     (AsyncStorage + FileSystem + backup + migration, ~448 righe)
+│   │   ├── PurchaseService.ts    (RevenueCat wrapper, acquisti in-app, ~86 righe)
 │   │   └── __tests__/
 │   │       └── StorageService.test.ts  (test StorageService, ~534 righe)
 │   ├── types/
 │   │   └── index.ts              (interfacce TypeScript)
 │   ├── i18n/
-│   │   └── translations.ts       (8 lingue, 150+ chiavi)
+│   │   └── translations.ts       (8 lingue, 180+ chiavi)
 │   └── utils/
 │       ├── geocoding.ts           (Nominatim + fallback, ~62 righe)
 │       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
 │       └── __tests__/
 │           └── geocoding.test.ts  (test geocoding, ~110 righe)
 ├── assets/
-│   ├── globe.html                (HTML/JS globo 3D, ~531 righe - vendor injection)
+│   ├── globe.html                (HTML/JS globo 3D, ~697 righe - vendor injection + clustering + collision)
 │   └── vendor/
 │       ├── topojson-client.min.txt  (topojson-client v3.1.0, 7.2 KB)
 │       ├── globe.gl.min.txt         (globe.gl v2.45.1, 1.76 MB)
@@ -117,9 +124,8 @@ App.tsx (root)
 ├── tsconfig.json
 ├── babel.config.js
 ├── metro.config.js
-├── jest.config.js                 (configurazione Jest + ts-jest)
 ├── eas.json                       (config build EAS)
-└── package.json
+└── package.json                   (dipendenze + configurazione Jest inline con ts-jest)
 ```
 
 ---
@@ -135,16 +141,18 @@ Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `use
 - `useModals()` → `activeModal`, `selectedTrip`, `sidebarOpen`, `editingTrip`, `showSaveConfirm`, `saveMsg` + funzioni di gestione
 - `useAuth(biometricEnabled, isSettingsLoaded, t)` → `authenticated`
 - `useFogOfWar(trips)` → `visitedCountries` (array codici paese)
+- `usePurchase()` → `isPremium`, `price`, `purchase`, `restore`, `canAddTrip`, `remainingFreeTrips`, `FREE_TRIP_LIMIT`
 
 **Logica di avvio:**
 1. Carica fonts con expo-font
 2. AppProvider carica settings da AsyncStorage
 3. AppContent verifica isSettingsLoaded
 4. useTrips: `migrateData()` → carica trips + itineraries → auto-backup + orphaned media cleanup
-5. useAuth: Se biometricEnabled → prompt autenticazione biometrica
-6. Se !hasSeenOnboarding → mostra OnboardingScreen
-7. Se !hasAcceptedGDPR → mostra GDPRConsent
-8. Mostra UI principale (Globo + Overlay)
+5. usePurchase: inizializza RevenueCat, verifica stato premium, carica prezzo
+6. useAuth: Se biometricEnabled → prompt autenticazione biometrica
+7. Se !hasSeenOnboarding → mostra OnboardingScreen
+8. Se !hasAcceptedGDPR → mostra GDPRConsent
+9. Mostra UI principale (Globo + Overlay)
 
 **Nasconde barra Android:** Usa expo-navigation-bar per nascondere la barra di navigazione
 
@@ -186,7 +194,7 @@ Custom hook che gestisce tutto il CRUD di trips e itinerari, estratto da App.tsx
 
 Centralizza tutto lo stato e la logica dei modali, estratto da App.tsx.
 
-**Tipo:** `ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager'`
+**Tipo:** `ModalType = 'none' | 'form' | 'settings' | 'privacy' | 'terms' | 'stats' | 'calendar' | 'itineraryManager' | 'helpGuide' | 'paywall'`
 
 **Stato gestito:**
 - `activeModal` - modale attualmente visibile
@@ -225,6 +233,101 @@ Calcola il set di paesi visitati dai viaggi.
 **Logica:** Raccoglie tutti i `countryCode` dai viaggi non-wishlist, memoizzato con `useMemo`.
 
 **Ritorna:** `string[]` di codici paese ISO
+
+---
+
+### src/hooks/usePurchase.ts (~66 righe) - Hook Acquisti Freemium
+
+Hook che gestisce il sistema freemium tramite RevenueCat.
+
+**Costante:** `FREE_TRIP_LIMIT = 3` — numero massimo di viaggi gratuiti (solo non-wishlist)
+
+**Stato interno:**
+- `isPremium` — boolean, true se utente ha acquistato premium (true in `__DEV__`)
+- `isLoading` — boolean, fase di inizializzazione
+- `price` — string, prezzo formattato da RevenueCat (default `€3,49`)
+
+**Inizializzazione (useEffect):**
+1. `PurchaseService.initialize()` — configura RevenueCat SDK
+2. `PurchaseService.isPremium()` — verifica stato premium
+3. `PurchaseService.getOfferings()` — carica prezzo reale dal catalogo
+
+**Funzioni esportate (tutte useCallback):**
+- `purchase()` → chiama PurchaseService.purchase(), setta isPremium se successo
+- `restore()` → chiama PurchaseService.restorePurchases(), setta isPremium se successo
+- `canAddTrip(currentTripCount)` → true se premium o sotto il limite (sempre true in `__DEV__`)
+- `remainingFreeTrips(currentTripCount)` → numero trip gratuiti rimanenti (Infinity se premium)
+
+---
+
+### src/services/PurchaseService.ts (~86 righe) - Servizio Acquisti
+
+Wrapper statico per RevenueCat SDK (react-native-purchases).
+
+**Configurazione:**
+```typescript
+REVENUECAT_ANDROID_KEY = 'YOUR_ANDROID_KEY'  // placeholder
+REVENUECAT_IOS_KEY = 'YOUR_IOS_KEY'          // placeholder
+ENTITLEMENT_ID = 'premium'
+```
+
+**Metodi statici:**
+```typescript
+initialize(): Promise<void>           // Configura RevenueCat con API key per piattaforma
+isPremium(): Promise<boolean>          // Verifica entitlement 'premium' (true in __DEV__)
+getOfferings(): Promise<PurchasesPackage | null>  // Carica primo pacchetto disponibile
+purchase(): Promise<boolean>           // Acquista pacchetto, gestisce cancellazione utente
+restorePurchases(): Promise<boolean>   // Ripristina acquisti precedenti
+```
+
+**Error handling:** Catch con type guard per `userCancelled` (no `any`). Tutti i log con prefix `[TravelSphere]`.
+
+---
+
+### src/components/PaywallScreen.tsx (~249 righe) - Paywall Freemium
+
+Modale per l'acquisto della versione premium, mostrata quando l'utente supera il limite di 3 viaggi gratuiti.
+
+**Props:**
+```typescript
+interface Props {
+  visible: boolean;
+  onClose: () => void;
+  price: string;
+  onPurchase: () => Promise<boolean>;
+  onRestore: () => Promise<boolean>;
+  freeLimit: number;
+}
+```
+
+**Stato interno:** `purchasing`, `restoring`, `success` — gestione UI durante le operazioni async
+
+**Layout:**
+- Icona globo cyan
+- Titolo: "Sblocca Viaggi Illimitati"
+- Sottotitolo: "Hai raggiunto il limite di {freeLimit} viaggi gratuiti"
+- 4 feature con checkmark verde (viaggi illimitati, acquisto una tantum, no abbonamento, supporto sviluppatore indie)
+- Pulsante acquisto cyan con prezzo dinamico
+- Link "Già acquistato? Ripristina acquisto"
+- Success state: checkmark verde + messaggio, auto-chiude dopo 1.5s
+
+---
+
+### src/components/HelpGuide.tsx (~93 righe) - Guida In-App
+
+Modale con 8 sezioni di aiuto, accessibile da sidebar e Settings. Completamente tradotta in 8 lingue.
+
+**8 Sezioni:**
+1. **Aggiungere un Viaggio** (icona: add-circle)
+2. **Il Globo Interattivo** (icona: globe)
+3. **Fog of War** (icona: eye)
+4. **Itinerari e Flythrough** (icona: git-merge)
+5. **Linee di Viaggio** (icona: airplane)
+6. **Backup e Sicurezza** (icona: shield-checkmark)
+7. **Wishlist** (icona: heart)
+8. **Statistiche e Calendario** (icona: stats-chart)
+
+**Layout:** ScrollView con sezioni separate da bordi, ogni sezione ha icona in box cyan + titolo + testo descrittivo.
 
 ---
 
@@ -325,7 +428,7 @@ interface AppSettings {
 **Chiave storage:** `@travelsphere_settings`
 
 **Hook esposto:** `useApp()` ritorna:
-- `t(key: string)` → stringa tradotta nella lingua corrente
+- `t(key: TranslationKey)` → `string` tradotta nella lingua corrente
 - `setLanguage(lang)` → cambia lingua e persiste
 - `language` → lingua corrente
 - `settings` → oggetto AppSettings completo
@@ -448,7 +551,7 @@ READY_TIMEOUT_MS = 15000  // 15 secondi timeout
 - useEffect per comunicazione RN→WebView (trips, home, settings)
 - Handler onMessage per comunicazione WebView→RN (pinClick, ready)
 
-**Il file `assets/globe.html` (~531 righe) contiene:**
+**Il file `assets/globe.html` (~697 righe) contiene:**
 
 #### Sfondo Stelle (canvas separato)
 - 250 stelle con posizioni random
@@ -550,7 +653,7 @@ enableDamping: true
 dampingFactor: 0.12            // smorzamento rotazione
 rotateSpeed: 0.8
 zoomSpeed: 1.0
-minDistance: 110                // zoom massimo avvicinamento
+minDistance: 70                 // zoom massimo avvicinamento (ridotto da 110 per deep zoom)
 maxDistance: 600                // zoom massimo allontanamento
 enablePan: false               // no trascinamento
 ```
@@ -573,6 +676,57 @@ if (|newFactor - oldFactor| > 0.03 || altitudeChanged > 0.05) {
 // Per pin a coordinate IDENTICHE: offset circolare fisso 0.3°
 // Per pin molto vicini (< 0.5°): nudge di 0.15°
 // NON dipende dallo zoom - offset fisso una tantum
+```
+
+#### Zoom-Adaptive Visuals (NUOVO)
+Attivato sotto distanza camera 200. Funzione `updateZoomVisuals(dist)` modifica in tempo reale:
+```javascript
+// Fattore t = normalizzato tra 0 (zoom max, dist=70) e 1 (dist=200+)
+t = max(0, min(1, (dist - 70) / 130))
+
+// Poligoni paesi visitati: opacity stroke/cap/side diminuisce con zoom
+visitedStrokeOp = 0.8*t + 0.15*(1-t)     // da 0.8 a 0.15
+visitedCapOp    = 0.12*t + 0.02*(1-t)     // da 0.12 a 0.02
+
+// Atmosfera: si restringe con zoom
+atmosphereAltitude = 0.25*t + 0.08*(1-t)  // da 0.25 a 0.08
+
+// Halo, griglia, scanner: sfumano con zoom
+haloMesh.opacity = 0.1*t                  // sparisce a zoom massimo
+gridLines.opacity = 0.09*t + 0.01*(1-t)
+polygonAltitude = 0.009*t + 0.001*(1-t)   // quasi piatti a zoom max
+```
+
+#### Dynamic Pin Clustering (NUOVO)
+Funzione `clusterPins(tripPins, trips)` raggruppa pin vicini sullo schermo:
+```javascript
+MIN_DIST = 35  // pixel soglia per clustering
+
+// Algoritmo:
+// 1. Proietta coordinate 3D → 2D schermo con projectToScreen()
+// 2. Per ogni pin non ancora raggruppato:
+//    - Se è il pin selezionato → sempre singolo (mai clusterizzato)
+//    - Cerca pin entro MIN_DIST pixel → forma cluster
+// 3. Cluster: media lat/lng, conteggio, colore rosso/rosa
+// 4. Home mai clusterizzato
+
+// Rendering cluster:
+// - Pin più grande (scalato con clusterCount)
+// - Label mostra il numero di pin raggruppati
+// - Colore: rosso (#EF4444) per trip, rosa (#EC4899) se tutti wishlist
+```
+
+#### Label Collision Detection (NUOVO)
+Previene sovrapposizione label dopo il clustering:
+```javascript
+// Bounding box: 120x20 pixel, scalato con exScale = max(1, 2.5 - altitude)
+LABEL_W = 120, LABEL_H = 20
+
+// Algoritmo:
+// 1. Proietta tutte le label su schermo 2D
+// 2. Ordina per priorità: pin selezionato (50) > home (100) > altri (0)
+// 3. Accetta label se non sovrapposta a label già accettate
+// 4. Label rifiutate marcate con _hidden:true → fadeout nel rendering
 ```
 
 #### Flythrough (Animazione Itinerario)
@@ -769,10 +923,10 @@ Gate obbligatorio prima di usare l'app:
 
 ### src/components/PrivacyPolicy.tsx (~94 righe) - Privacy Policy
 
-Testo completo bilingue (IT/EN) con 5 sezioni:
+Testo completo tradotto in tutte le 8 lingue con 5 sezioni:
 1. Raccolta Dati (NON raccoglie dati personali)
 2. Dati Salvati Localmente (viaggi, GPS, foto, preferenze)
-3. Servizi Esterni (solo OpenStreetMap Nominatim per geocoding)
+3. Servizi Esterni (Nominatim, Photon, expo-location per geocoding)
 4. I Tuoi Diritti (elimina viaggi, disinstalla)
 5. Contatti (email)
 
@@ -821,12 +975,13 @@ Cattura errori non gestiti nei componenti React:
 
 ---
 
-### src/i18n/translations.ts (~500 righe) - Traduzioni
+### src/i18n/translations.ts - Traduzioni
 
-150+ chiavi tradotte in 8 lingue.
+180+ chiavi tradotte in 8 lingue.
 
 ```typescript
 type Language = 'it' | 'en' | 'es' | 'fr' | 'de' | 'pt' | 'zh' | 'ja';
+type TranslationKey = keyof typeof it;  // tipo derivato dalle chiavi italiane
 
 // Esempi di chiavi:
 appName, addTrip, editTrip, deleteTrip, settings, statistics,
@@ -835,6 +990,16 @@ tripTitle, tripLocation, tripDate, tripNotes, tripTags,
 onboardingTitle1/2/3, onboardingText1/2/3, onboardingStart,
 privacyPolicy, termsOfService, language, biometricLock,
 exportData, importData, deleteAllData, ...
+
+// Chiavi Paywall (NUOVO):
+paywallTitle, paywallSubtitle, paywallFeature1/2/3/4,
+paywallButton, paywallRestore, paywallSuccess, restoreFailed
+
+// Chiavi HelpGuide (NUOVO):
+helpGuideTitle, helpGuideMenuItem,
+helpAddTripTitle/Text, helpGlobeTitle/Text, helpFogTitle/Text,
+helpItineraryTitle/Text, helpLinesTitle/Text, helpBackupTitle/Text,
+helpWishlistTitle/Text, helpStatsTitle/Text
 ```
 
 ---
@@ -886,6 +1051,16 @@ Launch app
   → Se !hasSeenOnboarding → mostra OnboardingScreen
   → Se !hasAcceptedGDPR → mostra GDPRConsent
   → Render UI principale: Globo + Header + Sidebar + Pulsanti
+```
+
+### Aggiunta Viaggio (con check freemium)
+```
+Utente preme "+" per aggiungere viaggio
+  → handleAddTrip():
+    → Conta viaggi non-wishlist
+    → canAddTrip(count)?
+      → Sì: apre TripForm
+      → No (>=3 e non premium): apre PaywallScreen
 ```
 
 ### Salvataggio Viaggio
@@ -1041,6 +1216,21 @@ Se la WebView non segnala `ready` entro 15 secondi, viene mostrato un overlay di
 ### 10. Schema Versioning (NUOVO)
 Sistema di migrazione automatica dei dati. Versione corrente v1. Al primo avvio dopo aggiornamento, i trip esistenti vengono arricchiti con campi default mancanti (tags, isFavorite, isWishlist, media, notes) senza sovrascrivere dati esistenti.
 
+### 11. Sistema Freemium con RevenueCat (NUOVO)
+Modello freemium con acquisto one-time (no subscription). Tier gratuito: massimo 3 viaggi non-wishlist. Superato il limite, si mostra PaywallScreen con prezzo dinamico da RevenueCat. L'acquisto sblocca viaggi illimitati per sempre. In `__DEV__` l'utente è sempre premium. Il hook `usePurchase` gestisce stato premium, prezzo, acquisto e restore. Le API keys RevenueCat sono placeholder (`YOUR_ANDROID_KEY`) da configurare dall'utente.
+
+### 12. Guida In-App (HelpGuide) (NUOVO)
+Modale accessibile da sidebar e Settings con 8 sezioni di aiuto che coprono tutte le funzionalità dell'app: aggiunta viaggi, globo interattivo, fog of war, itinerari, linee di viaggio, backup, wishlist, statistiche e calendario. Completamente tradotta in tutte le 8 lingue.
+
+### 13. Adaptive Zoom Visuals (NUOVO)
+Transizioni visive dinamiche quando la camera scende sotto distanza 200. I bordi dei paesi visitati, l'atmosfera, l'halo, la griglia wireframe e lo scanner ring si sfumano progressivamente durante il deep zoom, per un'esperienza immersiva senza distrazioni visive. Camera minDistance ridotta da 110 a 70.
+
+### 14. Label Collision Detection (NUOVO)
+Algoritmo di rilevamento collisioni per le label dei pin sul globo. Proietta coordinate 3D in spazio 2D schermo, ordina per priorità (pin selezionato > home > altri), e nasconde label sovrapposte con bounding box 120x20px scalato in base all'altitudine della camera.
+
+### 15. Dynamic Pin Clustering (NUOVO)
+Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin troppo vicini vengono raggruppati in un cluster che mostra il conteggio. Il pin selezionato non viene mai clusterizzato. I cluster ereditano il colore (rosso per trip, rosa se tutti wishlist). Ricalcolato ad ogni cambio di zoom.
+
 ---
 
 ## DIPENDENZE PRINCIPALI
@@ -1063,6 +1253,7 @@ Sistema di migrazione automatica dei dati. Versione corrente v1. Al primo avvio 
 - expo-haptics (feedback tattile), expo-av (video), expo-asset
 - expo-crypto (generazione UUID v4)
 
+**Acquisti in-app:** react-native-purchases (RevenueCat SDK)
 **Storage:** @react-native-async-storage/async-storage
 **Network:** @react-native-community/netinfo
 
@@ -1111,3 +1302,6 @@ Sistema di migrazione automatica dei dati. Versione corrente v1. Al primo avvio 
 10. **Atomic Save con Debounce** → `AsyncStorage.multiSet()` per consistenza trips/itineraries, debounce 800ms per performance, flush immediato su background
 11. **Schema Versioning** → Sistema di migrazione dati per evoluzione dello schema senza perdita dati
 12. **Backup con Checksum SHA-256** → Verifica integrità backup prima di ruotare i vecchi, retrocompatibile con formato legacy
+13. **Freemium con RevenueCat** → Acquisto one-time, no subscription. Placeholder API keys per configurazione post-sviluppo. In __DEV__ sempre premium per test rapidi
+14. **Pin Clustering client-side** → Raggruppamento basato su distanza pixel sullo schermo, nessun backend necessario, ricalcolato ad ogni zoom
+15. **Label Collision Detection** → Algoritmo greedy con priorità per evitare sovrapposizioni, senza librerie esterne
