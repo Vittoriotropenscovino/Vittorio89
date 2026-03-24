@@ -19,6 +19,7 @@ canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;point
 var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_scanAnimId=0;
 var _visitedCountries=[],_countryFeatures=[],_flythroughActive=false;
 var _currentAltitude=2.5;
+var _selectedPinId=null;
 var dbg=document.getElementById('dbg');
 function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
 function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
@@ -190,6 +191,7 @@ function go(countries){
         return 0.08+0.12*_zoomFactor;
       })
       .labelColor(function(d){
+        if(d._hidden)return 'rgba(0,0,0,0)';
         var opacity=0;
         if(d.isHome){
           opacity=_currentAltitude>2.0?0.4:0.95;
@@ -387,6 +389,7 @@ function go(countries){
 
 function onPin(p){
   if(!p||!p.tripId||p.tripId==='__home__')return;
+  _selectedPinId=p.tripId;
   // Zoom progressivo: dimezza altitudine corrente, minimo 0.15
   var pov=globe.pointOfView();
   var newAlt=Math.max(0.15,pov.altitude/2);
@@ -467,6 +470,29 @@ function spreadPins(pins){
   return pins;
 }
 
+// === PROJECT 3D COORDINATES TO SCREEN ===
+function projectToScreen(lat,lng){
+  var phi=(90-lat)*Math.PI/180;
+  var theta=(lng+180)*Math.PI/180;
+  var R=100;
+  var x=-R*Math.sin(phi)*Math.cos(theta);
+  var y=R*Math.cos(phi);
+  var z=R*Math.sin(phi)*Math.sin(theta);
+  var vec=new THREE.Vector3(x,y,z);
+  var ctrl=globe.controls();
+  if(!ctrl||!ctrl.object)return null;
+  var cam=ctrl.object;
+  var camPos=cam.position;
+  var toPoint=vec.clone().sub(camPos);
+  var toCenter=new THREE.Vector3(0,0,0).sub(camPos);
+  if(toPoint.dot(toCenter)>toCenter.lengthSq())return null;
+  var projected=vec.clone().project(cam);
+  return {
+    x:(projected.x+1)/2*window.innerWidth,
+    y:(-projected.y+1)/2*window.innerHeight
+  };
+}
+
 // === RENDER INDIVIDUAL PINS ===
 function renderPins(){
   if(!globe)return;
@@ -475,17 +501,13 @@ function renderPins(){
   if(_home){
     dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true});
   }
 
-  // Build pin arrays from original trip coordinates
   var tripPins=[];
   for(var i=0;i<_trips.length;i++){
     var t=_trips[i];
     tripPins.push({lat:t.latitude,lng:t.longitude,idx:i});
   }
-
-  // Apply zoom-aware spreading
   tripPins=spreadPins(tripPins);
 
   for(var i=0;i<_trips.length;i++){
@@ -494,7 +516,53 @@ function renderPins(){
     var wl=t.isWishlist||false;
     dp.push({lat:sp.lat,lng:sp.lng,tripId:t.id,color:wl?'#EC4899':'#EF4444',isHome:false,clusterCount:1,isWishlist:wl});
     dr.push({lat:sp.lat,lng:sp.lng,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-    dl.push({lat:sp.lat,lng:sp.lng,tripId:t.id,label:t.title,isHome:false,isWishlist:wl});
+  }
+
+  // === LABEL COLLISION DETECTION ===
+  var candidates=[];
+  if(_home){
+    var hs=projectToScreen(_home.latitude,_home.longitude);
+    candidates.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true,isWishlist:false,
+      sx:hs?hs.x:-9999,sy:hs?hs.y:-9999,visible:!!hs,priority:100});
+  }
+  for(var i=0;i<_trips.length;i++){
+    var t=_trips[i];
+    var sp=tripPins[i];
+    var wl=t.isWishlist||false;
+    var ss=projectToScreen(sp.lat,sp.lng);
+    var pri=t.id===_selectedPinId?50:0;
+    candidates.push({lat:sp.lat,lng:sp.lng,tripId:t.id,label:t.title,isHome:false,isWishlist:wl,
+      sx:ss?ss.x:-9999,sy:ss?ss.y:-9999,visible:!!ss,priority:pri});
+  }
+
+  candidates.sort(function(a,b){return b.priority-a.priority;});
+
+  var LABEL_W=120,LABEL_H=20;
+  var cameraAlt=_currentAltitude;
+  var exScale=Math.max(1,2.5-cameraAlt);
+  var accepted=[];
+  var acceptedIds={};
+
+  for(var i=0;i<candidates.length;i++){
+    var cand=candidates[i];
+    if(!cand.visible){continue;}
+    var overlaps=false;
+    for(var j=0;j<accepted.length;j++){
+      var ex=accepted[j];
+      if(Math.abs(cand.sx-ex.sx)<LABEL_W*exScale && Math.abs(cand.sy-ex.sy)<LABEL_H*exScale){
+        overlaps=true;break;
+      }
+    }
+    if(!overlaps){
+      accepted.push(cand);
+      acceptedIds[cand.tripId]=true;
+    }
+  }
+
+  for(var i=0;i<candidates.length;i++){
+    var c=candidates[i];
+    dl.push({lat:c.lat,lng:c.lng,tripId:c.tripId,label:c.label,isHome:c.isHome,isWishlist:c.isWishlist,
+      _hidden:!acceptedIds[c.tripId]});
   }
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
