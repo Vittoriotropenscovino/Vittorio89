@@ -85,8 +85,7 @@
         {
           "faceIDPermission": "Allow TravelSphere to use Face ID for app lock."
         }
-      ],
-      "react-native-purchases"
+      ]
     ],
     "extra": {
       "eas": {
