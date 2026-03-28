@@ -70,47 +70,48 @@ App.tsx (root)
 /Vittorio89/
 ├── src/
 │   ├── components/ (18 file)
-│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~321 righe - vendor bundling + timeout)
-│   │   ├── TripForm.tsx          (crea/modifica viaggi, ~500 righe, check offline)
+│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~323 righe - vendor bundling + timeout)
+│   │   ├── TripForm.tsx          (crea/modifica viaggi, ~747 righe, check offline)
 │   │   ├── MemoryViewer.tsx      (galleria media, ~271 righe, FlatList windowing)
-│   │   ├── TripSidebar.tsx       (sidebar lista viaggi, ~400 righe)
-│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~542 righe, storage monitor)
-│   │   ├── StatsScreen.tsx       (statistiche viaggio, ~157 righe)
+│   │   ├── TripSidebar.tsx       (sidebar lista viaggi, ~360 righe)
+│   │   ├── SettingsScreen.tsx    (modale impostazioni, ~627 righe, storage monitor)
+│   │   ├── StatsScreen.tsx       (statistiche viaggio, ~158 righe)
 │   │   ├── CalendarView.tsx      (browser calendario, ~191 righe)
-│   │   ├── ItineraryManager.tsx  (UI itinerari, ~250 righe)
-│   │   ├── OnboardingScreen.tsx  (tutorial primo avvio, ~200 righe)
+│   │   ├── ItineraryManager.tsx  (UI itinerari, ~287 righe)
+│   │   ├── OnboardingScreen.tsx  (tutorial primo avvio, ~304 righe)
 │   │   ├── GDPRConsent.tsx       (gate consenso privacy, ~125 righe)
-│   │   ├── PrivacyPolicy.tsx     (testo legale privacy, ~94 righe)
+│   │   ├── PrivacyPolicy.tsx     (testo legale privacy, ~76 righe)
 │   │   ├── TermsOfService.tsx    (testo legale termini, ~94 righe)
-│   │   ├── HelpGuide.tsx         (guida in-app, ~93 righe, 8 sezioni tradotte)
-│   │   ├── PaywallScreen.tsx     (paywall freemium, ~249 righe, acquisto/restore)
-│   │   ├── SaveConfirmation.tsx  (toast notifica, ~69 righe)
-│   │   ├── OfflineBanner.tsx     (stato rete, ~52 righe)
-│   │   ├── ErrorBoundary.tsx     (recovery errori, ~139 righe)
+│   │   ├── HelpGuide.tsx         (guida in-app, ~92 righe, 8 sezioni tradotte)
+│   │   ├── PaywallScreen.tsx     (paywall freemium, ~248 righe, acquisto/restore)
+│   │   ├── SaveConfirmation.tsx  (toast notifica, ~68 righe)
+│   │   ├── OfflineBanner.tsx     (stato rete, ~51 righe)
+│   │   ├── ErrorBoundary.tsx     (recovery errori, ~138 righe)
 │   │   └── index.ts              (barrel export)
 │   ├── contexts/
-│   │   └── AppContext.tsx         (settings globali + lingua, ~107 righe)
+│   │   └── AppContext.tsx         (settings globali + lingua, ~108 righe)
 │   ├── hooks/
-│   │   ├── useTrips.ts           (hook gestione trips + itinerari, ~164 righe)
+│   │   ├── useTrips.ts           (hook gestione trips + itinerari, ~168 righe)
 │   │   ├── useModals.ts          (hook gestione stato modali, ~61 righe)
-│   │   ├── useAuth.ts            (hook autenticazione biometrica, ~56 righe)
+│   │   ├── useAuth.ts            (hook autenticazione biometrica, ~63 righe)
 │   │   ├── useFogOfWar.ts        (hook calcolo paesi visitati, ~14 righe)
-│   │   ├── usePurchase.ts        (hook gestione acquisti freemium, ~66 righe)
+│   │   ├── usePurchase.ts        (hook gestione acquisti freemium, ~65 righe)
 │   │   ├── index.ts              (barrel export hooks)
 │   │   └── __tests__/
 │   │       └── useTrips.test.ts  (test useTrips hook, ~309 righe)
 │   ├── services/
-│   │   ├── StorageService.ts     (AsyncStorage + FileSystem + backup + migration, ~448 righe)
-│   │   ├── PurchaseService.ts    (RevenueCat wrapper, acquisti in-app, ~86 righe)
+│   │   ├── StorageService.ts     (AsyncStorage + FileSystem + backup + migration, ~454 righe)
+│   │   ├── PurchaseService.ts    (RevenueCat wrapper, acquisti in-app, ~85 righe)
 │   │   └── __tests__/
-│   │       └── StorageService.test.ts  (test StorageService, ~534 righe)
+│   │       └── StorageService.test.ts  (test StorageService, ~541 righe)
 │   ├── types/
 │   │   └── index.ts              (interfacce TypeScript)
 │   ├── i18n/
-│   │   └── translations.ts       (8 lingue, 180+ chiavi)
+│   │   └── translations.ts       (8 lingue, ~126 chiavi, ~2183 righe)
 │   └── utils/
-│       ├── geocoding.ts           (Nominatim + fallback, ~62 righe)
+│       ├── geocoding.ts           (Nominatim + fallback, ~61 righe)
 │       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
+│       ├── validateTrip.ts        (validazione + sanitizzazione import, ~154 righe)
 │       └── __tests__/
 │           └── geocoding.test.ts  (test geocoding, ~110 righe)
 ├── assets/
@@ -119,7 +120,7 @@ App.tsx (root)
 │       ├── topojson-client.min.txt  (topojson-client v3.1.0, 7.2 KB)
 │       ├── globe.gl.min.txt         (globe.gl v2.45.1, 1.76 MB)
 │       └── countries-110m.txt       (world atlas TopoJSON, 107.7 KB)
-├── App.tsx                        (entry point principale, ~426 righe - logica estratta in hooks)
+├── App.tsx                        (entry point principale, ~473 righe - logica estratta in hooks)
 ├── app.json                       (config Expo)
 ├── tsconfig.json
 ├── babel.config.js
@@ -132,7 +133,7 @@ App.tsx (root)
 
 ## FILE PRINCIPALI - DETTAGLIO
 
-### App.tsx (~426 righe) - Shell Principale
+### App.tsx (~473 righe) - Shell Principale
 
 Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `useTrips`, `useModals`, `useAuth`, `useFogOfWar`.
 
@@ -158,7 +159,7 @@ Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `use
 
 ---
 
-### src/hooks/useTrips.ts (~164 righe) - Hook Gestione Dati
+### src/hooks/useTrips.ts (~168 righe) - Hook Gestione Dati
 
 Custom hook che gestisce tutto il CRUD di trips e itinerari, estratto da App.tsx.
 
@@ -209,7 +210,7 @@ Centralizza tutto lo stato e la logica dei modali, estratto da App.tsx.
 
 ---
 
-### src/hooks/useAuth.ts (~56 righe) - Hook Autenticazione Biometrica
+### src/hooks/useAuth.ts (~63 righe) - Hook Autenticazione Biometrica
 
 Gestisce l'autenticazione biometrica con lifecycle AppState.
 
@@ -236,7 +237,7 @@ Calcola il set di paesi visitati dai viaggi.
 
 ---
 
-### src/hooks/usePurchase.ts (~66 righe) - Hook Acquisti Freemium
+### src/hooks/usePurchase.ts (~65 righe) - Hook Acquisti Freemium
 
 Hook che gestisce il sistema freemium tramite RevenueCat.
 
@@ -260,7 +261,7 @@ Hook che gestisce il sistema freemium tramite RevenueCat.
 
 ---
 
-### src/services/PurchaseService.ts (~86 righe) - Servizio Acquisti
+### src/services/PurchaseService.ts (~85 righe) - Servizio Acquisti
 
 Wrapper statico per RevenueCat SDK (react-native-purchases).
 
@@ -284,7 +285,7 @@ restorePurchases(): Promise<boolean>   // Ripristina acquisti precedenti
 
 ---
 
-### src/components/PaywallScreen.tsx (~249 righe) - Paywall Freemium
+### src/components/PaywallScreen.tsx (~248 righe) - Paywall Freemium
 
 Modale per l'acquisto della versione premium, mostrata quando l'utente supera il limite di 3 viaggi gratuiti.
 
@@ -313,7 +314,7 @@ interface Props {
 
 ---
 
-### src/components/HelpGuide.tsx (~93 righe) - Guida In-App
+### src/components/HelpGuide.tsx (~92 righe) - Guida In-App
 
 Modale con 8 sezioni di aiuto, accessibile da sidebar e Settings. Completamente tradotta in 8 lingue.
 
@@ -436,7 +437,7 @@ interface AppSettings {
 
 ---
 
-### src/services/StorageService.ts (~448 righe) - Servizio Storage
+### src/services/StorageService.ts (~454 righe) - Servizio Storage
 
 Astrazione unificata per AsyncStorage (metadati) + expo-file-system (media) + auto-backup + migrazione schema + validazione checksum + pulizia media orfani.
 
@@ -521,7 +522,7 @@ getStorageInfo(): Promise<StorageInfo>
 
 ---
 
-### src/components/EarthGlobe.tsx (~321 righe) - Globo 3D
+### src/components/EarthGlobe.tsx (~323 righe) - Globo 3D
 
 Componente React che wrappa una WebView con globe.gl. Librerie vendor bundlate localmente per supporto offline.
 
@@ -759,7 +760,7 @@ LABEL_W = 120, LABEL_H = 20
 
 ---
 
-### src/components/TripForm.tsx (~500 righe) - Form Viaggio
+### src/components/TripForm.tsx (~747 righe) - Form Viaggio
 
 Modale per creare o modificare un viaggio.
 
@@ -822,7 +823,7 @@ Visualizzatore fullscreen per foto e video di un viaggio, ottimizzato con FlatLi
 
 ---
 
-### src/components/TripSidebar.tsx (~400 righe) - Sidebar Viaggi
+### src/components/TripSidebar.tsx (~360 righe) - Sidebar Viaggi
 
 Pannello laterale animato che elenca tutti i viaggi.
 
@@ -837,7 +838,7 @@ Pannello laterale animato che elenca tutti i viaggi.
 
 ---
 
-### src/components/SettingsScreen.tsx (~542 righe) - Impostazioni
+### src/components/SettingsScreen.tsx (~627 righe) - Impostazioni
 
 **Sezioni:**
 
@@ -863,7 +864,7 @@ Pannello laterale animato che elenca tutti i viaggi.
 
 ---
 
-### src/components/StatsScreen.tsx (~157 righe) - Statistiche
+### src/components/StatsScreen.tsx (~158 righe) - Statistiche
 
 Dashboard con metriche di viaggio:
 - Numeri grandi: totale viaggi, foto, paesi visitati
@@ -884,7 +885,7 @@ Dashboard con metriche di viaggio:
 
 ---
 
-### src/components/ItineraryManager.tsx (~250 righe) - Gestore Itinerari
+### src/components/ItineraryManager.tsx (~287 righe) - Gestore Itinerari
 
 - Sezione creazione: input testo + pulsante crea
 - Lista itinerari: nome, conteggio viaggi, lista viaggi collegati con linea a punti
@@ -895,7 +896,7 @@ Dashboard con metriche di viaggio:
 
 ---
 
-### src/components/OnboardingScreen.tsx (~200 righe) - Tutorial
+### src/components/OnboardingScreen.tsx (~304 righe) - Tutorial
 
 **Schermo 1:** Selezione lingua
 - Scroll orizzontale con card eleganti
@@ -921,7 +922,7 @@ Gate obbligatorio prima di usare l'app:
 
 ---
 
-### src/components/PrivacyPolicy.tsx (~94 righe) - Privacy Policy
+### src/components/PrivacyPolicy.tsx (~76 righe) - Privacy Policy
 
 Testo completo tradotto in tutte le 8 lingue con 5 sezioni:
 1. Raccolta Dati (NON raccoglie dati personali)
@@ -943,7 +944,7 @@ Testo completo bilingue (IT/EN) con 5 sezioni:
 
 ---
 
-### src/components/SaveConfirmation.tsx (~69 righe) - Toast
+### src/components/SaveConfirmation.tsx (~68 righe) - Toast
 
 Notifica breve animata:
 - Appare al centro schermo
@@ -954,7 +955,7 @@ Notifica breve animata:
 
 ---
 
-### src/components/OfflineBanner.tsx (~52 righe) - Banner Offline
+### src/components/OfflineBanner.tsx (~51 righe) - Banner Offline
 
 Indicatore stato rete:
 - Mostra quando offline (isConnected = false)
@@ -965,7 +966,7 @@ Indicatore stato rete:
 
 ---
 
-### src/components/ErrorBoundary.tsx (~139 righe) - Error Boundary
+### src/components/ErrorBoundary.tsx (~138 righe) - Error Boundary
 
 Cattura errori non gestiti nei componenti React:
 - Class component con getDerivedStateFromError + componentDidCatch
@@ -977,7 +978,7 @@ Cattura errori non gestiti nei componenti React:
 
 ### src/i18n/translations.ts - Traduzioni
 
-180+ chiavi tradotte in 8 lingue.
+~126 chiavi top-level tradotte in 8 lingue (~2183 righe totali).
 
 ```typescript
 type Language = 'it' | 'en' | 'es' | 'fr' | 'de' | 'pt' | 'zh' | 'ja';
@@ -1004,10 +1005,52 @@ helpWishlistTitle/Text, helpStatsTitle/Text
 
 ---
 
-### src/utils/geocoding.ts (~62 righe) - Geocoding
+### src/utils/validateTrip.ts (~154 righe) - Validazione e Sanitizzazione Import
+
+Modulo di validazione per i dati importati da file JSON esterno.
+
+**Interfacce esportate:**
+```typescript
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  sanitized?: Trip;
+}
+
+interface ImportResult {
+  valid: boolean;
+  trips: Trip[];
+  errors: string[];
+}
+```
+
+**Funzioni principali:**
+```typescript
+// Valida un singolo trip: verifica struttura, tipi, coordinate, date, media, tag
+validateTrip(data: unknown): ValidationResult
+
+// Valida e sanitizza un array di trip importati
+// Supporta formato nuovo (con checksum) e formato legacy (array diretto o {trips, exportDate})
+// Parametro opzionale existingItineraryIds per pulire riferimenti orfani a itinerari inesistenti
+validateImportData(data: unknown, existingItineraryIds?: string[]): ImportResult
+```
+
+**Validazioni eseguite:**
+- Struttura oggetto (campi obbligatori: id, title, locationName, latitude, longitude)
+- Tipi corretti (string, number, boolean, array)
+- Coordinate GPS valide (lat -90/+90, lon -180/+180)
+- Formato data YYYY-MM-DD
+- MediaItem con uri, type ('image'|'video'), width, height
+- TripTag validi (8 categorie ammesse)
+- Sanitizzazione: aggiunge campi default mancanti (tags, isFavorite, isWishlist, media, notes)
+- Pulizia itineraryId orfani (se existingItineraryIds fornito)
+
+---
+
+### src/utils/geocoding.ts (~61 righe) - Geocoding
 
 ```typescript
-// Ricerca luogo → coordinate
+// Ricerca luogo -> coordinate
 geocodeWithNominatim(query: string, language: string): Promise<GeocodingResult[]>
 // API: https://nominatim.openstreetmap.org/search
 // Ritorna: { lat, lon, display_name, address: { country, country_code } }
@@ -1262,8 +1305,8 @@ Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin tr
 - ts-jest ^29.4.6
 - @types/jest ^30.0.0
 
-**Test Coverage (843 righe totali):**
-- `StorageService.test.ts` (~534 righe) - save/load, delete, migration, checksum backup, clear
+**Test Coverage (~960 righe totali):**
+- `StorageService.test.ts` (~541 righe) - save/load, delete, migration, checksum backup, clear
 - `useTrips.test.ts` (~309 righe) - saveTrip, deleteTrip, toggleFavorite, itineraries CRUD
 - `geocoding.test.ts` (~110 righe) - geocode, reverseGeocode, extractCountry
 
@@ -1283,8 +1326,16 @@ Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin tr
 - Development: distribuzione interna
 - Production: Android AAB, auto-increment versione
 
-**GitHub Actions:**
+**GitHub Actions (.github/workflows/build-android.yml):**
 - Aggiornate da v4 a v5 per supporto Node.js 24
+- Trigger: push su main e branch claude/**
+- Runner: Ubuntu, Node 22, Java 17
+- Pipeline: checkout → node setup → java setup → yarn install → expo install --fix → expo prebuild --platform android → gradle assembleRelease → APK rename → artifact upload (30 giorni retention)
+
+**CodeMagic (codemagic.yaml):**
+- Runner: Mac mini M1
+- **Android:** node setup → expo install → expo prebuild → gradle bundleRelease → AAB + APK come artifacts
+- **iOS:** pod install → xcodebuild archive → xcodebuild export → IPA come artifact
 
 ---
 
@@ -1297,7 +1348,7 @@ Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin tr
 5. **Orientamento landscape** → Il globo 3D ha bisogno di spazio orizzontale per essere utilizzabile
 6. **Context API, non Redux** → Sufficiente per un'app diario di viaggio senza flussi async complessi
 7. **Tema scuro** → Riduce affaticamento visivo, fa risaltare gli accent luminosi (cyan, oro)
-8. **Hook Extraction** → Logica estratta da App.tsx in 4 hook dedicati (useTrips, useModals, useAuth, useFogOfWar) per riusabilità e testabilità
+8. **Hook Extraction** → Logica estratta da App.tsx in 5 hook dedicati (useTrips, useModals, useAuth, useFogOfWar, usePurchase) per riusabilità e testabilità
 9. **Vendor Bundling** → Librerie globe.gl bundlate localmente per supporto offline completo, con fallback CDN
 10. **Atomic Save con Debounce** → `AsyncStorage.multiSet()` per consistenza trips/itineraries, debounce 800ms per performance, flush immediato su background
 11. **Schema Versioning** → Sistema di migrazione dati per evoluzione dello schema senza perdita dati

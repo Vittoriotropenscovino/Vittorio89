@@ -5,8 +5,10 @@
 - Issue ALTE trovate: 8 (fixate: 8 ✅)
 - Issue MEDIE trovate: 18
 - Issue BASSE trovate: 12
-- Totale file analizzati: 28
-- Totale righe di codice analizzate: ~4500
+- Totale file analizzati: ~35 (TS/TSX)
+- Totale righe di codice analizzate: ~8200
+- Data audit iniziale: 2025 (commit `729bee6`)
+- Ultimo aggiornamento documentazione: 2026-03-28
 
 ---
 
@@ -109,8 +111,8 @@
 
 ### Suggerimenti Organizzativi
 
-1. `src/components/SettingsScreen.tsx` is 542 lines — could be split into sub-components (LanguageSection, StorageSection, ExportSection).
-2. `src/services/StorageService.ts` is 449 lines — could extract backup logic into a separate BackupService.
+1. `src/components/SettingsScreen.tsx` is 627 lines — could be split into sub-components (LanguageSection, StorageSection, ExportSection).
+2. `src/services/StorageService.ts` is 454 lines — could extract backup logic into a separate BackupService.
 3. Missing `src/utils/index.ts` barrel export file.
 4. Consider adding a `src/constants.ts` for shared timing values (NOMINATIM_MIN_INTERVAL, SAVE_DEBOUNCE_MS, etc.).
 
@@ -212,7 +214,7 @@ Nessuno trovato.
 
 ### Priorità Alta (prossimo sprint)
 1. Migrate TripSidebar from ScrollView to FlatList for virtualized rendering
-2. Add Nominatim/Photon service mention to PrivacyPolicy component
+2. ~~Add Nominatim/Photon service mention to PrivacyPolicy component~~ ✅ Completato
 3. Consolidate duplicated `fetchWithTimeout` between TripForm and geocoding.ts
 4. Add SRI hashes for CDN fallback scripts in globe.html
 
@@ -233,6 +235,28 @@ Nessuno trovato.
 16. Add type safety for EXIF data access in TripForm
 17. Support multiple trips per day in CalendarView
 18. Add accessibility features to OnboardingScreen
+
+## Feature Aggiunte Post-Audit
+
+Le seguenti funzionalità sono state implementate dopo l'audit iniziale. I riferimenti a righe specifiche nei report degli agenti potrebbero non corrispondere esattamente ai numeri di riga attuali a causa della crescita dei file.
+
+| Feature | File Principali | Note |
+|---------|----------------|------|
+| Sistema Freemium con RevenueCat | `src/hooks/usePurchase.ts`, `src/services/PurchaseService.ts`, `src/components/PaywallScreen.tsx` | Acquisto one-time, 3 viaggi gratuiti, integrazione RevenueCat |
+| Dynamic Pin Clustering | `assets/globe.html` | Raggruppamento pin basato su distanza schermo (35px), ricalcolo ad ogni zoom |
+| Label Collision Detection | `assets/globe.html` | Algoritmo greedy con priorità per evitare sovrapposizioni label |
+| Adaptive Zoom Visuals | `assets/globe.html` | Transizioni visive dinamiche sotto distanza camera 200, minDistance 110→70 |
+| Guida In-App (HelpGuide) | `src/components/HelpGuide.tsx` | 8 sezioni di aiuto tradotte in 8 lingue |
+| Privacy Policy aggiornata | `src/components/PrivacyPolicy.tsx` | Aggiunta menzione servizi Nominatim e Photon, tradotta in 8 lingue |
+| Rimozione tipi `any` | Multipli file | TypeScript strict compliance migliorata |
+
+**Crescita file significativa post-audit:**
+- `TripForm.tsx`: da ~500 a ~747 righe (+49%)
+- `SettingsScreen.tsx`: da ~542 a ~627 righe (+16%)
+- `OnboardingScreen.tsx`: da ~200 a ~304 righe (+52%)
+- `ItineraryManager.tsx`: da ~250 a ~287 righe (+15%)
+
+---
 
 ## Valutazione Complessiva
 
@@ -257,9 +281,9 @@ TravelSphere è un'applicazione ben strutturata con una chiara separazione delle
 ## Prossimi Passi Consigliati
 
 1. **[Performance]** Migrare TripSidebar a FlatList — impatto immediato su UX con molti viaggi
-2. **[Privacy]** Aggiornare PrivacyPolicy con menzione di Nominatim e Photon
+2. ~~**[Privacy]** Aggiornare PrivacyPolicy con menzione di Nominatim e Photon~~ ✅ Completato (commit `cd6471b`)
 3. **[Testing]** Aggiungere test per componenti React (almeno TripForm, SettingsScreen)
 4. **[Security]** Aggiungere SRI hashes per script CDN in globe.html
 5. **[DX]** Consolidare utility duplicate (fetchWithTimeout) e creare barrel exports
 6. **[UX]** Aggiungere feedback visivo per rate limiting geocoding e errori video
-7. **[Architettura]** Refactoring SettingsScreen in sub-componenti per manutenibilità
+7. **[Architettura]** Refactoring SettingsScreen (ora 627 righe) in sub-componenti per manutenibilità
