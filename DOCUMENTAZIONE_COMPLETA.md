@@ -107,7 +107,7 @@ App.tsx (root)
 │   ├── types/
 │   │   └── index.ts              (interfacce TypeScript)
 │   ├── i18n/
-│   │   └── translations.ts       (8 lingue, ~126 chiavi, ~2183 righe)
+│   │   └── translations.ts       (8 lingue, ~254 chiavi, ~2183 righe)
 │   └── utils/
 │       ├── geocoding.ts           (Nominatim + fallback, ~61 righe)
 │       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
@@ -126,6 +126,8 @@ App.tsx (root)
 ├── babel.config.js
 ├── metro.config.js
 ├── eas.json                       (config build EAS)
+├── codemagic.yaml                 (CI/CD CodeMagic: Android AAB + iOS IPA su Mac mini M1)
+├── react-three.d.ts               (type definitions per Three.js)
 └── package.json                   (dipendenze + configurazione Jest inline con ts-jest)
 ```
 
@@ -978,7 +980,7 @@ Cattura errori non gestiti nei componenti React:
 
 ### src/i18n/translations.ts - Traduzioni
 
-~126 chiavi top-level tradotte in 8 lingue (~2183 righe totali).
+~254 chiavi top-level tradotte in 8 lingue (~2183 righe totali).
 
 ```typescript
 type Language = 'it' | 'en' | 'es' | 'fr' | 'de' | 'pt' | 'zh' | 'ja';
