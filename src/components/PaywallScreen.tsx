@@ -89,7 +89,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
               bounces={false}
             >
               {/* Globe icon */}
-              <Ionicons name="globe-outline" size={screenW < 600 ? 48 : 64} color="#00d4ff" style={styles.globeIcon} />
+              <Ionicons name="globe-outline" size={screenW < 600 ? 44 : 48} color="#00d4ff" style={styles.globeIcon} />
 
               {/* Title */}
               <Text style={styles.title}>{t('paywallTitle')}</Text>
@@ -180,18 +180,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#F0F0F0',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: '#9CA3AF',
     textAlign: 'center',
-    marginBottom: 28,
+    marginBottom: 20,
     lineHeight: 22,
   },
   featureList: {
     alignSelf: 'stretch',
-    marginBottom: 28,
+    marginBottom: 20,
     gap: 12,
   },
   featureRow: {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PurchaseService from '../services/PurchaseService';
 
@@ -6,7 +7,8 @@ const FREE_TRIP_LIMIT = 3;
 const DEV_MODE_KEY = '@travelsphere_dev_mode';
 
 export function usePurchase() {
-  const [isPremium, setIsPremium] = useState(__DEV__);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isDevMode, setIsDevModeState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [price, setPrice] = useState<string>('€3,49');
 
@@ -15,9 +17,7 @@ export function usePurchase() {
       // Check dev mode flag from AsyncStorage
       const devModeFlag = await AsyncStorage.getItem(DEV_MODE_KEY);
       if (devModeFlag === 'true') {
-        setIsPremium(true);
-        setIsLoading(false);
-        return;
+        setIsDevModeState(true);
       }
 
       await PurchaseService.initialize();
@@ -33,6 +33,17 @@ export function usePurchase() {
       setIsLoading(false);
     }
     init();
+  }, []);
+
+  // Re-check dev mode when app returns to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextState) => {
+      if (nextState === 'active') {
+        const devModeFlag = await AsyncStorage.getItem(DEV_MODE_KEY);
+        setIsDevModeState(devModeFlag === 'true');
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const purchase = useCallback(async (): Promise<boolean> => {
@@ -52,22 +63,23 @@ export function usePurchase() {
   }, []);
 
   const canAddTrip = useCallback((currentTripCount: number): boolean => {
-    if (__DEV__) return true;
+    if (isDevMode) return true;
     if (isPremium) return true;
     return currentTripCount < FREE_TRIP_LIMIT;
-  }, [isPremium]);
+  }, [isPremium, isDevMode]);
 
   const remainingFreeTrips = useCallback((currentTripCount: number): number => {
-    if (isPremium) return Infinity;
+    if (isPremium || isDevMode) return Infinity;
     return Math.max(0, FREE_TRIP_LIMIT - currentTripCount);
-  }, [isPremium]);
+  }, [isPremium, isDevMode]);
 
-  const setDevMode = useCallback((enabled: boolean) => {
-    setIsPremium(enabled || __DEV__);
+  const setDevMode = useCallback(async (enabled: boolean) => {
+    setIsDevModeState(enabled);
+    await AsyncStorage.setItem(DEV_MODE_KEY, enabled ? 'true' : 'false');
   }, []);
 
   return {
-    isPremium,
+    isPremium: isPremium || isDevMode,
     isLoading,
     price,
     purchase,

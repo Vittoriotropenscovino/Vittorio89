@@ -60,7 +60,7 @@ const SettingsScreen: React.FC<Props> = ({
     const [homeQuery, setHomeQuery] = useState('');
     const [searchingHome, setSearchingHome] = useState(false);
     const [isDevMode, setIsDevMode] = useState(false);
-    const devTapCount = useRef(0);
+    const [devTapCount, setDevTapCount] = useState(0);
     const devTapTimer = useRef<NodeJS.Timeout | null>(null);
     const [storageInfo, setStorageInfo] = useState<{
         tripCount: number; mediaCount: number; mediaSize: number;
@@ -82,17 +82,18 @@ const SettingsScreen: React.FC<Props> = ({
         }
         // Reset tap counter when modal closes
         if (!visible) {
-            devTapCount.current = 0;
+            setDevTapCount(0);
         }
     }, [visible]);
 
     const handleVersionTap = useCallback(() => {
-        devTapCount.current += 1;
+        const newCount = devTapCount + 1;
+        setDevTapCount(newCount);
         if (devTapTimer.current) clearTimeout(devTapTimer.current);
-        devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
+        devTapTimer.current = setTimeout(() => { setDevTapCount(0); }, 3000);
 
-        if (devTapCount.current >= DEV_TAP_TARGET) {
-            devTapCount.current = 0;
+        if (newCount >= DEV_TAP_TARGET) {
+            setDevTapCount(0);
             const newVal = !isDevMode;
             setIsDevMode(newVal);
             AsyncStorage.setItem(DEV_MODE_KEY, newVal ? 'true' : 'false');
@@ -104,11 +105,11 @@ const SettingsScreen: React.FC<Props> = ({
                     ? 'Premium sbloccato per testing. Riapri l\'app per applicare.'
                     : 'Dev mode disattivato. Riapri l\'app per applicare.',
             );
-        } else if (devTapCount.current >= 4) {
-            const remaining = DEV_TAP_TARGET - devTapCount.current;
+        } else if (newCount >= 4) {
+            const remaining = DEV_TAP_TARGET - newCount;
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-    }, [isDevMode, onDevModeToggle]);
+    }, [devTapCount, isDevMode, onDevModeToggle]);
 
     const formatBytes = (bytes: number): string => {
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
