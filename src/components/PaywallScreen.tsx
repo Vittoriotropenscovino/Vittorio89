@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator,
-  useWindowDimensions, Alert,
+  useWindowDimensions, Alert, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -18,8 +18,7 @@ interface Props {
 
 const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, onRestore, freeLimit }) => {
   const { t } = useApp();
-  const { height: screenH, width: screenW } = useWindowDimensions();
-  const cardHeight = Math.min(screenH * 0.85, screenW < screenH ? screenH * 0.8 : screenH * 0.9);
+  const { width: screenW } = useWindowDimensions();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -72,7 +71,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.card, { height: cardHeight }]}>
+        <View style={[styles.card, { maxHeight: '90%' }]}>
           {/* Close button */}
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
             <Ionicons name="close" size={24} color="#9CA3AF" />
@@ -84,9 +83,13 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
               <Text style={styles.successText}>{t('paywallSuccess')}</Text>
             </View>
           ) : (
-            <View style={styles.content}>
+            <ScrollView
+              contentContainerStyle={styles.content}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
               {/* Globe icon */}
-              <Ionicons name="globe-outline" size={64} color="#00d4ff" style={styles.globeIcon} />
+              <Ionicons name="globe-outline" size={screenW < 600 ? 48 : 64} color="#00d4ff" style={styles.globeIcon} />
 
               {/* Title */}
               <Text style={styles.title}>{t('paywallTitle')}</Text>
@@ -132,7 +135,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
                   <Text style={styles.restoreText}>{t('paywallRestore')}</Text>
                 )}
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           )}
         </View>
       </View>
@@ -163,9 +166,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   content: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexGrow: 1,
     paddingHorizontal: 32,
     paddingVertical: 24,
   },

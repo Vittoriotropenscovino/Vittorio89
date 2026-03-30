@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import PurchaseService from '../services/PurchaseService';
 
 const FREE_TRIP_LIMIT = 3;
+const DEV_MODE_KEY = '@travelsphere_dev_mode';
 
 export function usePurchase() {
   const [isPremium, setIsPremium] = useState(__DEV__);
@@ -10,6 +12,14 @@ export function usePurchase() {
 
   useEffect(() => {
     async function init() {
+      // Check dev mode flag from AsyncStorage
+      const devModeFlag = await AsyncStorage.getItem(DEV_MODE_KEY);
+      if (devModeFlag === 'true') {
+        setIsPremium(true);
+        setIsLoading(false);
+        return;
+      }
+
       await PurchaseService.initialize();
 
       const premium = await PurchaseService.isPremium();
@@ -52,6 +62,10 @@ export function usePurchase() {
     return Math.max(0, FREE_TRIP_LIMIT - currentTripCount);
   }, [isPremium]);
 
+  const setDevMode = useCallback((enabled: boolean) => {
+    setIsPremium(enabled || __DEV__);
+  }, []);
+
   return {
     isPremium,
     isLoading,
@@ -61,5 +75,6 @@ export function usePurchase() {
     canAddTrip,
     remainingFreeTrips,
     FREE_TRIP_LIMIT,
+    setDevMode,
   };
 }

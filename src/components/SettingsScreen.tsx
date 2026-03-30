@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
     Switch, Alert, Platform, TextInput, ActivityIndicator,
@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 import { Trip, Itinerary } from '../types';
@@ -44,16 +45,23 @@ interface Props {
     price?: string;
     onPurchase?: () => Promise<boolean>;
     onRestore?: () => Promise<boolean>;
+    onDevModeToggle?: (enabled: boolean) => void;
 }
+
+const DEV_MODE_KEY = '@travelsphere_dev_mode';
+const DEV_TAP_TARGET = 7;
 
 const SettingsScreen: React.FC<Props> = ({
     visible, onClose, trips, itineraries, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
-    isPremium, price, onPurchase, onRestore,
+    isPremium, price, onPurchase, onRestore, onDevModeToggle,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
     const [homeQuery, setHomeQuery] = useState('');
     const [searchingHome, setSearchingHome] = useState(false);
+    const [isDevMode, setIsDevMode] = useState(false);
+    const devTapCount = useRef(0);
+    const devTapTimer = useRef<NodeJS.Timeout | null>(null);
     const [storageInfo, setStorageInfo] = useState<{
         tripCount: number; mediaCount: number; mediaSize: number;
         metadataSize: number; backupCount: number; backupSize: number; totalSize: number;
@@ -67,8 +75,40 @@ const SettingsScreen: React.FC<Props> = ({
                 .then(setStorageInfo)
                 .catch(() => setStorageInfo(null))
                 .finally(() => setLoadingStorage(false));
+            // Load dev mode state
+            AsyncStorage.getItem(DEV_MODE_KEY).then((val) => {
+                setIsDevMode(val === 'true');
+            });
+        }
+        // Reset tap counter when modal closes
+        if (!visible) {
+            devTapCount.current = 0;
         }
     }, [visible]);
+
+    const handleVersionTap = useCallback(() => {
+        devTapCount.current += 1;
+        if (devTapTimer.current) clearTimeout(devTapTimer.current);
+        devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
+
+        if (devTapCount.current >= DEV_TAP_TARGET) {
+            devTapCount.current = 0;
+            const newVal = !isDevMode;
+            setIsDevMode(newVal);
+            AsyncStorage.setItem(DEV_MODE_KEY, newVal ? 'true' : 'false');
+            if (onDevModeToggle) onDevModeToggle(newVal);
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert(
+                newVal ? 'Dev Mode ON' : 'Dev Mode OFF',
+                newVal
+                    ? 'Premium sbloccato per testing. Riapri l\'app per applicare.'
+                    : 'Dev mode disattivato. Riapri l\'app per applicare.',
+            );
+        } else if (devTapCount.current >= 4) {
+            const remaining = DEV_TAP_TARGET - devTapCount.current;
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    }, [isDevMode, onDevModeToggle]);
 
     const formatBytes = (bytes: number): string => {
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -555,7 +595,12 @@ const SettingsScreen: React.FC<Props> = ({
                             <SettingRow
                                 icon="information-circle-outline"
                                 label={t('appVersion') as string}
-                                right={<Text style={styles.versionText}>1.0.0</Text>}
+                                onPress={handleVersionTap}
+                                right={
+                                    <Text style={styles.versionText}>
+                                        1.0.0{isDevMode ? ' (DEV)' : ''}
+                                    </Text>
+                                }
                             />
 
                             <View style={{ height: 20 }} />

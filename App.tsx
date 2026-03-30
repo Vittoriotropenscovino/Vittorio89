@@ -49,7 +49,7 @@ const AppContent: React.FC = () => {
 
   const { authenticated } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
   const visitedCountries = useFogOfWar(trips);
-  const { isPremium, price, purchase, restore, canAddTrip, remainingFreeTrips, FREE_TRIP_LIMIT } = usePurchase();
+  const { isPremium, price, purchase, restore, canAddTrip, remainingFreeTrips, FREE_TRIP_LIMIT, setDevMode } = usePurchase();
 
   // Flythrough animation
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
@@ -346,7 +346,8 @@ const AppContent: React.FC = () => {
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onShowHelpGuide={() => openModal('helpGuide')}
         onItinerariesReset={() => setItineraries([])}
-        isPremium={isPremium} price={price} onPurchase={purchase} onRestore={restore} />
+        isPremium={isPremium} price={price} onPurchase={purchase} onRestore={restore}
+        onDevModeToggle={setDevMode} />
       {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => closeModal()} />}
       {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => closeModal()} />}
       {activeModal === 'helpGuide' && <HelpGuide visible={activeModal === 'helpGuide'} onClose={() => closeModal()} />}
