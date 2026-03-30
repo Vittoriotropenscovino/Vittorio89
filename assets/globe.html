@@ -322,6 +322,10 @@ function go(countries){
     c.maxDistance=600;
     c.enablePan=false;
 
+    // Near clipping plane: prevent z-fighting and rendering artifacts at deep zoom
+    c.object.near=1;
+    c.object.updateProjectionMatrix();
+
     // Smart auto-rotate: pause on interaction, resume after 7s idle
     var _idleTimer=null;
     c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
@@ -361,6 +365,18 @@ function go(countries){
       }
       if(window._scannerRing){
         window._scannerRing.material.opacity=(0.06+0.06*Math.sin(Date.now()*0.001))*t;
+      }
+
+      // Fade globe surface when camera approaches/enters sphere (radius ~100)
+      // Prevents black screen at deep zoom by making sphere transparent
+      // Pins, rings, labels, country borders remain visible on all layers
+      var gm=globe.globeMaterial();
+      if(dist<105){
+        var globeOpacity=Math.max(0,(dist-95)/10); // 1.0 at dist=105, 0.0 at dist=95
+        gm.transparent=true;
+        gm.opacity=globeOpacity;
+      }else{
+        if(gm.transparent){gm.transparent=false;gm.opacity=1;}
       }
     }
 
