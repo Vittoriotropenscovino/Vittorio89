@@ -239,6 +239,7 @@ function go(countries){
       m.emissive.set('#0d3560');
       m.emissiveIntensity=0.5;
       m.shininess=5;
+      m.side=THREE.DoubleSide;
     }catch(e){}
 
     // Scene enhancements
@@ -299,7 +300,7 @@ function go(countries){
     c.dampingFactor=0.12;
     c.rotateSpeed=0.8;
     c.zoomSpeed=1.0;
-    c.minDistance=110;
+    c.minDistance=85;
     c.maxDistance=600;
     c.enablePan=false;
 
@@ -324,6 +325,34 @@ function go(countries){
           if(Math.abs(f-_zoomFactor)>0.03||altChanged){
             _zoomFactor=f;
             c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
+
+            // === ZOOM ADAPTIVE VISUALS — inizio ===
+            var t=Math.max(0,Math.min(1,(dist-85)/95));
+            if(globe.polygonsData&&globe.polygonsData().length>0){
+              globe
+                .polygonStrokeColor(function(feat){
+                  var code=feat.properties&&feat.properties.ISO_A2;
+                  var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
+                  if(visited)return 'rgba(0,230,255,'+(0.8*t+0.2*(1-t))+')';
+                  return 'rgba(0,220,255,'+(0.25*t+0.08*(1-t))+')';
+                })
+                .polygonCapColor(function(feat){
+                  var code=feat.properties&&feat.properties.ISO_A2;
+                  var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
+                  if(visited)return 'rgba(0,220,255,'+(0.12*t+0.03*(1-t))+')';
+                  return 'rgba(0,0,0,0)';
+                })
+                .polygonSideColor(function(feat){
+                  var code=feat.properties&&feat.properties.ISO_A2;
+                  var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
+                  if(visited)return 'rgba(0,220,255,'+(0.3*t+0.06*(1-t))+')';
+                  return 'rgba(0,200,255,'+(0.05*t)+')';
+                })
+                .polygonAltitude(0.009*t+0.002*(1-t));
+            }
+            globe.atmosphereAltitude(0.25*t+0.1*(1-t));
+            // === ZOOM ADAPTIVE VISUALS — fine ===
+
             renderPins();
           }
         }catch(ze){}
