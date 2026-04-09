@@ -239,7 +239,7 @@ function go(countries){
       m.emissive.set('#0d3560');
       m.emissiveIntensity=0.5;
       m.shininess=5;
-      m.side=THREE.DoubleSide;
+      m.side=THREE.FrontSide;
     }catch(e){}
 
     // Scene enhancements
@@ -300,7 +300,7 @@ function go(countries){
     c.dampingFactor=0.12;
     c.rotateSpeed=0.8;
     c.zoomSpeed=1.0;
-    c.minDistance=70;
+    c.minDistance=103;
     c.maxDistance=600;
     c.enablePan=false;
 
@@ -318,45 +318,6 @@ function go(countries){
         lastZoomUpdate=now;
         try{
           var dist=c.object.position.length();
-
-          // === GLOBE FADE + ADAPTIVE VISUALS (ogni 100ms) ===
-          // Globe fade: sotto 105 sfuma, sotto 95 trasparente
-          var globeOpacity=1.0;
-          if(dist<105){
-            globeOpacity=Math.max(0,(dist-95)/10);
-          }
-          if(globe.globeMaterial){
-            var mat=globe.globeMaterial();
-            mat.transparent=true;
-            mat.opacity=globeOpacity;
-          }
-
-          // Bordi paesi e atmosfera adattivi
-          var t=Math.max(0,Math.min(1,(dist-85)/95));
-          if(globe.polygonsData&&globe.polygonsData().length>0){
-            globe
-              .polygonStrokeColor(function(feat){
-                var code=feat.properties&&feat.properties.ISO_A2;
-                var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
-                if(visited)return 'rgba(0,230,255,'+(0.8*t+0.2*(1-t))+')';
-                return 'rgba(0,220,255,'+(0.25*t+0.08*(1-t))+')';
-              })
-              .polygonCapColor(function(feat){
-                var code=feat.properties&&feat.properties.ISO_A2;
-                var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
-                if(visited)return 'rgba(0,220,255,'+(0.12*t+0.02*(1-t))+')';
-                return 'rgba(0,0,0,0)';
-              })
-              .polygonSideColor(function(feat){
-                var code=feat.properties&&feat.properties.ISO_A2;
-                var visited=_visitedCountries&&_visitedCountries.indexOf(code)!==-1;
-                if(visited)return 'rgba(0,220,255,'+(0.3*t+0.05*(1-t))+')';
-                return 'rgba(0,200,255,'+(0.05*t)+')';
-              })
-              .polygonAltitude(0.009*t+0.002*(1-t));
-          }
-          globe.atmosphereAltitude(0.25*t+0.08*(1-t));
-          // === FINE ===
 
           var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
           var alt=globe.pointOfView().altitude;
