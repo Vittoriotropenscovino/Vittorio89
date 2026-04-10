@@ -278,6 +278,8 @@ const it = {
   upgradePremium: 'Passa a Premium',
   restorePurchases: 'Ripristina Acquisti',
   freeTripsRemaining: '{0} viaggi gratuiti rimanenti',
+  selectTrip: 'Seleziona viaggio',
+  tripsInArea: 'viaggi in questa zona',
 };
 
 const en: typeof it = {
@@ -557,6 +559,8 @@ const en: typeof it = {
   upgradePremium: 'Upgrade to Premium',
   restorePurchases: 'Restore Purchases',
   freeTripsRemaining: '{0} free trips remaining',
+  selectTrip: 'Select trip',
+  tripsInArea: 'trips in this area',
 };
 
 const es: typeof it = {
@@ -827,6 +831,8 @@ const es: typeof it = {
   upgradePremium: 'Pasar a Premium',
   restorePurchases: 'Restaurar Compras',
   freeTripsRemaining: '{0} viajes gratuitos restantes',
+  selectTrip: 'Seleccionar viaje',
+  tripsInArea: 'viajes en esta zona',
 };
 
 const fr: typeof it = {
@@ -1097,6 +1103,8 @@ const fr: typeof it = {
   upgradePremium: 'Passer à Premium',
   restorePurchases: 'Restaurer les Achats',
   freeTripsRemaining: '{0} voyages gratuits restants',
+  selectTrip: 'Sélectionner le voyage',
+  tripsInArea: 'voyages dans cette zone',
 };
 
 const de: typeof it = {
@@ -1367,6 +1375,8 @@ const de: typeof it = {
   upgradePremium: 'Auf Premium upgraden',
   restorePurchases: 'Käufe Wiederherstellen',
   freeTripsRemaining: '{0} kostenlose Reisen übrig',
+  selectTrip: 'Reise auswählen',
+  tripsInArea: 'Reisen in dieser Gegend',
 };
 
 const pt: typeof it = {
@@ -1637,6 +1647,8 @@ const pt: typeof it = {
   upgradePremium: 'Atualizar para Premium',
   restorePurchases: 'Restaurar Compras',
   freeTripsRemaining: '{0} viagens gratuitas restantes',
+  selectTrip: 'Selecionar viagem',
+  tripsInArea: 'viagens nesta zona',
 };
 
 const zh: typeof it = {
@@ -1907,6 +1919,8 @@ const zh: typeof it = {
   upgradePremium: '升级到 Premium',
   restorePurchases: '恢复购买',
   freeTripsRemaining: '剩余{0}次免费旅行',
+  selectTrip: '选择旅行',
+  tripsInArea: '此区域的旅行',
 };
 
 const ja: typeof it = {
@@ -2177,6 +2191,8 @@ const ja: typeof it = {
   upgradePremium: 'プレミアムにアップグレード',
   restorePurchases: '購入を復元',
   freeTripsRemaining: '残り{0}回の無料旅行',
+  selectTrip: '旅行を選択',
+  tripsInArea: 'このエリアの旅行',
 };
 
 export const translations: Record<Language, typeof it> = { it, en, es, fr, de, pt, zh, ja };

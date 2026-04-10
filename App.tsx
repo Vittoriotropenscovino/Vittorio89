@@ -28,8 +28,21 @@ import OfflineBanner from './src/components/OfflineBanner';
 import ItineraryManager from './src/components/ItineraryManager';
 import HelpGuide from './src/components/HelpGuide';
 import PaywallScreen from './src/components/PaywallScreen';
+import PinSelector from './src/components/PinSelector';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
+
+const NEARBY_THRESHOLD_KM = 30;
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
@@ -55,6 +68,9 @@ const AppContent: React.FC = () => {
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
   // Auto-fly to newly saved trip
   const [autoFlyTarget, setAutoFlyTarget] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Pin selector popup for nearby pins
+  const [pinSelectorVisible, setPinSelectorVisible] = useState(false);
+  const [pinSelectorTrips, setPinSelectorTrips] = useState<Trip[]>([]);
 
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -212,7 +228,18 @@ const AppContent: React.FC = () => {
       {/* Layer 0: Globe */}
       <EarthGlobe
         trips={trips}
-        onPinClick={(trip) => selectTrip(trip)}
+        onPinClick={(trip) => {
+          const nearbyTrips = trips.filter(t =>
+            t.id !== trip.id &&
+            getDistanceKm(trip.latitude, trip.longitude, t.latitude, t.longitude) < NEARBY_THRESHOLD_KM
+          );
+          if (nearbyTrips.length === 0) {
+            selectTrip(trip);
+          } else {
+            setPinSelectorTrips([trip, ...nearbyTrips]);
+            setPinSelectorVisible(true);
+          }
+        }}
         targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
         homeLocation={settings.homeLocation || null}
         itineraries={itineraries}
@@ -378,6 +405,13 @@ const AppContent: React.FC = () => {
         onDeleteItinerary={deleteItinerary}
         onRenameItinerary={renameItinerary}
         onFlythrough={(stops) => { setFlythroughStops(stops); setTimeout(() => setFlythroughStops(null), 500); }} />
+      <PinSelector
+        visible={pinSelectorVisible}
+        trips={pinSelectorTrips}
+        onSelect={(trip) => selectTrip(trip)}
+        onClose={() => { setPinSelectorVisible(false); setPinSelectorTrips([]); }}
+        t={t}
+      />
     </View>
   );
 };
