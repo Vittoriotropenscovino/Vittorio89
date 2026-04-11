@@ -162,7 +162,11 @@ function go(countries){
       })
       .pointRadius(function(d){
         if(d.isHome)return 0.25+0.15*_zoomFactor;
-        return 0.12+0.10*_zoomFactor;
+        var base=0.12+0.10*_zoomFactor;
+        if(d.isCluster&&d.clusterCount>1){
+          base*=1+Math.min(0.5,d.clusterCount*0.1);
+        }
+        return base;
       })
       .pointResolution(8)
 
@@ -184,10 +188,14 @@ function go(countries){
         return d.label;
       })
       .labelSize(function(d){
-        return 0.2+0.35*_zoomFactor;
+        var dist=globe.controls().object.position.length();
+        var s=Math.min(1.0,Math.max(0.35,(dist-100)/200));
+        return (0.2+0.35*_zoomFactor)*s;
       })
       .labelDotRadius(function(d){
-        return 0.08+0.12*_zoomFactor;
+        var dist=globe.controls().object.position.length();
+        var s=Math.min(1.0,Math.max(0.35,(dist-100)/200));
+        return (0.08+0.12*_zoomFactor)*s;
       })
       .labelColor(function(d){
         var opacity=0;
@@ -398,33 +406,6 @@ function startFlythrough(stops){
   flyNext();
 }
 
-// === PIN OVERLAP FIX (fixed offset) ===
-function spreadPins(pins){
-  if(pins.length<2)return pins;
-  for(var i=0;i<pins.length;i++){
-    for(var j=i+1;j<pins.length;j++){
-      var dlat=pins[i].lat-pins[j].lat;
-      var dlng=pins[i].lng-pins[j].lng;
-      var dist=Math.sqrt(dlat*dlat+dlng*dlng);
-      if(dist<=0.0001){
-        var angle=(2*Math.PI*j)/Math.max(2,pins.length);
-        pins[i].lat+=0.4*Math.sin(angle);
-        pins[i].lng+=0.4*Math.cos(angle);
-        pins[j].lat-=0.4*Math.sin(angle);
-        pins[j].lng-=0.4*Math.cos(angle);
-      }else if(dist<0.8){
-        var nx=dlat/dist,ny=dlng/dist;
-        var push=0.2*(0.8-dist)/0.8;
-        pins[i].lat+=nx*push;
-        pins[i].lng+=ny*push;
-        pins[j].lat-=nx*push;
-        pins[j].lng-=ny*push;
-      }
-    }
-  }
-  return pins;
-}
-
 // === RENDER INDIVIDUAL PINS ===
 function renderPins(){
   if(!globe)return;
@@ -436,35 +417,32 @@ function renderPins(){
     dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true});
   }
 
-  // Build pin arrays from original trip coordinates
-  var tripPins=[];
   for(var i=0;i<_trips.length;i++){
     var t=_trips[i];
-    tripPins.push({lat:t.latitude,lng:t.longitude,idx:i});
-  }
-
-  // Apply spreading for overlapping pins
-  tripPins=spreadPins(tripPins);
-
-  for(var i=0;i<_trips.length;i++){
-    var t=_trips[i];
-    var sp=tripPins[i];
     var wl=t.isWishlist||false;
-    dp.push({lat:sp.lat,lng:sp.lng,tripId:t.id,color:wl?'#EC4899':'#EF4444',isHome:false,clusterCount:1,isWishlist:wl});
-    dr.push({lat:sp.lat,lng:sp.lng,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
+    var count=t.clusterCount||1;
+    dp.push({
+      lat:t.latitude,lng:t.longitude,
+      tripId:t.id,
+      color:wl?'#EC4899':'#EF4444',
+      isHome:false,
+      isCluster:t.isCluster||false,
+      clusterCount:count,
+      isWishlist:wl
+    });
+    dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
   }
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
 }
 
-// === UPDATE ARCS (separate from clustering) ===
+// === UPDATE ARCS ===
 function updateArcs(){
   if(!globe)return;
   var t=_trips;
-  if(!t||t.length===0){globe.arcsData([]);return;}
   var a=[];
-  // Home->trip arcs (per-trip showArc, not wishlist)
-  if(_home){
+  // Home->trip arcs: only for pins with showArc (>100km from home) and not wishlist
+  if(_home&&t&&t.length>0){
     t.forEach(function(x){
       if(x.showArc&&!x.isWishlist){
         a.push({
@@ -475,21 +453,16 @@ function updateArcs(){
       }
     });
   }
-  // Itinerary arcs (global toggle)
+  // Itinerary arcs: use pre-computed cluster-aware stops
   if(_showTravelLines&&_itineraries&&_itineraries.length>0){
-    var tripMap={};
-    t.forEach(function(x){tripMap[x.id]=x;});
     _itineraries.forEach(function(itin){
-      var ids=itin.tripIds||[];
-      for(var j=0;j<ids.length-1;j++){
-        var t1=tripMap[ids[j]],t2=tripMap[ids[j+1]];
-        if(t1&&t2){
-          a.push({
-            startLat:t1.latitude,startLng:t1.longitude,
-            endLat:t2.latitude,endLng:t2.longitude,
-            colors:['rgba(245,158,11,0.9)','rgba(245,158,11,0.5)']
-          });
-        }
+      var stops=itin.stops||[];
+      for(var j=0;j<stops.length-1;j++){
+        a.push({
+          startLat:stops[j].lat,startLng:stops[j].lng,
+          endLat:stops[j+1].lat,endLng:stops[j+1].lng,
+          colors:['rgba(245,158,11,0.9)','rgba(245,158,11,0.5)']
+        });
       }
     });
   }
@@ -499,9 +472,17 @@ function updateArcs(){
 // === MAIN UPDATE FUNCTION ===
 function updateTrips(t){
   if(!globe||!t)return;
-  // Copy trip data (spreading is handled dynamically in renderPins based on zoom)
+  // Copy pin data (already clustered in React Native)
   _trips=t.map(function(x){
-    return{id:x.id,title:x.title,latitude:x.latitude,longitude:x.longitude,isWishlist:x.isWishlist||false,showArc:x.showArc||false};
+    return{
+      id:x.id,
+      latitude:x.latitude,
+      longitude:x.longitude,
+      isWishlist:x.isWishlist||false,
+      showArc:x.showArc||false,
+      isCluster:x.isCluster||false,
+      clusterCount:x.clusterCount||1
+    };
   });
 
   renderPins();

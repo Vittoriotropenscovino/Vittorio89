@@ -52,10 +52,23 @@ export interface HomeLocation {
     name: string;
 }
 
+// Clustered Pin - group of nearby trips represented as a single pin
+export interface ClusteredPin {
+    id: string;
+    latitude: number;
+    longitude: number;
+    tripIds: string[];
+    isCluster: boolean;
+    isWishlist: boolean;
+    title: string;
+    distanceFromHomeKm: number;
+}
+
 // Earth Globe Props
 export interface EarthGlobeProps {
     trips: Trip[];
-    onPinClick: (trip: Trip) => void;
+    clusteredPins: ClusteredPin[];
+    onPinClick: (trip: Trip, clusterTrips?: Trip[]) => void;
     targetCoordinates?: Coordinates | null;
     autoRotate?: boolean;
     homeLocation?: HomeLocation | null;

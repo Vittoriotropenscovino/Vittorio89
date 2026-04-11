@@ -12,7 +12,7 @@ import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
-import { EarthGlobeProps, Trip } from '../types';
+import { EarthGlobeProps, Trip, ClusteredPin } from '../types';
 import { useApp } from '../contexts/AppContext';
 
 // Globe HTML and vendor libraries loaded from asset files
@@ -93,15 +93,21 @@ const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'abou
 
 const READY_TIMEOUT_MS = 15000;
 
-function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops }: EarthGlobeProps) {
+function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops }: EarthGlobeProps) {
   const { t } = useApp();
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
-  const pendingTrips = useRef<Trip[]>([]);
+  const pendingPins = useRef<ClusteredPin[] | null>(null);
+  const clusteredPinsRef = useRef<ClusteredPin[]>(clusteredPins);
+  const tripsRef = useRef<Trip[]>(trips);
   const [globeHtml, setGlobeHtml] = useState<string | null>(globeHtmlCache);
   const [globeReady, setGlobeReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const readyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Keep refs in sync so message handler always has latest data
+  useEffect(() => { clusteredPinsRef.current = clusteredPins; }, [clusteredPins]);
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
 
   // Load HTML from asset on mount
   useEffect(() => {
@@ -152,25 +158,39 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
     );
   }, []);
 
-  const tripData = useCallback((t: Trip[]) => t.map((tr) => ({
-    id: tr.id, title: tr.title, latitude: tr.latitude,
-    longitude: tr.longitude, createdAt: tr.createdAt,
-    itineraryId: tr.itineraryId,
-    showArc: tr.showArc || false,
-    isWishlist: tr.isWishlist || false,
+  const pinData = useCallback((pins: ClusteredPin[]) => pins.map((p) => ({
+    id: p.id,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    isWishlist: p.isWishlist,
+    isCluster: p.isCluster,
+    clusterCount: p.tripIds.length,
+    showArc: p.distanceFromHomeKm > 100,
   })), []);
 
+  const itineraryData = useCallback((pins: ClusteredPin[]) =>
+    (itineraries || []).map((it) => {
+      const stops: { lat: number; lng: number }[] = [];
+      const seen = new Set<string>();
+      for (const tripId of it.tripIds) {
+        const cluster = pins.find((c) => c.tripIds.indexOf(tripId) !== -1);
+        if (!cluster || seen.has(cluster.id)) continue;
+        seen.add(cluster.id);
+        stops.push({ lat: cluster.latitude, lng: cluster.longitude });
+      }
+      return { id: it.id, name: it.name, stops };
+    }),
+  [itineraries]);
+
   useEffect(() => {
-    const td = tripData(trips);
-    const itinData = (itineraries || []).map((it) => ({
-      id: it.id, name: it.name, tripIds: it.tripIds,
-    }));
+    const pd = pinData(clusteredPins);
+    const itinData = itineraryData(clusteredPins);
     if (isReady.current) {
-      sendToWebView({ type: 'updateTrips', trips: td, itineraries: itinData });
+      sendToWebView({ type: 'updateTrips', trips: pd, itineraries: itinData });
     } else {
-      pendingTrips.current = trips;
+      pendingPins.current = clusteredPins;
     }
-  }, [trips, itineraries, sendToWebView, tripData]);
+  }, [clusteredPins, itineraryData, sendToWebView, pinData]);
 
   useEffect(() => {
     if (isReady.current) {
@@ -213,11 +233,12 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
           isReady.current = true;
           setGlobeReady(true);
           setLoadError(false);
-          const src = pendingTrips.current.length > 0 ? pendingTrips.current : trips;
-          const itinData = (itineraries || []).map((it) => ({
-            id: it.id, name: it.name, tripIds: it.tripIds,
-          }));
-          sendToWebView({ type: 'updateTrips', trips: tripData(src), itineraries: itinData });
+          const src = pendingPins.current !== null ? pendingPins.current : clusteredPins;
+          sendToWebView({
+            type: 'updateTrips',
+            trips: pinData(src),
+            itineraries: itineraryData(src),
+          });
           if (homeLocation) {
             sendToWebView({ type: 'updateHome', home: homeLocation });
           }
@@ -225,16 +246,27 @@ function EarthGlobe({ trips, onPinClick, targetCoordinates, homeLocation, itiner
           if (visitedCountries) {
             sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries });
           }
-          pendingTrips.current = [];
+          pendingPins.current = null;
         } else if (data.type === 'pinClick') {
-          const trip = trips.find((t) => t.id === data.tripId);
-          if (trip) onPinClick(trip);
+          const cluster = clusteredPinsRef.current.find((c) => c.id === data.tripId);
+          const allTrips = tripsRef.current;
+          if (cluster) {
+            const clusterTrips = cluster.tripIds
+              .map((id) => allTrips.find((t) => t.id === id))
+              .filter((t): t is Trip => t !== undefined);
+            if (clusterTrips.length > 0) {
+              onPinClick(clusterTrips[0], clusterTrips);
+            }
+          } else {
+            const trip = allTrips.find((t) => t.id === data.tripId);
+            if (trip) onPinClick(trip);
+          }
         }
       } catch (e) {
         console.warn('[TravelSphere] WebView message parse error:', e);
       }
     },
-    [trips, itineraries, onPinClick, sendToWebView, homeLocation, showTravelLines, visitedCountries, tripData]
+    [clusteredPins, onPinClick, sendToWebView, homeLocation, showTravelLines, visitedCountries, pinData, itineraryData]
   );
 
   useEffect(() => {

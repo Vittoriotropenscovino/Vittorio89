@@ -31,18 +31,7 @@ import PaywallScreen from './src/components/PaywallScreen';
 import PinSelector from './src/components/PinSelector';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
-
-const NEARBY_THRESHOLD_KM = 30;
-
-function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { clusterTrips } from './src/utils/clusterTrips';
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
@@ -74,6 +63,12 @@ const AppContent: React.FC = () => {
 
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Clustered pins — recomputed when trips or home location change
+  const clusteredPins = useMemo(
+    () => clusterTrips(trips, settings.homeLocation || null),
+    [trips, settings.homeLocation]
+  );
 
   // Stats
   const stats = useMemo(() => {
@@ -228,16 +223,13 @@ const AppContent: React.FC = () => {
       {/* Layer 0: Globe */}
       <EarthGlobe
         trips={trips}
-        onPinClick={(trip) => {
-          const nearbyTrips = trips.filter(t =>
-            t.id !== trip.id &&
-            getDistanceKm(trip.latitude, trip.longitude, t.latitude, t.longitude) < NEARBY_THRESHOLD_KM
-          );
-          if (nearbyTrips.length === 0) {
-            selectTrip(trip);
-          } else {
-            setPinSelectorTrips([trip, ...nearbyTrips]);
+        clusteredPins={clusteredPins}
+        onPinClick={(trip, clusterTripList) => {
+          if (clusterTripList && clusterTripList.length > 1) {
+            setPinSelectorTrips(clusterTripList);
             setPinSelectorVisible(true);
+          } else {
+            selectTrip(trip);
           }
         }}
         targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
@@ -404,7 +396,30 @@ const AppContent: React.FC = () => {
         onCreateItinerary={handleCreateItinerary}
         onDeleteItinerary={deleteItinerary}
         onRenameItinerary={renameItinerary}
-        onFlythrough={(stops) => { setFlythroughStops(stops); setTimeout(() => setFlythroughStops(null), 500); }} />
+        onFlythrough={(stops) => {
+          // Remap stops through clusters: dedupe consecutive stops that fall in the same cluster
+          const remapped: { lat: number; lng: number }[] = [];
+          const seen = new Set<string>();
+          for (const s of stops) {
+            const cluster = clusteredPins.find((c) =>
+              Math.abs(c.latitude - s.lat) < 0.0001 && Math.abs(c.longitude - s.lng) < 0.0001
+            ) || clusteredPins.find((c) => {
+              // Fallback: find cluster whose tripIds contain a trip matching these coordinates
+              return trips.some((t) =>
+                c.tripIds.indexOf(t.id) !== -1 &&
+                Math.abs(t.latitude - s.lat) < 0.0001 &&
+                Math.abs(t.longitude - s.lng) < 0.0001
+              );
+            });
+            if (!cluster || seen.has(cluster.id)) continue;
+            seen.add(cluster.id);
+            remapped.push({ lat: cluster.latitude, lng: cluster.longitude });
+          }
+          if (remapped.length >= 2) {
+            setFlythroughStops(remapped);
+            setTimeout(() => setFlythroughStops(null), 500);
+          }
+        }} />
       <PinSelector
         visible={pinSelectorVisible}
         trips={pinSelectorTrips}
