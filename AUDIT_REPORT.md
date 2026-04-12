@@ -8,7 +8,7 @@
 - Totale file analizzati: ~35 (TS/TSX)
 - Totale righe di codice analizzate: ~8200
 - Data audit iniziale: 2025 (commit `729bee6`)
-- Ultimo aggiornamento documentazione: 2026-03-28
+- Ultimo aggiornamento documentazione: 2026-04-12
 
 ---
 
@@ -243,18 +243,24 @@ Le seguenti funzionalità sono state implementate dopo l'audit iniziale. I rifer
 | Feature | File Principali | Note |
 |---------|----------------|------|
 | Sistema Freemium con RevenueCat | `src/hooks/usePurchase.ts`, `src/services/PurchaseService.ts`, `src/components/PaywallScreen.tsx` | Acquisto one-time, 3 viaggi gratuiti, integrazione RevenueCat |
-| Dynamic Pin Clustering | `assets/globe.html` | Raggruppamento pin basato su distanza schermo (35px), ricalcolo ad ogni zoom |
-| Label Collision Detection | `assets/globe.html` | Algoritmo greedy con priorità per evitare sovrapposizioni label |
-| Adaptive Zoom Visuals | `assets/globe.html` | Transizioni visive dinamiche sotto distanza camera 200, minDistance 110→70 |
 | Guida In-App (HelpGuide) | `src/components/HelpGuide.tsx` | 8 sezioni di aiuto tradotte in 8 lingue |
 | Privacy Policy aggiornata | `src/components/PrivacyPolicy.tsx` | Aggiunta menzione servizi Nominatim e Photon, tradotta in 8 lingue |
 | Rimozione tipi `any` | Multipli file | TypeScript strict compliance migliorata |
+| Fix schermo nero deep zoom | `assets/globe.html` | minDistance=103, FrontSide material, rimossa logica fade |
+| Real Clustering in React Native | `src/utils/clusterTrips.ts`, `src/types/index.ts`, `src/components/EarthGlobe.tsx`, `App.tsx`, `assets/globe.html` | Clustering transitivo 30km lato RN, rimosso `spreadPins()` dal globo. Sostituisce Dynamic Pin Clustering e Label Collision Detection |
+| PinSelector popup | `src/components/PinSelector.tsx` | Modal per scegliere un trip quando il pin rappresenta un cluster con >1 trip |
+| closeFactor zoom-responsive | `assets/globe.html` | `_closeFactor` (0.25–1.0) ridimensiona pin/label/ring a zoom ravvicinato |
+| Archi sottili e semi-trasparenti | `assets/globe.html` | arcStroke 0.3, arcDashGap 0.2, opacità 0.25. Archi home→trip solo per pin >100km da casa |
+| Itinerari cluster-aware | `src/components/EarthGlobe.tsx`, `App.tsx` | Stop itinerario e flythrough deduplicati attraverso cluster |
 
 **Crescita file significativa post-audit:**
+- `App.tsx`: da ~473 a ~523 righe (+11%) — aggiunta logica clustering e PinSelector
 - `TripForm.tsx`: da ~500 a ~747 righe (+49%)
+- `EarthGlobe.tsx`: da ~323 a ~355 righe (+10%) — refactor per clusteredPins
 - `SettingsScreen.tsx`: da ~542 a ~627 righe (+16%)
 - `OnboardingScreen.tsx`: da ~200 a ~304 righe (+52%)
 - `ItineraryManager.tsx`: da ~250 a ~287 righe (+15%)
+- `globe.html`: da ~697 a ~514 righe (-26%) — rimosso spreadPins, clustering, collision detection
 
 ---
 

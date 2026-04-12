@@ -70,7 +70,7 @@ App.tsx (root)
 /Vittorio89/
 ├── src/
 │   ├── components/ (18 file)
-│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~323 righe - vendor bundling + timeout)
+│   │   ├── EarthGlobe.tsx        (integrazione globe.gl, ~355 righe - vendor bundling + clustering bridge)
 │   │   ├── TripForm.tsx          (crea/modifica viaggi, ~747 righe, check offline)
 │   │   ├── MemoryViewer.tsx      (galleria media, ~271 righe, FlatList windowing)
 │   │   ├── TripSidebar.tsx       (sidebar lista viaggi, ~360 righe)
@@ -85,6 +85,7 @@ App.tsx (root)
 │   │   ├── HelpGuide.tsx         (guida in-app, ~92 righe, 8 sezioni tradotte)
 │   │   ├── PaywallScreen.tsx     (paywall freemium, ~248 righe, acquisto/restore)
 │   │   ├── SaveConfirmation.tsx  (toast notifica, ~68 righe)
+│   │   ├── PinSelector.tsx       (popup selezione trip da cluster, ~103 righe)
 │   │   ├── OfflineBanner.tsx     (stato rete, ~51 righe)
 │   │   ├── ErrorBoundary.tsx     (recovery errori, ~138 righe)
 │   │   └── index.ts              (barrel export)
@@ -109,18 +110,19 @@ App.tsx (root)
 │   ├── i18n/
 │   │   └── translations.ts       (8 lingue, ~254 chiavi, ~2183 righe)
 │   └── utils/
+│       ├── clusterTrips.ts        (clustering transitivo 30km, ~93 righe) ← NUOVO
 │       ├── geocoding.ts           (Nominatim + fallback, ~61 righe)
 │       ├── countryFlags.ts        (conversione emoji bandiere, ~21 righe)
 │       ├── validateTrip.ts        (validazione + sanitizzazione import, ~154 righe)
 │       └── __tests__/
 │           └── geocoding.test.ts  (test geocoding, ~110 righe)
 ├── assets/
-│   ├── globe.html                (HTML/JS globo 3D, ~697 righe - vendor injection + clustering + collision)
+│   ├── globe.html                (HTML/JS globo 3D, ~514 righe - vendor injection + closeFactor)
 │   └── vendor/
 │       ├── topojson-client.min.txt  (topojson-client v3.1.0, 7.2 KB)
 │       ├── globe.gl.min.txt         (globe.gl v2.45.1, 1.76 MB)
 │       └── countries-110m.txt       (world atlas TopoJSON, 107.7 KB)
-├── App.tsx                        (entry point principale, ~473 righe - logica estratta in hooks)
+├── App.tsx                        (entry point principale, ~523 righe - logica estratta in hooks + clustering)
 ├── app.json                       (config Expo)
 ├── tsconfig.json
 ├── babel.config.js
@@ -135,9 +137,9 @@ App.tsx (root)
 
 ## FILE PRINCIPALI - DETTAGLIO
 
-### App.tsx (~473 righe) - Shell Principale
+### App.tsx (~523 righe) - Shell Principale
 
-Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `useTrips`, `useModals`, `useAuth`, `useFogOfWar`.
+Orchestratore dell'app. Tutta la logica è stata estratta in hook dedicati: `useTrips`, `useModals`, `useAuth`, `useFogOfWar`. Importa `clusterTrips` da `src/utils/clusterTrips.ts` per il clustering reale dei pin.
 
 **Stato delegato a hook estratti:**
 - `useTrips(t)` → `trips`, `itineraries`, `isLoading`, `saveTrip`, `deleteTrip`, `toggleFavorite`, `createItinerary`, `deleteItinerary`, `renameItinerary`
@@ -385,16 +387,30 @@ interface HomeLocation {
   countryCode?: string;
 }
 
+// Pin clusterizzato — gruppo di trip vicini rappresentato come singolo pin
+interface ClusteredPin {
+  id: string;              // id del primo trip nel cluster
+  latitude: number;        // centroide lat (media se cluster, esatto se singolo)
+  longitude: number;       // centroide lng
+  tripIds: string[];       // tutti i trip nel cluster
+  isCluster: boolean;      // true se >1 trip
+  isWishlist: boolean;     // true solo se TUTTI i trip sono wishlist
+  title: string;           // titolo trip o "N trips"
+  distanceFromHomeKm: number; // distanza da casa (Infinity se no home)
+}
+
 // Props del componente globo
 interface EarthGlobeProps {
   trips: Trip[];
-  onPinClick: (tripId: string) => void;
-  targetCoordinates?: { lat: number; lng: number; altitude?: number };
-  homeLocation?: HomeLocation;
+  clusteredPins: ClusteredPin[];  // pin pre-clusterizzati in React Native
+  onPinClick: (trip: Trip, clusterTrips?: Trip[]) => void;  // riceve cluster array
+  targetCoordinates?: Coordinates | null;
+  autoRotate?: boolean;
+  homeLocation?: HomeLocation | null;
   itineraries?: Itinerary[];
   showTravelLines?: boolean;
   visitedCountries?: string[];      // codici paese per fog of war
-  flythroughStops?: { lat: number; lng: number }[];
+  flythroughStops?: { lat: number; lng: number }[] | null;
 }
 
 // Configurazione tag con icona e colore
@@ -524,11 +540,11 @@ getStorageInfo(): Promise<StorageInfo>
 
 ---
 
-### src/components/EarthGlobe.tsx (~323 righe) - Globo 3D
+### src/components/EarthGlobe.tsx (~355 righe) - Globo 3D
 
-Componente React che wrappa una WebView con globe.gl. Librerie vendor bundlate localmente per supporto offline.
+Componente React che wrappa una WebView con globe.gl. Librerie vendor bundlate localmente per supporto offline. Riceve `clusteredPins` (pre-clusterizzati in React Native) e li manda alla WebView.
 
-**Vendor Bundling (NUOVO):**
+**Vendor Bundling:**
 ```typescript
 const globeHtmlModule = require('../../assets/globe.html');
 const topojsonModule = require('../../assets/vendor/topojson-client.min.txt');
@@ -540,7 +556,7 @@ const countriesModule = require('../../assets/vendor/countries-110m.txt');
 - Cache del risultato in `globeHtmlCache` per riutilizzo
 - Fallback CDN (`unpkg.com`, `cdn.jsdelivr.net`) se i file locali falliscono
 
-**Timeout WebView con Error Overlay (NUOVO):**
+**Timeout WebView con Error Overlay:**
 ```typescript
 READY_TIMEOUT_MS = 15000  // 15 secondi timeout
 ```
@@ -548,13 +564,39 @@ READY_TIMEOUT_MS = 15000  // 15 secondi timeout
 - Overlay semi-trasparente con icona globo, messaggio errore, pulsante "Riprova"
 - `retryLoad()`: resetta stato, ricarica WebView, reimmposta timeout
 
+**Clustering Bridge (pinData / itineraryData):**
+```typescript
+// Mappa ClusteredPin → formato WebView
+const pinData = (pins: ClusteredPin[]) => pins.map(p => ({
+  id, latitude, longitude, isWishlist, isCluster, clusterCount,
+  showArc: p.distanceFromHomeKm > 100  // arco solo se >100km da casa
+}));
+
+// Deduplica stop itinerario attraverso cluster
+const itineraryData = (pins: ClusteredPin[]) =>
+  itineraries.map(it => {
+    // Per ogni tripId, trova il cluster che lo contiene
+    // Deduplica stop con Set di cluster ID
+    return { id, name, stops: [{lat,lng}] };
+  });
+```
+
+**Refs sincronizzati per handleMessage:**
+- `clusteredPinsRef` e `tripsRef` aggiornati via useEffect, così `handleMessage` ha sempre dati freschi senza ricreare la callback.
+
+**pinClick handler:**
+- Trova cluster da `clusteredPinsRef.current` per `data.tripId`
+- Costruisce array trip dal cluster: `cluster.tripIds.map(id => trips.find(...))`
+- Chiama `onPinClick(clusterTrips[0], clusterTrips)` — il parent decide se aprire PinSelector o il trip direttamente
+
 **Struttura del file:**
 - Imports, costanti, funzioni di caricamento asset
 - Componente React con WebView + timeout + error overlay
-- useEffect per comunicazione RN→WebView (trips, home, settings)
+- Callback `pinData()` e `itineraryData()` per mappare clusteredPins
+- useEffect per comunicazione RN→WebView (trips, home, travelLines, visitedCountries, flyTo, flythrough)
 - Handler onMessage per comunicazione WebView→RN (pinClick, ready)
 
-**Il file `assets/globe.html` (~697 righe) contiene:**
+**Il file `assets/globe.html` (~514 righe) contiene:**
 
 #### Sfondo Stelle (canvas separato)
 - 250 stelle con posizioni random
@@ -611,36 +653,45 @@ polygonStrokeColor: 'rgba(0,220,255,0.25)'  // contorno tenue
 polygonAltitude: 0.009                       // leggera elevazione 3D
 ```
 
-#### Pin dei Viaggi
+#### Pin dei Viaggi (con closeFactor)
 ```javascript
 // Colori pin
 Home:     '#FFD700' (oro)
 Trip:     '#EF4444' (rosso)
 Wishlist: '#EC4899' (rosa)
 
-// Dimensioni (scalano con zoom)
-pointRadius: isHome ? 0.25+0.15*zoomFactor : 0.12+0.10*zoomFactor
-pointAltitude: 0.01+0.04*zoomFactor
+// closeFactor — calcolato in renderPins() da camera distance
+// Riduce dimensioni a zoom ravvicinato (dist ~103)
+_closeFactor = Math.min(1.0, Math.max(0.25, (dist - 100) / 150))
+// dist=300+: 1.0 | dist=200: 0.67 | dist=150: 0.33 | dist=103: 0.25
+
+// Dimensioni (scalano con zoom + closeFactor)
+pointRadius home: (0.25+0.15*zoomFactor) * closeFactor
+pointRadius trip: (0.12+0.10*zoomFactor) * closeFactor
+pointRadius cluster: base * (1 + Math.min(0.5, clusterCount * 0.1))  // +10% per trip, max +50%
+pointAltitude: (0.01+0.04*zoomFactor) * closeFactor
 ```
 
 #### Ring Pulsanti
 - Velocità propagazione: 2.5
 - Periodo ripetizione: 1200ms
-- Raggio max: 0.6 + 1.2 * zoomFactor
+- Raggio max: (0.6 + 1.2 * zoomFactor) * closeFactor
 - Colore ring: oro (home), rosso (trip), rosa (wishlist)
 
-#### Label (Titoli Viaggio)
+#### Label (Solo Home visibile)
+- Solo la label Home è renderizzata (trip labels rimosse, i trip hanno solo pin)
+- Size e dotRadius scalano con closeFactor: `(0.2+0.35*zoomFactor)*closeFactor`
+- Altitude: `0.015 * closeFactor`
 - Opacity graduale basata su altitudine camera:
-  - altitude <= 0.5: opacity piena (0.95)
-  - altitude >= 1.2: invisibile (0.0)
-  - Fra 0.5 e 1.2: fade lineare
-- Home sempre visibile (opacity ridotta quando lontano)
-- Colori: oro (home), rosa (wishlist), bianco (trips)
+  - Home: opacity 0.4 quando lontano (alt>2.0), 0.95 quando vicino
+  - Colore: oro (home)
 
-#### Archi Animati (Travel Lines)
-- Archi Home→Trip: gradiente oro→rosso
-- Archi Itinerario: gradiente arancione
-- Dash length 0.5, gap 0.1, animate time 2000ms, stroke 0.8
+#### Archi Animati (Travel Lines) — sottili e semi-trasparenti
+- Archi Home→Trip: gradiente oro→rosso, **solo per pin >100km da casa** (filtro `showArc`)
+- Archi Itinerario: gradiente arancione, stop pre-calcolati e deduplicati per cluster
+- arcStroke: **0.3** (sottile, come rotte aeree)
+- arcDashLength: 0.5, arcDashGap: **0.2**, arcDashAnimateTime: 2000ms
+- Opacità archi: **0.25** (semi-trasparenti, non coprono la mappa)
 
 #### Particelle Flottanti (Custom Layer)
 - 2 particelle rosse per viaggio
@@ -656,7 +707,7 @@ enableDamping: true
 dampingFactor: 0.12            // smorzamento rotazione
 rotateSpeed: 0.8
 zoomSpeed: 1.0
-minDistance: 70                 // zoom massimo avvicinamento (ridotto da 110 per deep zoom)
+minDistance: 103                // zoom massimo avvicinamento (camera fuori da tutti i layer 3D)
 maxDistance: 600                // zoom massimo allontanamento
 enablePan: false               // no trascinamento
 ```
@@ -674,62 +725,21 @@ if (|newFactor - oldFactor| > 0.03 || altitudeChanged > 0.05) {
 }
 ```
 
-#### spreadPins() - Offset Pin Sovrapposti
+#### renderPins() — Rendering diretto
 ```javascript
-// Per pin a coordinate IDENTICHE: offset circolare fisso 0.3°
-// Per pin molto vicini (< 0.5°): nudge di 0.15°
-// NON dipende dallo zoom - offset fisso una tantum
+// I pin arrivano già clusterizzati da React Native (nessun spreadPins nel globo)
+// renderPins() costruisce 3 array: dp (points), dr (rings), dl (labels)
+// Calcola _closeFactor dalla distanza camera
+// Home: pin oro + ring oro + label con nome
+// Trip/Cluster: pin rosso/rosa + ring, NO label (solo pin)
+// Chiama: globe.pointsData(dp).ringsData(dr).labelsData(dl)
 ```
 
-#### Zoom-Adaptive Visuals (NUOVO)
-Attivato sotto distanza camera 200. Funzione `updateZoomVisuals(dist)` modifica in tempo reale:
+#### updateArcs() — Archi cluster-aware
 ```javascript
-// Fattore t = normalizzato tra 0 (zoom max, dist=70) e 1 (dist=200+)
-t = max(0, min(1, (dist - 70) / 130))
-
-// Poligoni paesi visitati: opacity stroke/cap/side diminuisce con zoom
-visitedStrokeOp = 0.8*t + 0.15*(1-t)     // da 0.8 a 0.15
-visitedCapOp    = 0.12*t + 0.02*(1-t)     // da 0.12 a 0.02
-
-// Atmosfera: si restringe con zoom
-atmosphereAltitude = 0.25*t + 0.08*(1-t)  // da 0.25 a 0.08
-
-// Halo, griglia, scanner: sfumano con zoom
-haloMesh.opacity = 0.1*t                  // sparisce a zoom massimo
-gridLines.opacity = 0.09*t + 0.01*(1-t)
-polygonAltitude = 0.009*t + 0.001*(1-t)   // quasi piatti a zoom max
-```
-
-#### Dynamic Pin Clustering (NUOVO)
-Funzione `clusterPins(tripPins, trips)` raggruppa pin vicini sullo schermo:
-```javascript
-MIN_DIST = 35  // pixel soglia per clustering
-
-// Algoritmo:
-// 1. Proietta coordinate 3D → 2D schermo con projectToScreen()
-// 2. Per ogni pin non ancora raggruppato:
-//    - Se è il pin selezionato → sempre singolo (mai clusterizzato)
-//    - Cerca pin entro MIN_DIST pixel → forma cluster
-// 3. Cluster: media lat/lng, conteggio, colore rosso/rosa
-// 4. Home mai clusterizzato
-
-// Rendering cluster:
-// - Pin più grande (scalato con clusterCount)
-// - Label mostra il numero di pin raggruppati
-// - Colore: rosso (#EF4444) per trip, rosa (#EC4899) se tutti wishlist
-```
-
-#### Label Collision Detection (NUOVO)
-Previene sovrapposizione label dopo il clustering:
-```javascript
-// Bounding box: 120x20 pixel, scalato con exScale = max(1, 2.5 - altitude)
-LABEL_W = 120, LABEL_H = 20
-
-// Algoritmo:
-// 1. Proietta tutte le label su schermo 2D
-// 2. Ordina per priorità: pin selezionato (50) > home (100) > altri (0)
-// 3. Accetta label se non sovrapposta a label già accettate
-// 4. Label rifiutate marcate con _hidden:true → fadeout nel rendering
+// Home→trip: solo per pin con showArc=true (distanceFromHomeKm > 100) e non wishlist
+// Itinerario: usa itin.stops pre-calcolati (già deduplicati per cluster in EarthGlobe.tsx)
+// Nessun arco degenere su stop identici (cluster unifica trip vicini)
 ```
 
 #### Flythrough (Animazione Itinerario)
@@ -1007,6 +1017,61 @@ helpWishlistTitle/Text, helpStatsTitle/Text
 
 ---
 
+### src/utils/clusterTrips.ts (~93 righe) - Clustering Transitivo
+
+Utility che raggruppa trip vicini (<30km) in `ClusteredPin`. Eseguito in React Native via `useMemo` in App.tsx.
+
+**Costante:** `CLUSTER_RADIUS_KM = 30`
+
+**Funzioni esportate:**
+```typescript
+// Distanza Haversine tra due punti (km)
+getDistanceKm(lat1, lon1, lat2, lon2): number
+
+// Clustering transitivo: raggruppa trip vicini in ClusteredPin[]
+clusterTrips(trips: Trip[], homeLocation?: HomeLocation | null): ClusteredPin[]
+```
+
+**Algoritmo:**
+1. Filtra coordinate invalide: `(0,0)` e `NaN`
+2. Per ogni trip non ancora usato:
+   - Crea un gruppo iniziale con quel trip
+   - Loop `while(added)`: confronta ogni candidato con OGNI membro del gruppo
+   - Se distanza < 30km → aggiunge al gruppo (clustering transitivo: A-B-C formano un cluster anche se A-C > 30km)
+3. Cluster singolo: usa coordinate esatte, `isCluster=false`
+4. Cluster multiplo: centroide (media lat/lng), `isCluster=true`, title=`"{N} trips"`
+5. `isWishlist=true` solo se TUTTI i trip del cluster sono wishlist
+6. Calcola `distanceFromHomeKm` dal centroide alla home (o `Infinity` se no home)
+
+---
+
+### src/components/PinSelector.tsx (~103 righe) - Selezione Trip da Cluster
+
+Modal popup che appare quando l'utente tocca un pin che rappresenta un cluster con >1 trip. Permette di scegliere quale trip aprire.
+
+**Props:**
+```typescript
+{
+  visible: boolean;
+  trips: Trip[];
+  onSelect: (trip: Trip) => void;
+  onClose: () => void;
+  t: (key: string) => string;
+}
+```
+
+**Layout:**
+- Backdrop semi-trasparente con chiusura al tap
+- Card centrata con header (icona location, titolo, conteggio trip, pulsante chiudi)
+- FlatList di trip con:
+  - Dot colorato (rosa wishlist, rosso trip)
+  - Titolo, luogo, data
+  - Primi 3 tag con colori da TAG_CONFIG
+  - Icona stella se preferito
+  - Chevron forward
+
+---
+
 ### src/utils/validateTrip.ts (~154 righe) - Validazione e Sanitizzazione Import
 
 Modulo di validazione per i dati importati da file JSON esterno.
@@ -1125,27 +1190,31 @@ Utente compila TripForm → preme Salva
   → Fly globo alla posizione del viaggio salvato
 ```
 
-### Comunicazione col Globo
+### Comunicazione col Globo (con clustering)
 ```
-trips o settings cambiano
-  → useEffect in componente EarthGlobe
-  → webViewRef.postMessage(JSON.stringify({type:'updateTrips', trips: mappedTrips}))
-  → WebView riceve messaggio in onMsg()
-  → handleCmd() smista per tipo
-  → Per 'updateTrips': _trips = d.trips → renderPins()
-  → renderPins() costruisce 3 array: points, rings, labels
+trips o homeLocation cambiano
+  → useMemo in App.tsx ricalcola clusteredPins via clusterTrips()
+  → useEffect in EarthGlobe rileva cambio clusteredPins
+  → pinData() mappa ClusteredPin → formato WebView (id, lat, lng, isCluster, clusterCount, showArc)
+  → itineraryData() calcola stop deduplicati per cluster
+  → injectJavaScript(handleMessageFromRN({type:'updateTrips', trips, itineraries}))
+  → WebView: updateTrips() copia in _trips → renderPins() + updateArcs()
+  → renderPins() calcola _closeFactor, costruisce dp/dr/dl
   → globe.pointsData(dp).ringsData(dr).labelsData(dl)
-  → Globe.gl re-renderizza i pin
 ```
 
-### Click su Pin
+### Click su Pin (con risoluzione cluster)
 ```
 Utente tocca un pin sul globo
   → globe.gl chiama onPin(point)
-  → onPin() manda postMessage({type:'pinClick', tripId: p.tripId})
-  → React Native onMessage handler riceve il messaggio
-  → EarthGlobe chiama onPinClick(tripId)
-  → App.tsx trova il trip, apre MemoryViewer o TripSidebar
+  → onPin() zooma progressivamente + manda postMessage({type:'pinClick', tripId})
+  → EarthGlobe.handleMessage riceve il messaggio
+  → Cerca cluster in clusteredPinsRef.current per data.tripId
+  → Se cluster trovato: mappa tripIds → array Trip via tripsRef
+  → Chiama onPinClick(clusterTrips[0], clusterTrips)
+  → App.tsx:
+    → Se clusterTrips.length > 1: apre PinSelector (popup selezione)
+    → Se clusterTrips.length === 1: apre il trip direttamente (selectTrip)
 ```
 
 ---
@@ -1267,14 +1336,17 @@ Modello freemium con acquisto one-time (no subscription). Tier gratuito: massimo
 ### 12. Guida In-App (HelpGuide) (NUOVO)
 Modale accessibile da sidebar e Settings con 8 sezioni di aiuto che coprono tutte le funzionalità dell'app: aggiunta viaggi, globo interattivo, fog of war, itinerari, linee di viaggio, backup, wishlist, statistiche e calendario. Completamente tradotta in tutte le 8 lingue.
 
-### 13. Adaptive Zoom Visuals (NUOVO)
-Transizioni visive dinamiche quando la camera scende sotto distanza 200. I bordi dei paesi visitati, l'atmosfera, l'halo, la griglia wireframe e lo scanner ring si sfumano progressivamente durante il deep zoom, per un'esperienza immersiva senza distrazioni visive. Camera minDistance ridotta da 110 a 70.
+### 13. Real Clustering in React Native
+Il clustering dei pin avviene in React Native PRIMA di mandare i dati alla WebView, tramite `clusterTrips()` (`src/utils/clusterTrips.ts`). Trip vicini (<30km, raggio Haversine) vengono raggruppati con algoritmo transitivo: A-B a 20km e B-C a 20km formano un cluster ABC anche se A-C >30km. Il cluster è rappresentato da un singolo pin al centroide. Home mai clusterizzato. `isWishlist` del cluster è `true` solo se TUTTI i trip sono wishlist. Sostituisce il vecchio approccio di clustering/collision detection nel WebView, garantendo coerenza tra pin, archi, flythrough e popup.
 
-### 14. Label Collision Detection (NUOVO)
-Algoritmo di rilevamento collisioni per le label dei pin sul globo. Proietta coordinate 3D in spazio 2D schermo, ordina per priorità (pin selezionato > home > altri), e nasconde label sovrapposte con bounding box 120x20px scalato in base all'altitudine della camera.
+### 14. PinSelector Popup
+Quando l'utente tocca un pin che rappresenta un cluster con >1 trip, si apre una modal (`PinSelector.tsx`) con la lista dei trip nel cluster. Ogni riga mostra titolo, luogo, data, tag colorati e indicatore preferito. Tap su una riga apre il trip. Se il cluster ha un solo trip, il trip si apre direttamente senza popup.
 
-### 15. Dynamic Pin Clustering (NUOVO)
-Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin troppo vicini vengono raggruppati in un cluster che mostra il conteggio. Il pin selezionato non viene mai clusterizzato. I cluster ereditano il colore (rosso per trip, rosa se tutti wishlist). Ricalcolato ad ogni cambio di zoom.
+### 15. closeFactor — Zoom-Responsive Sizing
+Variabile globale `_closeFactor` (0.25–1.0) calcolata in `renderPins()` dalla distanza camera: `Math.min(1.0, Math.max(0.25, (dist-100)/150))`. Moltiplicata in tutti gli accessor di dimensione: pointAltitude, pointRadius, ringMaxRadius, labelSize, labelDotRadius, labelAltitude. Impedisce che pin e label diventino giganti a zoom ravvicinato (dist ~103).
+
+### 16. Archi Sottili e Filtrati
+Gli archi home→trip sono mostrati SOLO per pin con `distanceFromHomeKm > 100` (campo `showArc` calcolato in EarthGlobe.tsx). arcStroke ridotto a 0.3, opacità a 0.25, dashGap a 0.2 — appaiono come rotte aeree sottili e semi-trasparenti, non barre colorate. Gli archi itinerario usano stop pre-calcolati e deduplicati attraverso i cluster.
 
 ---
 
@@ -1356,5 +1428,5 @@ Raggruppamento dinamico dei pin basato su distanza schermo (soglia 35px). Pin tr
 11. **Schema Versioning** → Sistema di migrazione dati per evoluzione dello schema senza perdita dati
 12. **Backup con Checksum SHA-256** → Verifica integrità backup prima di ruotare i vecchi, retrocompatibile con formato legacy
 13. **Freemium con RevenueCat** → Acquisto one-time, no subscription. Placeholder API keys per configurazione post-sviluppo. In __DEV__ sempre premium per test rapidi
-14. **Pin Clustering client-side** → Raggruppamento basato su distanza pixel sullo schermo, nessun backend necessario, ricalcolato ad ogni zoom
-15. **Label Collision Detection** → Algoritmo greedy con priorità per evitare sovrapposizioni, senza librerie esterne
+14. **Real Clustering in React Native** → Clustering transitivo 30km in `clusterTrips()`, eseguito lato RN con `useMemo`. Rimpiazza il vecchio approccio (spreadPins + collision detection nel WebView). Un solo meccanismo coerente per pin, popup, archi e flythrough
+15. **closeFactor Zoom-Responsive** → `_closeFactor` (0.25–1.0) calcolato dalla distanza camera, moltiplica ogni dimensione visiva nel globo. Impedisce pin/label giganti a zoom massimo (dist ~103)
