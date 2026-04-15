@@ -417,7 +417,7 @@ function renderPins(){
   if(_home){
     dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:_home.name||'Home',isHome:true});
+    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
   }
 
   for(var i=0;i<_trips.length;i++){
@@ -434,6 +434,9 @@ function renderPins(){
       isWishlist:wl
     });
     dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
+    if(t.label){
+      dl.push({lat:t.latitude,lng:t.longitude,tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
+    }
   }
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
@@ -451,7 +454,7 @@ function updateArcs(){
         a.push({
           startLat:_home.latitude,startLng:_home.longitude,
           endLat:x.latitude,endLng:x.longitude,
-          colors:['rgba(255,215,0,0.25)','rgba(239,68,68,0.25)']
+          colors:['rgba(255,215,0,0.7)','rgba(239,68,68,0.55)']
         });
       }
     });
@@ -464,7 +467,7 @@ function updateArcs(){
         a.push({
           startLat:stops[j].lat,startLng:stops[j].lng,
           endLat:stops[j+1].lat,endLng:stops[j+1].lng,
-          colors:['rgba(245,158,11,0.25)','rgba(245,158,11,0.25)']
+          colors:['rgba(245,158,11,0.65)','rgba(245,158,11,0.55)']
         });
       }
     });
@@ -484,7 +487,8 @@ function updateTrips(t){
       isWishlist:x.isWishlist||false,
       showArc:x.showArc||false,
       isCluster:x.isCluster||false,
-      clusterCount:x.clusterCount||1
+      clusterCount:x.clusterCount||1,
+      label:x.label||''
     };
   });
 

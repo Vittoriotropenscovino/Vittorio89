@@ -61,12 +61,16 @@ export function clusterTrips(trips: Trip[], homeLocation?: HomeLocation | null):
       latitude = group[0].latitude;
       longitude = group[0].longitude;
       isCluster = false;
-      title = group[0].title;
+      // City name only: first segment of locationName ("Roma, Lazio, Italia" -> "Roma")
+      const cityName = group[0].locationName
+        ? group[0].locationName.split(',')[0].trim()
+        : group[0].title;
+      title = cityName;
     } else {
       latitude = group.reduce((sum, t) => sum + t.latitude, 0) / group.length;
       longitude = group.reduce((sum, t) => sum + t.longitude, 0) / group.length;
       isCluster = true;
-      title = `${group.length} trips`;
+      title = `${group.length} città`;
     }
 
     let distanceFromHomeKm = Infinity;

@@ -166,6 +166,7 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
     isCluster: p.isCluster,
     clusterCount: p.tripIds.length,
     showArc: p.distanceFromHomeKm > 100,
+    label: p.title,
   })), []);
 
   const itineraryData = useCallback((pins: ClusteredPin[]) =>
