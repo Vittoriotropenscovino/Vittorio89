@@ -406,6 +406,16 @@ function renderPins(){
     _closeFactor=Math.min(1.0,Math.max(0.5,(dist-100)/150));
   }
 
+  // FIX: sincronizza _currentAltitude con il valore REALE della camera
+  // prima di valutare il gate delle label. Senza questo, al primo render
+  // _currentAltitude non è mai stato aggiornato e le label non appaiono.
+  try{
+    var pov=globe.pointOfView();
+    if(pov&&typeof pov.altitude==='number'){
+      _currentAltitude=pov.altitude;
+    }
+  }catch(e){}
+
   if(_home){
     dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
@@ -426,7 +436,7 @@ function renderPins(){
       isWishlist:wl
     });
     dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-    if(t.label&&_currentAltitude<2.5){
+    if(t.label&&_currentAltitude<=2.5){
       dl.push({lat:t.latitude,lng:t.longitude+(0.8*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
     }
   }
