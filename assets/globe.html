@@ -439,8 +439,8 @@ function updateArcs(){
   if(!globe)return;
   var t=_trips;
   var a=[];
-  // Home->trip arcs: only for pins with showArc (>100km from home) and not wishlist
-  if(_home&&t&&t.length>0){
+  // Home->trip arcs: gated by _showTravelLines toggle, same as itinerary arcs
+  if(_showTravelLines&&_home&&t&&t.length>0){
     t.forEach(function(x){
       if(x.showArc&&!x.isWishlist){
         a.push({

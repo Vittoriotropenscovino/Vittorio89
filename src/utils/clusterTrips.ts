@@ -88,6 +88,7 @@ export function clusterTrips(trips: Trip[], homeLocation?: HomeLocation | null):
       tripIds: group.map((t) => t.id),
       isCluster,
       isWishlist: group.every((t) => t.isWishlist === true),
+      showArc: group.some(t => t.showArc === true) || distanceFromHomeKm > 100,
       title,
       distanceFromHomeKm,
     });

@@ -60,6 +60,7 @@ export interface ClusteredPin {
     tripIds: string[];
     isCluster: boolean;
     isWishlist: boolean;
+    showArc: boolean;
     title: string;
     distanceFromHomeKm: number;
 }

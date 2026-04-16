@@ -165,7 +165,7 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
     isWishlist: p.isWishlist,
     isCluster: p.isCluster,
     clusterCount: p.tripIds.length,
-    showArc: p.distanceFromHomeKm > 100,
+    showArc: p.showArc,
     label: p.title,
   })), []);
 
