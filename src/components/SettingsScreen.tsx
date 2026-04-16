@@ -84,6 +84,12 @@ const SettingsScreen: React.FC<Props> = ({
         if (!visible) {
             setDevTapCount(0);
         }
+        return () => {
+            if (devTapTimer.current) {
+                clearTimeout(devTapTimer.current);
+                devTapTimer.current = null;
+            }
+        };
     }, [visible]);
 
     const handleVersionTap = useCallback(() => {
