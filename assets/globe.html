@@ -188,7 +188,7 @@ function go(countries){
         return d.label;
       })
       .labelSize(function(d){
-        return (0.35+0.45*_zoomFactor)*_closeFactor;
+        return (0.25+0.33*_zoomFactor)*_closeFactor;
       })
       .labelDotRadius(function(d){
         return 0;
@@ -409,7 +409,7 @@ function renderPins(){
   if(_home){
     dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-    dl.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
+    dl.push({lat:_home.latitude,lng:_home.longitude+(0.8*_closeFactor),tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
   }
 
   for(var i=0;i<_trips.length;i++){
@@ -427,7 +427,7 @@ function renderPins(){
     });
     dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
     if(t.label&&_currentAltitude<2.5){
-      dl.push({lat:t.latitude,lng:t.longitude,tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
+      dl.push({lat:t.latitude,lng:t.longitude+(0.8*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
     }
   }
 
