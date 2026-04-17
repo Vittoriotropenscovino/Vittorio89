@@ -188,17 +188,19 @@ function go(countries){
         return d.label;
       })
       .labelSize(function(d){
-        return 3.0;  // DIAGNOSTIC: fixed huge size
+        return (0.4+0.4*_zoomFactor)*_closeFactor;
       })
       .labelDotRadius(function(d){
         return 0;
       })
       .labelColor(function(d){
-        return 'rgba(0,255,0,1.0)';  // DIAGNOSTIC: bright green, fully opaque
+        if(d.isHome)return 'rgba(255,215,0,0.95)';
+        if(d.isWishlist)return 'rgba(236,72,153,0.95)';
+        return 'rgba(255,255,255,0.95)';
       })
       .labelResolution(1)
       .labelAltitude(function(){
-        return 0.1;  // DIAGNOSTIC: high altitude, floating above pins
+        return 0.02*_closeFactor;
       })
 
       // ANIMATED ARCS
@@ -333,8 +335,7 @@ function go(countries){
     window.addEventListener('message',onMsg);
 
     _ready=true;
-    // DIAGNOSTIC: dbg div stays visible
-    if(dbg){dbg.style.opacity='1';dbg.style.color='#0f0';dbg.style.fontSize='14px';}
+    setTimeout(function(){if(dbg)dbg.style.display='none';},2000);
     S({type:'ready'});
     L('ready');
   }catch(e){L('INIT ERR:'+e.message);}
@@ -418,7 +419,7 @@ function renderPins(){
   if(_home){
     dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
     dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
-    dl.push({lat:_home.latitude,lng:_home.longitude+(0.8*_closeFactor),tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
+    dl.push({lat:_home.latitude,lng:_home.longitude-(1.2*_closeFactor),tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
   }
 
   for(var i=0;i<_trips.length;i++){
@@ -435,15 +436,10 @@ function renderPins(){
       isWishlist:wl
     });
     dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-    if(t.label){
-      dl.push({lat:t.latitude,lng:t.longitude+(0.8*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
+    if(t.label&&_currentAltitude<=2.5){
+      dl.push({lat:t.latitude,lng:t.longitude+(1.2*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
     }
   }
-
-  // DIAGNOSTIC: log to dbg div
-  var sampleLabels=dl.slice(0,3).map(function(x){return x.label;}).join(',');
-  if(dbg){dbg.textContent='trips:'+_trips.length+' labels:'+dl.length+' alt:'+_currentAltitude.toFixed(2)+' | '+sampleLabels;}
-  S({type:'log',message:'RENDER: trips='+_trips.length+' labels='+dl.length+' alt='+_currentAltitude.toFixed(2)+' sample='+sampleLabels});
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
 }
