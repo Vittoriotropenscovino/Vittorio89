@@ -335,7 +335,8 @@ function go(countries){
     window.addEventListener('message',onMsg);
 
     _ready=true;
-    setTimeout(function(){if(dbg)dbg.style.display='none';},2000);
+    // DIAGNOSTIC: dbg div stays visible
+    if(dbg){dbg.style.opacity='1';dbg.style.color='#0f0';dbg.style.fontSize='14px';}
     S({type:'ready'});
     L('ready');
   }catch(e){L('INIT ERR:'+e.message);}
@@ -436,10 +437,15 @@ function renderPins(){
       isWishlist:wl
     });
     dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
-    if(t.label&&_currentAltitude<=2.5){
+    if(t.label){
       dl.push({lat:t.latitude,lng:t.longitude+(0.8*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
     }
   }
+
+  // DIAGNOSTIC: log to dbg div
+  var sampleLabels=dl.slice(0,3).map(function(x){return x.label;}).join(',');
+  if(dbg){dbg.textContent='trips:'+_trips.length+' labels:'+dl.length+' alt:'+_currentAltitude.toFixed(2)+' | '+sampleLabels;}
+  S({type:'log',message:'RENDER: trips='+_trips.length+' labels='+dl.length+' alt='+_currentAltitude.toFixed(2)+' sample='+sampleLabels});
 
   globe.pointsData(dp).ringsData(dr).labelsData(dl);
 }
