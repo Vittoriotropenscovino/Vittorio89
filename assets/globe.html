@@ -188,19 +188,17 @@ function go(countries){
         return d.label;
       })
       .labelSize(function(d){
-        return (0.25+0.33*_zoomFactor)*_closeFactor;
+        return 3.0;  // DIAGNOSTIC: fixed huge size
       })
       .labelDotRadius(function(d){
         return 0;
       })
       .labelColor(function(d){
-        if(d.isHome)return 'rgba(255,215,0,0.95)';
-        if(d.isWishlist)return 'rgba(236,72,153,0.95)';
-        return 'rgba(255,255,255,0.95)';
+        return 'rgba(0,255,0,1.0)';  // DIAGNOSTIC: bright green, fully opaque
       })
       .labelResolution(1)
       .labelAltitude(function(){
-        return 0.015*_closeFactor;
+        return 0.1;  // DIAGNOSTIC: high altitude, floating above pins
       })
 
       // ANIMATED ARCS
