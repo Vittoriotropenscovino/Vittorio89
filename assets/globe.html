@@ -188,7 +188,7 @@ function go(countries){
         return d.label;
       })
       .labelSize(function(d){
-        return (0.35-0.18*_zoomFactor)*_closeFactor;
+        return Math.max(0.08,(0.35-0.22*_zoomFactor))*_closeFactor;
       })
       .labelDotRadius(function(d){
         return 0;
