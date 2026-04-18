@@ -70,7 +70,7 @@ export function clusterTrips(trips: Trip[], homeLocation?: HomeLocation | null):
       latitude = group.reduce((sum, t) => sum + t.latitude, 0) / group.length;
       longitude = group.reduce((sum, t) => sum + t.longitude, 0) / group.length;
       isCluster = true;
-      title = `${group.length} città`;
+      title = `${group.length} citta`;
     }
 
     let distanceFromHomeKm = Infinity;
