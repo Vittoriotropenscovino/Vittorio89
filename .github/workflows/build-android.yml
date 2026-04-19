@@ -1,0 +1,144 @@
+name: Build Android AAB (Production)
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build AAB (signed)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Fix Expo dependency versions
+        run: npx expo install --fix
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > travelsphere-release.keystore
+          ls -lh travelsphere-release.keystore
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Configure signing in gradle
+        run: |
+          cat >> android/gradle.properties << EOF
+          TRAVELSPHERE_UPLOAD_STORE_FILE=../../travelsphere-release.keystore
+          TRAVELSPHERE_UPLOAD_KEY_ALIAS=${{ secrets.KEYSTORE_ALIAS }}
+          TRAVELSPHERE_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
+          TRAVELSPHERE_UPLOAD_KEY_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
+          EOF
+
+      - name: Patch build.gradle with signing config
+        run: |
+          python3 << 'EOF'
+          import re
+
+          path = 'android/app/build.gradle'
+          with open(path, 'r') as f:
+              content = f.read()
+
+          # Add signingConfig block inside android { ... }
+          signing_config = '''
+              signingConfigs {
+                  release {
+                      if (project.hasProperty('TRAVELSPHERE_UPLOAD_STORE_FILE')) {
+                          storeFile file(TRAVELSPHERE_UPLOAD_STORE_FILE)
+                          storePassword TRAVELSPHERE_UPLOAD_STORE_PASSWORD
+                          keyAlias TRAVELSPHERE_UPLOAD_KEY_ALIAS
+                          keyPassword TRAVELSPHERE_UPLOAD_KEY_PASSWORD
+                      }
+                  }
+              }
+          '''
+
+          # Insert signingConfigs after 'android {'
+          content = re.sub(
+              r'(android\s*\{)',
+              r'\1' + signing_config,
+              content,
+              count=1
+          )
+
+          # Change signingConfig from debug to release in release buildType
+          content = re.sub(
+              r'(buildTypes\s*\{[^}]*release\s*\{[^}]*?)signingConfig\s+signingConfigs\.debug',
+              r'\1signingConfig signingConfigs.release',
+              content,
+              flags=re.DOTALL
+          )
+
+          with open(path, 'w') as f:
+              f.write(content)
+
+          print("build.gradle patched successfully.")
+          EOF
+
+      - name: Build AAB with Gradle
+        working-directory: android
+        run: ./gradlew bundleRelease --no-daemon
+
+      - name: Find and rename AAB
+        run: |
+          AAB_PATH=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -1)
+          if [ -n "$AAB_PATH" ]; then
+            cp "$AAB_PATH" TravelSphere-release.aab
+            echo "AAB built successfully: TravelSphere-release.aab"
+            ls -lh TravelSphere-release.aab
+          else
+            echo "ERROR: No AAB found!"
+            find android/app/build/outputs/ -type f 2>/dev/null || echo "No build outputs found"
+            exit 1
+          fi
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: TravelSphere-AAB
+          path: TravelSphere-release.aab
+          retention-days: 30
+
+      - name: Build APK with Gradle (for local testing)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Find and rename APK
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" TravelSphere-release.apk
+            echo "APK built successfully: TravelSphere-release.apk"
+            ls -lh TravelSphere-release.apk
+          else
+            echo "ERROR: No APK found!"
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: TravelSphere-APK
+          path: TravelSphere-release.apk
+          retention-days: 30
+
+      - name: Cleanup keystore
+        if: always()
+        run: rm -f travelsphere-release.keystore
