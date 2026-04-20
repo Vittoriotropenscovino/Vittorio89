@@ -226,7 +226,7 @@ const it = {
   helpGuideTitle: 'Come Funziona',
   helpGuideMenuItem: 'Guida',
   helpAddTripTitle: 'Aggiungere un Viaggio',
-  helpAddTripText: 'Tocca il pulsante + Aggiungi Viaggio. Cerca la località, aggiungi titolo, data, foto e tag. Il viaggio apparirà come pin sul globo.',
+  helpAddTripText: 'Tocca + Aggiungi Viaggio. Cerca la località, aggiungi titolo, data, foto e tag. Attiva "Collega a Casa" per mostrare un arco verso casa. I viaggi lontani lo attivano in automatico.',
   helpGlobeTitle: 'Il Globo Interattivo',
   helpGlobeText: 'Ruota il globo trascinando. Pizzica per zoomare. Tocca un pin per vedere i dettagli del viaggio. I paesi visitati si illuminano in cyan.',
   helpFogTitle: 'Fog of War',
@@ -234,7 +234,7 @@ const it = {
   helpItineraryTitle: 'Itinerari',
   helpItineraryText: 'Raggruppa i viaggi in itinerari. Tocca Play per volare da una tappa all\'altra. Gli archi collegano le tappe sul globo.',
   helpLinesTitle: 'Linee di Viaggio',
-  helpLinesText: 'Attiva le linee di viaggio per vedere gli archi animati dalla tua casa a ogni destinazione visitata.',
+  helpLinesText: 'Attiva "Mostra Linee Viaggio" nelle impostazioni per vedere gli archi animati. Ogni viaggio ha il toggle "Collega a Casa" per decidere singolarmente se mostrare l\'arco.',
   helpBackupTitle: 'Backup e Sicurezza',
   helpBackupText: 'I tuoi dati restano sul dispositivo. Usa Export per salvare un backup. Puoi attivare il blocco biometrico nelle impostazioni.',
   helpWishlistTitle: 'Wishlist',
@@ -280,6 +280,11 @@ const it = {
   freeTripsRemaining: '{0} viaggi gratuiti rimanenti',
   selectTrip: 'Seleziona viaggio',
   tripsInArea: 'viaggi in questa zona',
+  loadingMedia: 'Elaborazione media...',
+  loadingMediaHint: 'Compressione e salvataggio in corso',
+  waitTitle: 'Attendere',
+  waitMessage: 'Elaborazione media in corso. Attendi il completamento.',
+  mediaLimitReached: 'Limite di 100 file raggiunto.',
 };
 
 const en: typeof it = {
@@ -507,7 +512,7 @@ const en: typeof it = {
   helpGuideTitle: 'How It Works',
   helpGuideMenuItem: 'Guide',
   helpAddTripTitle: 'Add a Trip',
-  helpAddTripText: 'Tap the + Add Trip button. Search for the location, add a title, date, photos and tags. The trip will appear as a pin on the globe.',
+  helpAddTripText: 'Tap + Add Trip. Search for the location, add a title, date, photos and tags. Enable "Connect to Home" to show an arc to your home. Distant trips enable it automatically.',
   helpGlobeTitle: 'The Interactive Globe',
   helpGlobeText: 'Rotate the globe by dragging. Pinch to zoom. Tap a pin to see the trip details. Visited countries light up in cyan.',
   helpFogTitle: 'Fog of War',
@@ -515,7 +520,7 @@ const en: typeof it = {
   helpItineraryTitle: 'Itineraries',
   helpItineraryText: 'Group trips into itineraries. Tap Play to fly from one stop to the next. Arcs connect the stops on the globe.',
   helpLinesTitle: 'Travel Lines',
-  helpLinesText: 'Enable travel lines to see animated arcs from your home to every visited destination.',
+  helpLinesText: 'Enable "Show Travel Lines" in settings to see animated arcs. Each trip has a "Connect to Home" toggle to individually control whether its arc is shown.',
   helpBackupTitle: 'Backup & Security',
   helpBackupText: 'Your data stays on your device. Use Export to save a backup. You can enable biometric lock in settings.',
   helpWishlistTitle: 'Wishlist',
@@ -561,6 +566,11 @@ const en: typeof it = {
   freeTripsRemaining: '{0} free trips remaining',
   selectTrip: 'Select trip',
   tripsInArea: 'trips in this area',
+  loadingMedia: 'Processing media...',
+  loadingMediaHint: 'Compressing and saving',
+  waitTitle: 'Please wait',
+  waitMessage: 'Media processing in progress. Please wait.',
+  mediaLimitReached: 'Limit of 100 files reached.',
 };
 
 const es: typeof it = {
@@ -779,7 +789,7 @@ const es: typeof it = {
   helpGuideTitle: 'Cómo Funciona',
   helpGuideMenuItem: 'Guía',
   helpAddTripTitle: 'Añadir un Viaje',
-  helpAddTripText: 'Toca el botón + Añadir Viaje. Busca la ubicación, añade título, fecha, fotos y etiquetas. El viaje aparecerá como pin en el globo.',
+  helpAddTripText: 'Toca + Añadir Viaje. Busca la ubicación, añade título, fecha, fotos y etiquetas. Activa "Conectar a Casa" para mostrar un arco hacia tu hogar. Los viajes lejanos lo activan automáticamente.',
   helpGlobeTitle: 'El Globo Interactivo',
   helpGlobeText: 'Gira el globo arrastrando. Pellizca para hacer zoom. Toca un pin para ver los detalles del viaje. Los países visitados se iluminan en cyan.',
   helpFogTitle: 'Fog of War',
@@ -787,7 +797,7 @@ const es: typeof it = {
   helpItineraryTitle: 'Itinerarios',
   helpItineraryText: 'Agrupa viajes en itinerarios. Toca Play para volar de una parada a otra. Los arcos conectan las paradas en el globo.',
   helpLinesTitle: 'Líneas de Viaje',
-  helpLinesText: 'Activa las líneas de viaje para ver arcos animados desde tu casa a cada destino visitado.',
+  helpLinesText: 'Activa "Mostrar Líneas de Viaje" en ajustes para ver arcos animados. Cada viaje tiene un toggle "Conectar a Casa" para controlar individualmente su arco.',
   helpBackupTitle: 'Backup y Seguridad',
   helpBackupText: 'Tus datos permanecen en tu dispositivo. Usa Exportar para guardar una copia. Puedes activar el bloqueo biométrico en ajustes.',
   helpWishlistTitle: 'Wishlist',
@@ -833,6 +843,11 @@ const es: typeof it = {
   freeTripsRemaining: '{0} viajes gratuitos restantes',
   selectTrip: 'Seleccionar viaje',
   tripsInArea: 'viajes en esta zona',
+  loadingMedia: 'Procesando medios...',
+  loadingMediaHint: 'Comprimiendo y guardando',
+  waitTitle: 'Espera',
+  waitMessage: 'Procesamiento de medios en curso. Por favor espera.',
+  mediaLimitReached: 'Limite de 100 archivos alcanzado.',
 };
 
 const fr: typeof it = {
@@ -1051,7 +1066,7 @@ const fr: typeof it = {
   helpGuideTitle: 'Comment ça Marche',
   helpGuideMenuItem: 'Guide',
   helpAddTripTitle: 'Ajouter un Voyage',
-  helpAddTripText: 'Appuyez sur le bouton + Ajouter Voyage. Recherchez le lieu, ajoutez un titre, une date, des photos et des tags. Le voyage apparaîtra comme épingle sur le globe.',
+  helpAddTripText: 'Appuyez sur + Ajouter Voyage. Recherchez le lieu, ajoutez titre, date, photos et tags. Activez "Relier au domicile" pour afficher un arc vers chez vous. Les voyages lointains l\'activent automatiquement.',
   helpGlobeTitle: 'Le Globe Interactif',
   helpGlobeText: 'Faites tourner le globe en glissant. Pincez pour zoomer. Touchez une épingle pour voir les détails du voyage. Les pays visités s\'illuminent en cyan.',
   helpFogTitle: 'Fog of War',
@@ -1059,7 +1074,7 @@ const fr: typeof it = {
   helpItineraryTitle: 'Itinéraires',
   helpItineraryText: 'Regroupez les voyages en itinéraires. Touchez Play pour voler d\'une étape à l\'autre. Les arcs relient les étapes sur le globe.',
   helpLinesTitle: 'Lignes de Voyage',
-  helpLinesText: 'Activez les lignes de voyage pour voir des arcs animés de votre domicile à chaque destination visitée.',
+  helpLinesText: 'Activez "Afficher les lignes de voyage" dans les paramètres pour voir les arcs animés. Chaque voyage a un toggle "Relier au domicile" pour contrôler individuellement son arc.',
   helpBackupTitle: 'Sauvegarde et Sécurité',
   helpBackupText: 'Vos données restent sur votre appareil. Utilisez Exporter pour sauvegarder. Vous pouvez activer le verrouillage biométrique dans les paramètres.',
   helpWishlistTitle: 'Wishlist',
@@ -1105,6 +1120,11 @@ const fr: typeof it = {
   freeTripsRemaining: '{0} voyages gratuits restants',
   selectTrip: 'Sélectionner le voyage',
   tripsInArea: 'voyages dans cette zone',
+  loadingMedia: 'Traitement des médias...',
+  loadingMediaHint: 'Compression et sauvegarde',
+  waitTitle: 'Patientez',
+  waitMessage: 'Traitement des médias en cours. Veuillez patienter.',
+  mediaLimitReached: 'Limite de 100 fichiers atteinte.',
 };
 
 const de: typeof it = {
@@ -1323,7 +1343,7 @@ const de: typeof it = {
   helpGuideTitle: 'So funktioniert es',
   helpGuideMenuItem: 'Anleitung',
   helpAddTripTitle: 'Eine Reise hinzufügen',
-  helpAddTripText: 'Tippen Sie auf + Reise hinzufügen. Suchen Sie den Ort, fügen Sie Titel, Datum, Fotos und Tags hinzu. Die Reise erscheint als Pin auf dem Globus.',
+  helpAddTripText: 'Tippen Sie auf + Reise hinzufügen. Suchen Sie den Ort, fügen Sie Titel, Datum, Fotos und Tags hinzu. Aktivieren Sie "Mit Zuhause verbinden" für einen Bogen nach Hause. Entfernte Reisen aktivieren ihn automatisch.',
   helpGlobeTitle: 'Der interaktive Globus',
   helpGlobeText: 'Drehen Sie den Globus durch Ziehen. Zoomen Sie durch Zusammenziehen. Tippen Sie auf einen Pin, um die Reisedetails zu sehen. Besuchte Länder leuchten in Cyan.',
   helpFogTitle: 'Fog of War',
@@ -1331,7 +1351,7 @@ const de: typeof it = {
   helpItineraryTitle: 'Reiserouten',
   helpItineraryText: 'Gruppieren Sie Reisen in Routen. Tippen Sie auf Play, um von einem Stopp zum nächsten zu fliegen. Bögen verbinden die Stopps auf dem Globus.',
   helpLinesTitle: 'Reiselinien',
-  helpLinesText: 'Aktivieren Sie Reiselinien, um animierte Bögen von Ihrem Zuhause zu jedem besuchten Ziel zu sehen.',
+  helpLinesText: 'Aktivieren Sie "Reiselinien anzeigen" in den Einstellungen für animierte Bögen. Jede Reise hat einen Toggle "Mit Zuhause verbinden" zur individuellen Steuerung.',
   helpBackupTitle: 'Backup & Sicherheit',
   helpBackupText: 'Ihre Daten bleiben auf Ihrem Gerät. Verwenden Sie Export, um ein Backup zu speichern. Sie können die biometrische Sperre in den Einstellungen aktivieren.',
   helpWishlistTitle: 'Wishlist',
@@ -1377,6 +1397,11 @@ const de: typeof it = {
   freeTripsRemaining: '{0} kostenlose Reisen übrig',
   selectTrip: 'Reise auswählen',
   tripsInArea: 'Reisen in dieser Gegend',
+  loadingMedia: 'Medien werden verarbeitet...',
+  loadingMediaHint: 'Komprimierung und Speicherung',
+  waitTitle: 'Bitte warten',
+  waitMessage: 'Medienverarbeitung läuft. Bitte warten.',
+  mediaLimitReached: 'Limit von 100 Dateien erreicht.',
 };
 
 const pt: typeof it = {
@@ -1595,7 +1620,7 @@ const pt: typeof it = {
   helpGuideTitle: 'Como Funciona',
   helpGuideMenuItem: 'Guia',
   helpAddTripTitle: 'Adicionar uma Viagem',
-  helpAddTripText: 'Toque no botão + Adicionar Viagem. Pesquise o local, adicione título, data, fotos e tags. A viagem aparecerá como pin no globo.',
+  helpAddTripText: 'Toque em + Adicionar Viagem. Pesquise o local, adicione título, data, fotos e tags. Ative "Conectar a Casa" para mostrar um arco até sua casa. Viagens distantes ativam automaticamente.',
   helpGlobeTitle: 'O Globo Interativo',
   helpGlobeText: 'Gire o globo arrastando. Faça pinça para dar zoom. Toque em um pin para ver os detalhes da viagem. Os países visitados se iluminam em ciano.',
   helpFogTitle: 'Fog of War',
@@ -1603,7 +1628,7 @@ const pt: typeof it = {
   helpItineraryTitle: 'Itinerários',
   helpItineraryText: 'Agrupe viagens em itinerários. Toque em Play para voar de uma parada à outra. Os arcos conectam as paradas no globo.',
   helpLinesTitle: 'Linhas de Viagem',
-  helpLinesText: 'Ative as linhas de viagem para ver arcos animados de sua casa a cada destino visitado.',
+  helpLinesText: 'Ative "Mostrar Linhas de Viagem" nas configurações para ver arcos animados. Cada viagem tem um toggle "Conectar a Casa" para controlar individualmente seu arco.',
   helpBackupTitle: 'Backup e Segurança',
   helpBackupText: 'Seus dados ficam no seu dispositivo. Use Exportar para salvar um backup. Você pode ativar o bloqueio biométrico nas configurações.',
   helpWishlistTitle: 'Wishlist',
@@ -1649,6 +1674,11 @@ const pt: typeof it = {
   freeTripsRemaining: '{0} viagens gratuitas restantes',
   selectTrip: 'Selecionar viagem',
   tripsInArea: 'viagens nesta zona',
+  loadingMedia: 'Processando mídia...',
+  loadingMediaHint: 'Comprimindo e salvando',
+  waitTitle: 'Aguarde',
+  waitMessage: 'Processamento de mídia em andamento. Por favor aguarde.',
+  mediaLimitReached: 'Limite de 100 arquivos atingido.',
 };
 
 const zh: typeof it = {
@@ -1867,7 +1897,7 @@ const zh: typeof it = {
   helpGuideTitle: '使用指南',
   helpGuideMenuItem: '指南',
   helpAddTripTitle: '添加旅行',
-  helpAddTripText: '点击 + 添加旅行按钮。搜索地点，添加标题、日期、照片和标签。旅行将作为图钉显示在地球上。',
+  helpAddTripText: '点击 + 添加旅行。搜索地点，添加标题、日期、照片和标签。启用"连接到家"以显示弧线。远距离旅行会自动启用。',
   helpGlobeTitle: '互动地球',
   helpGlobeText: '拖动旋转地球。捏合缩放。点击图钉查看旅行详情。已访问的国家以青色高亮显示。',
   helpFogTitle: '战争迷雾',
@@ -1875,7 +1905,7 @@ const zh: typeof it = {
   helpItineraryTitle: '行程',
   helpItineraryText: '将旅行分组为行程。点击播放，从一个站点飞到下一个。弧线在地球上连接各站点。',
   helpLinesTitle: '旅行线路',
-  helpLinesText: '启用旅行线路，查看从您家到每个已访目的地的动画弧线。',
+  helpLinesText: '在设置中启用"显示旅行线路"以查看动画弧线。每次旅行都有"连接到家"开关，可单独控制弧线显示。',
   helpBackupTitle: '备份与安全',
   helpBackupText: '您的数据保留在设备上。使用导出保存备份。您可以在设置中启用生物识别锁定。',
   helpWishlistTitle: '心愿单',
@@ -1921,6 +1951,11 @@ const zh: typeof it = {
   freeTripsRemaining: '剩余{0}次免费旅行',
   selectTrip: '选择旅行',
   tripsInArea: '此区域的旅行',
+  loadingMedia: '媒体处理中...',
+  loadingMediaHint: '正在压缩和保存',
+  waitTitle: '请稍候',
+  waitMessage: '媒体处理中，请稍候。',
+  mediaLimitReached: '已达100个文件上限。',
 };
 
 const ja: typeof it = {
@@ -2139,7 +2174,7 @@ const ja: typeof it = {
   helpGuideTitle: '使い方ガイド',
   helpGuideMenuItem: 'ガイド',
   helpAddTripTitle: '旅行を追加',
-  helpAddTripText: '+ 旅行を追加ボタンをタップ。場所を検索し、タイトル、日付、写真、タグを追加。旅行は地球上にピンとして表示されます。',
+  helpAddTripText: '+ 旅行を追加をタップ。場所を検索し、タイトル、日付、写真、タグを追加。「自宅に接続」を有効にするとアークが表示されます。遠方の旅行は自動的に有効になります。',
   helpGlobeTitle: 'インタラクティブ地球儀',
   helpGlobeText: 'ドラッグで地球を回転。ピンチでズーム。ピンをタップして旅行の詳細を表示。訪問済みの国はシアンに光ります。',
   helpFogTitle: 'フォグ・オブ・ウォー',
@@ -2147,7 +2182,7 @@ const ja: typeof it = {
   helpItineraryTitle: '旅程',
   helpItineraryText: '旅行を旅程にグループ化。Playをタップしてストップ間を飛行。アークが地球上でストップを結びます。',
   helpLinesTitle: 'トラベルライン',
-  helpLinesText: 'トラベルラインを有効にして、自宅から訪問先へのアニメーションアークを表示。',
+  helpLinesText: '設定で「トラベルライン表示」を有効にしてアニメーションアークを表示。各旅行の「自宅に接続」トグルで個別にアーク表示を制御できます。',
   helpBackupTitle: 'バックアップとセキュリティ',
   helpBackupText: 'データはデバイスに保存されます。エクスポートでバックアップを保存。設定で生体認証ロックを有効にできます。',
   helpWishlistTitle: 'ウィッシュリスト',
@@ -2193,6 +2228,11 @@ const ja: typeof it = {
   freeTripsRemaining: '残り{0}回の無料旅行',
   selectTrip: '旅行を選択',
   tripsInArea: 'このエリアの旅行',
+  loadingMedia: 'メディア処理中...',
+  loadingMediaHint: '圧縮・保存中',
+  waitTitle: 'お待ちください',
+  waitMessage: 'メディア処理中です。しばらくお待ちください。',
+  mediaLimitReached: '100ファイルの上限に達しました。',
 };
 
 export const translations: Record<Language, typeof it> = { it, en, es, fr, de, pt, zh, ja };

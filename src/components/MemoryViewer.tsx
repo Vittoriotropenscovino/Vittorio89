@@ -9,10 +9,12 @@ import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { MemoryViewerProps, MediaItem } from '../types';
 import { useApp } from '../contexts/AppContext';
+import PhotoFullscreen from './PhotoFullscreen';
 
 const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
     const { t } = useApp();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
     const mainListRef = useRef<FlatList>(null);
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
@@ -72,7 +74,11 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
     };
 
     const renderMainItem = ({ item, index }: { item: MediaItem; index: number }) => (
-        <View style={[styles.mainMediaContainer, { width: viewerWidth, height: viewerHeight }]}>
+        <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setFullscreenIndex(index)}
+            style={[styles.mainMediaContainer, { width: viewerWidth, height: viewerHeight }]}
+        >
             {item.type === 'video' ? (
                 <Video
                     source={{ uri: item.uri }}
@@ -85,7 +91,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
             ) : (
                 <Image source={{ uri: item.uri }} style={styles.media} resizeMode="contain" />
             )}
-        </View>
+        </TouchableOpacity>
     );
 
     const renderThumbnail = ({ item, index }: { item: MediaItem; index: number }) => (
@@ -206,6 +212,14 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                             contentContainerStyle={styles.thumbContent}
                         />
                     </View>
+                )}
+                {fullscreenIndex !== null && hasMedia && (
+                    <PhotoFullscreen
+                        visible={true}
+                        media={trip.media}
+                        initialIndex={fullscreenIndex}
+                        onClose={() => setFullscreenIndex(null)}
+                    />
                 )}
             </BlurView>
         </Modal>

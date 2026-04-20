@@ -40,7 +40,7 @@ const TripSidebar: React.FC<Props> = ({
 }) => {
     const { t } = useApp();
     const { width: screenWidth } = useWindowDimensions();
-    const sidebarWidth = Math.min(screenWidth * 0.42, 380);
+    const sidebarWidth = Math.min(screenWidth * 0.78, 420);
     const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
@@ -201,7 +201,9 @@ const TripSidebar: React.FC<Props> = ({
                     <View style={styles.sidebarContent}>
                         <View style={styles.sidebarHeader}>
                             <Text style={styles.sidebarTitle}>{t('myTrips')}</Text>
-                            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color="#9CA3AF" /></TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtnSidebar} onPress={onClose}>
+                                <Ionicons name="close" size={22} color="#fff" />
+                            </TouchableOpacity>
                         </View>
                         <View style={styles.quickActions}>
                             {onOpenSettings && (
@@ -308,8 +310,9 @@ const styles = StyleSheet.create({
     backdropTouch: { flex: 1 },
     sidebar: { position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 51 },
     sidebarBlur: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(0,212,255,0.1)' },
-    sidebarContent: { flex: 1, padding: 16, backgroundColor: 'rgba(10,10,20,0.75)' },
+    sidebarContent: { flex: 1, padding: 16, backgroundColor: 'rgba(10,10,20,0.98)' },
     sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    closeBtnSidebar: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
     sidebarTitle: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
     quickActions: { flexDirection: 'row', gap: 8, marginBottom: 14 },
     quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },

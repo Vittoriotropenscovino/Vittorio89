@@ -16,3 +16,4 @@ export { default as ItineraryManager } from './ItineraryManager';
 export { default as HelpGuide } from './HelpGuide';
 export { default as PaywallScreen } from './PaywallScreen';
 export { default as PinSelector } from './PinSelector';
+export { default as PhotoFullscreen } from './PhotoFullscreen';

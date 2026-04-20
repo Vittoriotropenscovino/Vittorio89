@@ -46,6 +46,9 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const [selectedItineraryId, setSelectedItineraryId] = useState<string | undefined>(undefined);
     const [showArc, setShowArc] = useState(false);
     const [isWishlist, setIsWishlist] = useState(false);
+    const [isProcessingMedia, setIsProcessingMedia] = useState(false);
+    const [processedCount, setProcessedCount] = useState(0);
+    const [totalMediaCount, setTotalMediaCount] = useState(0);
 
     const lastGeocodingTime = useRef(0);
     const isSavingRef = useRef(false);
@@ -92,7 +95,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const resetForm = () => {
         setLocationQuery(''); setFoundLocation(null); setTitle('');
         setDate(''); setNotes(''); setMedia([]); setSelectedTags([]);
-        setIsSearching(false); setIsSaving(false); isSavingRef.current = false; setShowDatePicker(false);
+        setIsSearching(false); setIsSaving(false); isSavingRef.current = false; setIsProcessingMedia(false); setProcessedCount(0); setTotalMediaCount(0); setShowDatePicker(false);
         setDateYear(new Date().getFullYear());
         setDateMonth(new Date().getMonth());
         setDateDay(new Date().getDate());
@@ -102,7 +105,13 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         setIsWishlist(false);
     };
 
-    const handleClose = () => { resetForm(); onClose(); };
+    const handleClose = () => {
+        if (isProcessingMedia) {
+            Alert.alert(t('waitTitle') as string, t('waitMessage') as string);
+            return;
+        }
+        resetForm(); onClose();
+    };
 
     const fetchWithTimeout = async (url: string, timeoutMs = 10000): Promise<Response> => {
         const controller = new AbortController();
@@ -265,27 +274,18 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         }
     };
 
-    const copyMediaToPersistentStorage = async (items: MediaItem[]): Promise<MediaItem[]> => {
-        if (Platform.OS === 'web') return items;
+    const processSingleMedia = async (item: MediaItem): Promise<MediaItem> => {
+        if (Platform.OS === 'web' || item.uri.startsWith(MEDIA_DIR)) return item;
         await ensureMediaDir();
-        const copiedMedia: MediaItem[] = [];
-        for (const item of items) {
-            if (item.uri.startsWith(MEDIA_DIR)) { copiedMedia.push(item); continue; }
-            const sourceUri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
-            const filename = `${Crypto.randomUUID()}${item.type === 'video' ? '.mp4' : '.jpg'}`;
-            const newUri = MEDIA_DIR + filename;
-            try {
-                await FileSystem.copyAsync({ from: sourceUri, to: newUri });
-                let thumbnailUri: string | undefined;
-                if (item.type === 'image') {
-                    thumbnailUri = await generateThumbnail(newUri, filename);
-                }
-                copiedMedia.push({ ...item, uri: newUri, thumbnailUri });
-            } catch (error) {
-                copiedMedia.push(item);
-            }
+        const sourceUri = item.type === 'image' ? await compressImage(item.uri) : item.uri;
+        const filename = `${Crypto.randomUUID()}${item.type === 'video' ? '.mp4' : '.jpg'}`;
+        const newUri = MEDIA_DIR + filename;
+        await FileSystem.copyAsync({ from: sourceUri, to: newUri });
+        let thumbnailUri: string | undefined;
+        if (item.type === 'image') {
+            thumbnailUri = await generateThumbnail(newUri, filename);
         }
-        return copiedMedia;
+        return { ...item, uri: newUri, thumbnailUri };
     };
 
     const handlePickImages = async () => {
@@ -298,25 +298,56 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 exif: true,
             });
             if (!result.canceled && result.assets) {
-                const newMedia: MediaItem[] = result.assets.map((asset) => ({
+                const MAX_MEDIA = 100;
+                const currentCount = media.length;
+                const available = MAX_MEDIA - currentCount;
+                if (available <= 0) {
+                    Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
+                    return;
+                }
+                const assetsToUse = result.assets.slice(0, available);
+                if (assetsToUse.length < result.assets.length) {
+                    Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
+                }
+
+                const newMedia: MediaItem[] = assetsToUse.map((asset) => ({
                     uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
                     width: asset.width, height: asset.height,
                 }));
-                setMedia((prev) => [...prev, ...newMedia]);
+
+                setIsProcessingMedia(true);
+                setProcessedCount(0);
+                setTotalMediaCount(newMedia.length);
+
+                const processed: MediaItem[] = [];
+                const CONCURRENCY = 3;
+                for (let i = 0; i < newMedia.length; i += CONCURRENCY) {
+                    const batch = newMedia.slice(i, i + CONCURRENCY);
+                    const results = await Promise.allSettled(
+                        batch.map((item) => processSingleMedia(item))
+                    );
+                    for (const r of results) {
+                        if (r.status === 'fulfilled') {
+                            processed.push(r.value);
+                        }
+                    }
+                    setProcessedCount(Math.min(i + CONCURRENCY, newMedia.length));
+                }
+
+                setMedia((prev) => [...prev, ...processed]);
+                setIsProcessingMedia(false);
 
                 // EXIF auto-fill: extract GPS and date from first image with EXIF data
                 if (!foundLocation) {
-                    for (const asset of result.assets) {
+                    for (const asset of assetsToUse) {
                         const exif = (asset as any).exif;
                         if (exif) {
-                            // Try GPS coordinates
                             const gpsLat = exif.GPSLatitude;
                             const gpsLng = exif.GPSLongitude;
                             if (gpsLat && gpsLng && !isNaN(gpsLat) && !isNaN(gpsLng)) {
                                 const lat = exif.GPSLatitudeRef === 'S' ? -Math.abs(gpsLat) : Math.abs(gpsLat);
                                 const lng = exif.GPSLongitudeRef === 'W' ? -Math.abs(gpsLng) : Math.abs(gpsLng);
                                 if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                                    // Reverse geocode to get location name
                                     try {
                                         const res = await fetchWithTimeout(
                                             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
@@ -338,10 +369,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     } catch { /* reverse geocode failed */ }
                                 }
                             }
-                            // Try date from EXIF
                             if (!date && exif.DateTimeOriginal) {
                                 const dtStr = String(exif.DateTimeOriginal);
-                                // Format: "2024:06:15 14:30:00" or "2024-06-15T14:30:00"
                                 const match = dtStr.match(/(\d{4})[:\-](\d{2})[:\-](\d{2})/);
                                 if (match) {
                                     const exifDate = `${match[1]}-${match[2]}-${match[3]}`;
@@ -351,18 +380,23 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     setDateDay(parseInt(match[3], 10));
                                 }
                             }
-                            break; // Only use EXIF from first image with data
+                            break;
                         }
                     }
                 }
             }
         } catch (error) {
+            setIsProcessingMedia(false);
             Alert.alert(t('error') as string, t('galleryPermission') as string);
         }
     };
 
     const handleCameraCapture = async () => {
         try {
+            if (media.length >= 100) {
+                Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
+                return;
+            }
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') { Alert.alert(t('permissionDenied') as string, t('cameraPermission') as string); return; }
             const result = await ImagePicker.launchCameraAsync({
@@ -374,9 +408,23 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                     uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
                     width: asset.width, height: asset.height,
                 }));
-                setMedia((prev) => [...prev, ...newMedia]);
+                setIsProcessingMedia(true);
+                setProcessedCount(0);
+                setTotalMediaCount(newMedia.length);
+                const processed: MediaItem[] = [];
+                for (const item of newMedia) {
+                    try {
+                        processed.push(await processSingleMedia(item));
+                    } catch {
+                        // skip failed
+                    }
+                    setProcessedCount((c) => c + 1);
+                }
+                setMedia((prev) => [...prev, ...processed]);
+                setIsProcessingMedia(false);
             }
         } catch (error) {
+            setIsProcessingMedia(false);
             Alert.alert(t('error') as string, t('cameraPermission') as string);
         }
     };
@@ -397,7 +445,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     const handleSubmit = async () => {
-        if (isSavingRef.current) return;
+        if (isSavingRef.current || isProcessingMedia) return;
         if (!foundLocation) { Alert.alert(t('error') as string, t('searchLocation') as string); return; }
         if (!title.trim()) { Alert.alert(t('error') as string, t('enterTitle') as string); return; }
         const lat = foundLocation.latitude;
@@ -410,7 +458,6 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         isSavingRef.current = true;
         setIsSaving(true);
         try {
-            const persistentMedia = await copyMediaToPersistentStorage(media);
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onSave({
                 title: title.trim(),
@@ -419,7 +466,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 longitude: foundLocation.longitude,
                 date: date || new Date().toISOString().split('T')[0],
                 notes: notes.trim(),
-                media: persistentMedia,
+                media,
                 isFavorite: editTrip?.isFavorite || false,
                 tags: selectedTags,
                 country: foundCountry || undefined,
@@ -641,8 +688,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                 </View>
 
                                 <TouchableOpacity
-                                    style={[styles.submitBtn, (!foundLocation || isSaving) && styles.submitBtnDisabled]}
-                                    onPress={handleSubmit} disabled={!foundLocation || isSaving} activeOpacity={0.8}>
+                                    style={[styles.submitBtn, (!foundLocation || isSaving || isProcessingMedia) && styles.submitBtnDisabled]}
+                                    onPress={handleSubmit} disabled={!foundLocation || isSaving || isProcessingMedia} activeOpacity={0.8}>
                                     {isSaving ? <ActivityIndicator color="#fff" size="small" /> : (
                                         <>
                                             <Ionicons name={isEditMode ? 'checkmark' : 'pin'} size={20} color="#fff" />
@@ -655,6 +702,24 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             </View>
                         </ScrollView>
                 </View>
+
+                {/* Media Processing Overlay */}
+                {isProcessingMedia && (
+                    <Modal visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
+                        <View style={styles.processingOverlay}>
+                            <View style={styles.processingCard}>
+                                <ActivityIndicator color="#60A5FA" size="large" />
+                                <Text style={styles.processingTitle}>{t('loadingMedia')}</Text>
+                                <View style={styles.progressBarBg}>
+                                    <View style={[styles.progressBarFill, { width: `${totalMediaCount > 0 ? (processedCount / totalMediaCount) * 100 : 0}%` }]} />
+                                </View>
+                                <Text style={styles.processingHint}>
+                                    {processedCount}/{totalMediaCount} — {t('loadingMediaHint')}
+                                </Text>
+                            </View>
+                        </View>
+                    </Modal>
+                )}
 
                 {/* Custom Date Picker Modal */}
                 {showDatePicker && (
@@ -750,6 +815,12 @@ const styles = StyleSheet.create({
     datePickerCancelText: { color: '#9CA3AF', fontSize: 15, fontWeight: '500' },
     datePickerConfirm: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#3B82F6' },
     datePickerConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    processingOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    processingCard: { backgroundColor: '#1a1a2e', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(96,165,250,0.2)', padding: 28, minWidth: 260, alignItems: 'center', gap: 16 },
+    processingTitle: { color: '#F0F0F0', fontSize: 16, fontWeight: '700' },
+    progressBarBg: { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' },
+    progressBarFill: { height: '100%', backgroundColor: '#60A5FA', borderRadius: 3 },
+    processingHint: { color: '#6B7280', fontSize: 12 },
     arcToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
     arcToggleInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     arcToggleLabel: { color: '#9CA3AF', fontSize: 14, fontWeight: '500' },
