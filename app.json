@@ -6,7 +6,8 @@
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "jsEngine": "hermes",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
@@ -20,21 +21,42 @@
       "bundleIdentifier": "com.travelsphere.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to find places on the globe.",
-        "NSPhotoLibraryUsageDescription": "We need access to your photos to add memories to your trips."
+        "NSPhotoLibraryUsageDescription": "We need access to your photos to add memories to your trips.",
+        "NSCameraUsageDescription": "We need access to your camera to capture travel moments.",
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": ["E174.1"]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       }
     },
     "android": {
       "package": "com.travelsphere.app",
+      "targetSdkVersion": 35,
+      "compileSdkVersion": 35,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0a0f"
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -43,7 +65,13 @@
     },
     "plugins": [
       "expo-location",
-      "expo-image-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TravelSphere needs access to your photos to add memories to trips.",
+          "cameraPermission": "TravelSphere needs access to your camera to capture moments."
+        }
+      ],
       [
         "expo-screen-orientation",
         {
@@ -51,7 +79,13 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow TravelSphere to use Face ID for app lock."
+        }
+      ]
     ],
     "extra": {
       "eas": {

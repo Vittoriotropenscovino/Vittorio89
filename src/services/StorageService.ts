@@ -1,9 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import { Trip } from '../types';
+import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
+import { Trip, Itinerary } from '../types';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
-const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
+const LAST_BACKUP_KEY = '@travelsphere_last_backup';
+const LAST_CLEANUP_KEY = '@travelsphere_last_cleanup';
+export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
+const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
+const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_BACKUPS = 3;
+const CURRENT_SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = '@travelsphere_schema_version';
+const isWeb = Platform.OS === 'web';
 
 /**
  * Storage service for persisting trips data
@@ -31,7 +43,16 @@ export const StorageService = {
             const jsonValue = await AsyncStorage.getItem(TRIPS_STORAGE_KEY);
             if (jsonValue !== null) {
                 const trips = JSON.parse(jsonValue) as Trip[];
-                // Verify media files still exist
+
+                // On web, FileSystem is not fully supported - skip media verification
+                if (isWeb) {
+                    return trips.map((trip) => ({
+                        ...trip,
+                        notes: trip.notes || '',
+                    }));
+                }
+
+                // Verify media files still exist (native only)
                 const verifiedTrips = await Promise.all(
                     trips.map(async (trip) => {
                         const verifiedMedia = await Promise.all(
@@ -49,6 +70,7 @@ export const StorageService = {
                         );
                         return {
                             ...trip,
+                            notes: trip.notes || '',
                             media: verifiedMedia.filter((m) => m !== null) as typeof trip.media,
                         };
                     })
@@ -68,8 +90,8 @@ export const StorageService = {
     deleteTrip: async (tripId: string, trips: Trip[]): Promise<Trip[]> => {
         const tripToDelete = trips.find((t) => t.id === tripId);
 
-        // Delete associated media files
-        if (tripToDelete) {
+        // Delete associated media files (native only)
+        if (tripToDelete && !isWeb) {
             for (const media of tripToDelete.media) {
                 if (media.uri.startsWith(MEDIA_DIR)) {
                     try {
@@ -92,10 +114,13 @@ export const StorageService = {
     clearAll: async (): Promise<void> => {
         try {
             await AsyncStorage.removeItem(TRIPS_STORAGE_KEY);
-            // Also clear media directory
-            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-            if (dirInfo.exists) {
-                await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
+            await AsyncStorage.removeItem(ITINERARIES_STORAGE_KEY);
+            // Also clear media directory (native only)
+            if (!isWeb) {
+                const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+                if (dirInfo.exists) {
+                    await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
+                }
             }
         } catch (error) {
             console.error('Error clearing storage:', error);
@@ -104,32 +129,325 @@ export const StorageService = {
     },
 
     /**
-     * Get storage info (for debugging)
+     * Atomically save both trips and itineraries in a single multiSet call
      */
-    getStorageInfo: async (): Promise<{ tripCount: number; mediaSize: number }> => {
+    saveAll: async (trips: Trip[], itineraries: Itinerary[]): Promise<void> => {
+        try {
+            await AsyncStorage.multiSet([
+                [TRIPS_STORAGE_KEY, JSON.stringify(trips)],
+                [ITINERARIES_STORAGE_KEY, JSON.stringify(itineraries)],
+            ]);
+        } catch (error) {
+            console.error('Error saving all data:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Save itineraries to persistent storage
+     */
+    saveItineraries: async (itineraries: Itinerary[]): Promise<void> => {
+        try {
+            const jsonValue = JSON.stringify(itineraries);
+            await AsyncStorage.setItem(ITINERARIES_STORAGE_KEY, jsonValue);
+        } catch (error) {
+            console.error('Error saving itineraries:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Load itineraries from persistent storage
+     */
+    loadItineraries: async (): Promise<Itinerary[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
+            if (jsonValue !== null) {
+                return JSON.parse(jsonValue) as Itinerary[];
+            }
+            return [];
+        } catch (error) {
+            console.error('Error loading itineraries:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Get detailed storage info for the UI monitor
+     */
+    getStorageInfo: async (): Promise<{
+        tripCount: number; mediaCount: number; mediaSize: number;
+        metadataSize: number; backupCount: number; backupSize: number; totalSize: number;
+    }> => {
         try {
             const trips = await StorageService.loadTrips();
+            const tripCount = trips.length;
+            const mediaCount = trips.reduce((sum, t) => sum + t.media.length, 0);
             let mediaSize = 0;
+            let backupCount = 0;
+            let backupSize = 0;
 
-            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-            if (dirInfo.exists) {
-                const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
-                for (const file of files) {
-                    const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
-                    if (fileInfo.exists && 'size' in fileInfo) {
-                        mediaSize += fileInfo.size || 0;
+            if (!isWeb) {
+                // Media directory size
+                const mediaDirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+                if (mediaDirInfo.exists) {
+                    const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+                    for (const file of files) {
+                        const fileInfo = await FileSystem.getInfoAsync(MEDIA_DIR + file);
+                        if (fileInfo.exists && 'size' in fileInfo) {
+                            mediaSize += ('size' in fileInfo ? (fileInfo as { size: number }).size : 0);
+                        }
+                    }
+                }
+
+                // Backup directory size
+                const backupDirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+                if (backupDirInfo.exists) {
+                    const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+                    backupCount = files.length;
+                    for (const file of files) {
+                        const fileInfo = await FileSystem.getInfoAsync(BACKUP_DIR + file);
+                        if (fileInfo.exists && 'size' in fileInfo) {
+                            backupSize += ('size' in fileInfo ? (fileInfo as { size: number }).size : 0);
+                        }
                     }
                 }
             }
 
+            // Metadata size approximation from AsyncStorage
+            let metadataSize = 0;
+            const tripsJson = await AsyncStorage.getItem(TRIPS_STORAGE_KEY);
+            const itinerariesJson = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
+            if (tripsJson) metadataSize += tripsJson.length;
+            if (itinerariesJson) metadataSize += itinerariesJson.length;
+
             return {
-                tripCount: trips.length,
-                mediaSize,
+                tripCount, mediaCount, mediaSize, metadataSize,
+                backupCount, backupSize,
+                totalSize: mediaSize + metadataSize + backupSize,
             };
         } catch (error) {
             console.error('Error getting storage info:', error);
-            return { tripCount: 0, mediaSize: 0 };
+            return { tripCount: 0, mediaCount: 0, mediaSize: 0, metadataSize: 0, backupCount: 0, backupSize: 0, totalSize: 0 };
         }
+    },
+    /**
+     * Check if auto-backup is due and perform it if needed
+     */
+    /**
+     * Load trips without media verification (for migration)
+     */
+    loadTripsRaw: async (): Promise<any[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(TRIPS_STORAGE_KEY);
+            return jsonValue ? JSON.parse(jsonValue) : [];
+        } catch {
+            return [];
+        }
+    },
+
+    /**
+     * Load itineraries without type casting (for migration)
+     */
+    loadItinerariesRaw: async (): Promise<any[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(ITINERARIES_STORAGE_KEY);
+            return jsonValue ? JSON.parse(jsonValue) : [];
+        } catch {
+            return [];
+        }
+    },
+
+    /**
+     * Run schema migrations if needed.
+     * Must be called BEFORE loadTrips/loadItineraries.
+     * Idempotent: safe to call multiple times.
+     */
+    migrateData: async (): Promise<void> => {
+        const stored = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
+        const currentVersion = stored ? parseInt(stored, 10) : 0;
+
+        if (currentVersion >= CURRENT_SCHEMA_VERSION) return;
+
+        const trips = await StorageService.loadTripsRaw();
+        const itineraries = await StorageService.loadItinerariesRaw();
+
+        let migratedTrips = trips;
+        let migratedItineraries = itineraries;
+
+        // Migration 0 → 1: ensure default fields exist on all trips
+        if (currentVersion < 1) {
+            console.log('[Migration] v0 → v1: adding default fields');
+            migratedTrips = trips.map((trip: any) => ({
+                tags: [],
+                isFavorite: false,
+                isWishlist: false,
+                media: [],
+                notes: '',
+                ...trip, // existing fields override defaults
+            }));
+        }
+
+        // Future migrations:
+        // if (currentVersion < 2) { ... }
+
+        await StorageService.saveTrips(migratedTrips);
+        await StorageService.saveItineraries(migratedItineraries);
+        await AsyncStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION.toString());
+        console.log(`[Migration] Schema updated to v${CURRENT_SCHEMA_VERSION}`);
+    },
+
+    checkAndPerformAutoBackup: async (trips: Trip[], itineraries: Itinerary[]): Promise<boolean> => {
+        if (isWeb || trips.length === 0) return false;
+        try {
+            const lastBackup = await AsyncStorage.getItem(LAST_BACKUP_KEY);
+            const lastBackupTime = lastBackup ? parseInt(lastBackup, 10) : 0;
+            if (Date.now() - lastBackupTime < BACKUP_INTERVAL_MS) return false;
+
+            const dirInfo = await FileSystem.getInfoAsync(BACKUP_DIR);
+            if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
+
+            // Build backup with checksum
+            const backupData = { trips, itineraries };
+            const dataString = JSON.stringify(backupData);
+            const checksum = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256, dataString
+            );
+            const backup = {
+                schemaVersion: CURRENT_SCHEMA_VERSION,
+                checksum,
+                createdAt: new Date().toISOString(),
+                data: backupData,
+            };
+            const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            await FileSystem.writeAsStringAsync(BACKUP_DIR + filename, JSON.stringify(backup, null, 2));
+
+            // Verify written file before rotating old backups
+            const written = await FileSystem.readAsStringAsync(BACKUP_DIR + filename);
+            const parsed = JSON.parse(written);
+            const verifyString = JSON.stringify(parsed.data);
+            const verifyChecksum = await Crypto.digestStringAsync(
+                Crypto.CryptoDigestAlgorithm.SHA256, verifyString
+            );
+            if (verifyChecksum !== parsed.checksum) {
+                console.error('[Backup] Checksum mismatch, keeping old backups');
+                await FileSystem.deleteAsync(BACKUP_DIR + filename, { idempotent: true });
+                return false;
+            }
+
+            // Rotate old backups only after validation passed
+            const files = await FileSystem.readDirectoryAsync(BACKUP_DIR);
+            const backupFiles = files.filter((f) => f.startsWith('backup_')).sort().reverse();
+            for (let i = MAX_BACKUPS; i < backupFiles.length; i++) {
+                await FileSystem.deleteAsync(BACKUP_DIR + backupFiles[i], { idempotent: true });
+            }
+
+            await AsyncStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
+            return true;
+        } catch (error) {
+            console.error('Auto-backup error:', error);
+            return false;
+        }
+    },
+
+    /**
+     * Clean orphaned media files not referenced by any trip.
+     * Only runs on native platforms.
+     */
+    cleanOrphanedMedia: async (): Promise<{ deletedCount: number; freedBytes: number }> => {
+        if (isWeb) return { deletedCount: 0, freedBytes: 0 };
+
+        try {
+            const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+            if (!dirInfo.exists) return { deletedCount: 0, freedBytes: 0 };
+
+            const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+            const trips = await StorageService.loadTrips();
+
+            // Collect all filenames referenced by trips
+            const referencedFiles = new Set<string>();
+            trips.forEach((trip) => {
+                trip.media.forEach((m) => {
+                    const filename = m.uri.split('/').pop();
+                    if (filename) referencedFiles.add(filename);
+                });
+            });
+
+            let deletedCount = 0;
+            let freedBytes = 0;
+
+            for (const file of files) {
+                if (!referencedFiles.has(file)) {
+                    try {
+                        const info = await FileSystem.getInfoAsync(MEDIA_DIR + file);
+                        if (info.exists && 'size' in info) {
+                            freedBytes += (info as any).size || 0;
+                        }
+                        await FileSystem.deleteAsync(MEDIA_DIR + file, { idempotent: true });
+                        deletedCount++;
+                        console.log(`[TravelSphere] Cleaned orphaned media: ${file}`);
+                    } catch (error) {
+                        console.warn(`[TravelSphere] Failed to clean: ${file}`, error);
+                    }
+                }
+            }
+
+            return { deletedCount, freedBytes };
+        } catch (error) {
+            console.warn('[TravelSphere] cleanOrphanedMedia error:', error);
+            return { deletedCount: 0, freedBytes: 0 };
+        }
+    },
+
+    /**
+     * Run cleanup if at least 1 week since last cleanup.
+     * Non-blocking — intended to be called without await after UI loads.
+     */
+    checkAndCleanOrphanedMedia: async (): Promise<void> => {
+        if (isWeb) return;
+        try {
+            const last = await AsyncStorage.getItem(LAST_CLEANUP_KEY);
+            const lastTime = last ? parseInt(last, 10) : 0;
+            if (Date.now() - lastTime < CLEANUP_INTERVAL_MS) return;
+
+            const result = await StorageService.cleanOrphanedMedia();
+            if (result.deletedCount > 0) {
+                console.log(`[TravelSphere] Auto-cleanup: removed ${result.deletedCount} orphaned files, freed ${result.freedBytes} bytes`);
+            }
+            await AsyncStorage.setItem(LAST_CLEANUP_KEY, String(Date.now()));
+        } catch (error) {
+            console.warn('[TravelSphere] Auto-cleanup error:', error);
+        }
+    },
+
+    /**
+     * Validate a backup file's integrity via SHA-256 checksum.
+     * Supports legacy format (no checksum) for backwards compatibility.
+     */
+    validateBackup: async (content: string): Promise<{ valid: boolean; data: any; hasChecksum: boolean }> => {
+        let parsed: any;
+        try {
+            parsed = JSON.parse(content);
+        } catch (e) {
+            console.error('[TravelSphere] Failed to parse backup JSON:', e);
+            return { valid: false, data: null, hasChecksum: false };
+        }
+
+        // Legacy format (pre-checksum): { trips, exportDate, version }
+        if (!parsed.checksum) {
+            return { valid: true, data: parsed, hasChecksum: false };
+        }
+
+        // New format: { schemaVersion, checksum, createdAt, data: { trips, itineraries } }
+        const dataString = JSON.stringify(parsed.data);
+        const checksum = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256, dataString
+        );
+        return {
+            valid: checksum === parsed.checksum,
+            data: parsed.data,
+            hasChecksum: true,
+        };
     },
 };
 

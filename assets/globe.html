@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050510;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#globeViz{width:100%;height:100%}
+#dbg{position:fixed;bottom:6px;left:6px;color:#0af;font:10px monospace;z-index:99;opacity:0.5}
+canvas.stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas class="stars" id="starCanvas"></canvas>
+<div id="globeViz"></div>
+<div id="dbg">loading...</div>
+<script>
+var globe=null,_trips=[],_itineraries=[],_zoomFactor=1.0,_closeFactor=1.0,_home=null,_ready=false,_showTravelLines=true,_scanAnimId=0;
+var _visitedCountries=[],_countryFeatures=[],_flythroughActive=false;
+var _currentAltitude=2.5;
+var dbg=document.getElementById('dbg');
+function L(m){if(dbg&&!_ready)dbg.textContent=m;S({type:'log',message:m});}
+function S(d){try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify(d));}catch(e){}}
+window.onerror=function(m){S({type:'log',message:'ERR:'+m});return true;};
+
+// === STAR FIELD BACKGROUND ===
+(function(){
+  var c=document.getElementById('starCanvas'),ctx=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();window.addEventListener('resize',resize);
+  var stars=[];
+  for(var i=0;i<250;i++){
+    stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.5+0.3,a:Math.random()*0.8+0.2,speed:Math.random()*0.003+0.001,phase:Math.random()*Math.PI*2});
+  }
+  function drawStars(){
+    ctx.clearRect(0,0,c.width,c.height);
+    var t=Date.now()*0.001;
+    for(var i=0;i<stars.length;i++){
+      var s=stars[i];
+      var flicker=s.a*(0.6+0.4*Math.sin(t*s.speed*200+s.phase));
+      ctx.beginPath();ctx.arc(s.x%c.width,s.y%c.height,s.r,0,6.28);
+      ctx.fillStyle='rgba(180,220,255,'+flicker+')';ctx.fill();
+    }
+    requestAnimationFrame(drawStars);
+  }
+  drawStars();
+})();
+
+// Country alpha-2 -> ISO numeric code mapping for fog of war
+var _isoToNumeric={AF:'004',AL:'008',DZ:'012',AD:'020',AO:'024',AG:'028',AR:'032',AM:'051',AU:'036',AT:'040',AZ:'031',BS:'044',BH:'048',BD:'050',BB:'052',BY:'112',BE:'056',BZ:'084',BJ:'204',BT:'064',BO:'068',BA:'070',BW:'072',BR:'076',BN:'096',BG:'100',BF:'854',BI:'108',KH:'116',CM:'120',CA:'124',CV:'132',CF:'140',TD:'148',CL:'152',CN:'156',CO:'170',KM:'174',CG:'178',CD:'180',CR:'188',CI:'384',HR:'191',CU:'192',CY:'196',CZ:'203',DK:'208',DJ:'262',DM:'212',DO:'214',EC:'218',EG:'818',SV:'222',GQ:'226',ER:'232',EE:'233',SZ:'748',ET:'231',FJ:'242',FI:'246',FR:'250',GA:'266',GM:'270',GE:'268',DE:'276',GH:'288',GR:'300',GD:'308',GT:'320',GN:'324',GW:'624',GY:'328',HT:'332',HN:'340',HU:'348',IS:'352',IN:'356',ID:'360',IR:'364',IQ:'368',IE:'372',IL:'376',IT:'380',JM:'388',JP:'392',JO:'400',KZ:'398',KE:'404',KI:'296',KP:'408',KR:'410',KW:'414',KG:'417',LA:'418',LV:'428',LB:'422',LS:'426',LR:'430',LY:'434',LI:'438',LT:'440',LU:'442',MG:'450',MW:'454',MY:'458',MV:'462',ML:'466',MT:'470',MH:'584',MR:'478',MU:'480',MX:'484',FM:'583',MD:'498',MC:'492',MN:'496',ME:'499',MA:'504',MZ:'508',MM:'104',NA:'516',NR:'520',NP:'524',NL:'528',NZ:'554',NI:'558',NE:'562',NG:'566',MK:'807',NO:'578',OM:'512',PK:'586',PW:'585',PS:'275',PA:'591',PG:'598',PY:'600',PE:'604',PH:'608',PL:'616',PT:'620',QA:'634',RO:'642',RU:'643',RW:'646',KN:'659',LC:'662',VC:'670',WS:'882',SM:'674',ST:'678',SA:'682',SN:'686',RS:'688',SC:'690',SL:'694',SG:'702',SK:'703',SI:'705',SB:'090',SO:'706',ZA:'710',SS:'728',ES:'724',LK:'144',SD:'729',SR:'740',SE:'752',CH:'756',SY:'760',TW:'158',TJ:'762',TZ:'834',TH:'764',TL:'626',TG:'768',TO:'776',TT:'780',TN:'788',TR:'792',TM:'795',TV:'798',UG:'800',UA:'804',AE:'784',GB:'826',US:'840',UY:'858',UZ:'860',VU:'548',VA:'336',VE:'862',VN:'704',YE:'887',ZM:'894',ZW:'716',XK:'926',GL:'304'};
+
+// <!--VENDOR_SCRIPTS_PLACEHOLDER--> injected inline by EarthGlobe.tsx
+
+function ensureLibsAndStart(){
+  L('loading libs...');
+  // Check if vendor scripts were injected inline
+  var hasTopojson=typeof topojson!=='undefined';
+  var hasGlobe=typeof Globe!=='undefined';
+
+  if(hasTopojson&&hasGlobe){
+    L('libs ok (bundled), loading map...');
+    loadCountriesAndGo();
+  }else{
+    // Fallback: load from CDN
+    L('loading libs from CDN...');
+    loadJS('https://unpkg.com/topojson-client@3/dist/topojson-client.min.js',function(){
+    loadJS('https://unpkg.com/globe.gl@2/dist/globe.gl.min.js',function(){
+      if(typeof Globe==='undefined'){L('Globe.gl fail');return;}
+      L('libs ok (CDN), loading map...');
+      loadCountriesAndGo();
+    });
+    });
+  }
+}
+
+function loadCountriesAndGo(){
+  // Check if countries data was injected inline
+  if(window.__COUNTRIES_DATA){
+    L('map data (bundled)');
+    processCountriesData(window.__COUNTRIES_DATA);
+    return;
+  }
+  // Fallback: fetch from CDN
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(function(r){return r.json();})
+    .then(function(topo){processCountriesData(topo);})
+    .catch(function(){
+      L('map fail, no countries');
+      go({type:'FeatureCollection',features:[]});
+    });
+}
+
+function processCountriesData(topo){
+  var geo={type:'FeatureCollection',features:[]};
+  try{
+    if(typeof topojson!=='undefined'&&topo.objects){
+      var k=topo.objects.countries?'countries':Object.keys(topo.objects)[0];
+      geo=topojson.feature(topo,topo.objects[k]);
+    }
+  }catch(e){L('topo err:'+e.message);}
+  _countryFeatures=geo.features||[];
+  go(geo);
+}
+
+ensureLibsAndStart();
+
+function loadJS(u,cb){var s=document.createElement('script');s.src=u;s.onload=cb;s.onerror=function(){L('script fail:'+u);cb();};document.head.appendChild(s);}
+
+function isCountryVisited(feature){
+  if(!_visitedCountries||_visitedCountries.length===0)return false;
+  var fid=feature.id||'';
+  for(var i=0;i<_visitedCountries.length;i++){
+    var cc=_visitedCountries[i];
+    if(!cc)continue;
+    var numCode=_isoToNumeric[cc.toUpperCase()]||'';
+    if(numCode&&numCode===String(fid))return true;
+    if(String(fid)===cc)return true;
+  }
+  return false;
+}
+
+function go(countries){
+  var el=document.getElementById('globeViz');
+  var f=countries.features||[];
+  L(f.length+' countries. rendering...');
+
+  try{
+    globe=Globe()
+      .backgroundColor('rgba(0,0,0,0)')
+      .showGlobe(true)
+      .showAtmosphere(true)
+      .atmosphereColor('#00d4ff')
+      .atmosphereAltitude(0.25)
+
+      // COUNTRY BORDERS - visited countries glow
+      .polygonsData(f)
+      .polygonCapColor(function(d){
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.12)';
+        return 'rgba(0,0,0,0)';
+      })
+      .polygonSideColor(function(d){
+        if(isCountryVisited(d))return 'rgba(0,220,255,0.3)';
+        return 'rgba(0,200,255,0.05)';
+      })
+      .polygonStrokeColor(function(d){
+        if(isCountryVisited(d))return 'rgba(0,230,255,0.8)';
+        return 'rgba(0,220,255,0.25)';
+      })
+      .polygonAltitude(0.009)
+
+      // TRIP MARKERS
+      .pointsData([])
+      .pointLat('lat').pointLng('lng')
+      .pointColor(function(d){
+        if(d.isHome)return '#FFD700';
+        if(d.isWishlist)return '#EC4899';
+        return '#EF4444';
+      })
+      .pointAltitude(function(d){
+        return (0.01+0.04*_zoomFactor)*_closeFactor;
+      })
+      .pointRadius(function(d){
+        if(d.isHome)return (0.25+0.15*_zoomFactor)*_closeFactor;
+        var base=(0.12+0.10*_zoomFactor)*_closeFactor;
+        if(d.isCluster&&d.clusterCount>1){
+          base*=1+Math.min(0.5,d.clusterCount*0.1);
+        }
+        return base;
+      })
+      .pointResolution(8)
+
+      // PULSING RINGS - red for trips, gold for home
+      .ringsData([])
+      .ringLat('lat').ringLng('lng')
+      .ringColor(function(d){return function(t){
+        var c=d.ringColor||'239,68,68';
+        return 'rgba('+c+','+(1-t)*(d.isWishlist?0.4:0.6)+')';
+      };})
+      .ringMaxRadius(function(){return (0.6+1.2*_zoomFactor)*_closeFactor;})
+      .ringPropagationSpeed(2.5)
+      .ringRepeatPeriod(1200)
+
+      // LABELS - trip title (visible only when zoomed in)
+      .labelsData([])
+      .labelLat('lat').labelLng('lng')
+      .labelText(function(d){
+        return d.label;
+      })
+      .labelSize(function(d){
+        return Math.max(0.08,(0.35-0.22*_zoomFactor))*_closeFactor;
+      })
+      .labelDotRadius(function(d){
+        return 0;
+      })
+      .labelColor(function(d){
+        if(d.isHome)return 'rgba(255,215,0,0.95)';
+        if(d.isWishlist)return 'rgba(236,72,153,0.95)';
+        return 'rgba(255,255,255,0.95)';
+      })
+      .labelResolution(1)
+      .labelAltitude(function(){
+        return 0.02*_closeFactor;
+      })
+
+      // ANIMATED ARCS
+      .arcsData([])
+      .arcColor(function(d){return d.colors||['rgba(239,68,68,0.9)','rgba(239,68,68,0.3)'];})
+      .arcDashLength(0.5)
+      .arcDashGap(0.2)
+      .arcDashAnimateTime(2000)
+      .arcStroke(0.3)
+      .arcAltitudeAutoScale(0.45)
+
+      // CUSTOM LAYER - floating particles
+      .customLayerData([])
+      .customThreeObject(function(d){
+        if(typeof THREE==='undefined') return null;
+        var g=new THREE.SphereGeometry(d.size||0.4,6,6);
+        var m=new THREE.MeshBasicMaterial({color:new THREE.Color(d.color||'#EF4444'),transparent:true,opacity:d.opacity||0.6});
+        return new THREE.Mesh(g,m);
+      })
+      .customThreeObjectUpdate(function(obj,d){
+        Object.assign(obj.position,globe.getCoords(d.lat,d.lng,d.alt||0.15));
+      })
+
+      .onPointClick(onPin)
+      .onLabelClick(onPin)
+      (el);
+
+    // Globe material
+    try{
+      var m=globe.globeMaterial();
+      m.color.set('#122d54');
+      m.emissive.set('#0d3560');
+      m.emissiveIntensity=0.5;
+      m.shininess=5;
+      m.side=THREE.FrontSide;
+    }catch(e){}
+
+    // Scene enhancements
+    try{
+      var scene=globe.scene();
+      if(typeof THREE!=='undefined'){
+        var rimLight=new THREE.DirectionalLight(0x00d4ff,0.5);
+        rimLight.position.set(-200,100,-200);
+        scene.add(rimLight);
+
+        var rimLight2=new THREE.DirectionalLight(0x4488ff,0.3);
+        rimLight2.position.set(200,-50,100);
+        scene.add(rimLight2);
+
+        var ambLight=new THREE.AmbientLight(0x1a1a44,0.5);
+        scene.add(ambLight);
+
+        // Outer glow halo
+        var glowGeo=new THREE.SphereGeometry(102,64,64);
+        var glowMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.1,side:THREE.BackSide});
+        var glowMesh=new THREE.Mesh(glowGeo,glowMat);
+        scene.add(glowMesh);
+
+        var R=100.4;
+        [-60,-30,0,30,60].forEach(function(lat){
+          var phi=(90-lat)*Math.PI/180,v=[];
+          for(var lo=0;lo<=360;lo+=4){var th=lo*Math.PI/180;v.push(R*Math.sin(phi)*Math.cos(th),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(th));}
+          var g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+          scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
+        });
+        for(var lo=0;lo<360;lo+=30){
+          var th=lo*Math.PI/180,v=[];
+          for(var lt=-90;lt<=90;lt+=4){var p=(90-lt)*Math.PI/180;v.push(R*Math.sin(p)*Math.cos(th),R*Math.cos(p),R*Math.sin(p)*Math.sin(th));}
+          var g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+          scene.add(new THREE.Line(g2,new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.09})));
+        }
+
+        var scanRingGeo=new THREE.RingGeometry(100.2,100.8,48);
+        var scanRingMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0.12,side:THREE.DoubleSide});
+        var scanRing=new THREE.Mesh(scanRingGeo,scanRingMat);
+        scanRing.rotation.x=Math.PI/2;
+        scene.add(scanRing);
+
+        function animateScanner(){
+          _scanAnimId=requestAnimationFrame(animateScanner);
+          scanRing.rotation.z+=0.003;
+          scanRingMat.opacity=0.06+0.06*Math.sin(Date.now()*0.001);
+        }
+        animateScanner();
+      }
+    }catch(e){}
+
+    // Camera controls
+    var c=globe.controls();
+    c.autoRotate=true;
+    c.autoRotateSpeed=0.4;
+    c.enableDamping=true;
+    c.dampingFactor=0.12;
+    c.rotateSpeed=0.8;
+    c.zoomSpeed=1.0;
+    c.minDistance=103;
+    c.maxDistance=600;
+    c.enablePan=false;
+
+    // Smart auto-rotate: pause on interaction, resume after 7s idle
+    var _idleTimer=null;
+    c.addEventListener('start',function(){c.autoRotate=false;if(_idleTimer)clearTimeout(_idleTimer);});
+    c.addEventListener('end',function(){if(_idleTimer)clearTimeout(_idleTimer);_idleTimer=setTimeout(function(){if(!_flythroughActive)c.autoRotate=true;},7000);});
+
+    // === ZOOM-ADAPTIVE RENDERING ===
+    try{
+      var lastZoomUpdate=0;
+      c.addEventListener('change',function(){
+        var now=Date.now();
+        if(now-lastZoomUpdate<100)return;
+        lastZoomUpdate=now;
+        try{
+          var dist=c.object.position.length();
+
+          var f=Math.max(0.2,Math.min(1.5,(dist-100)/260));
+          var alt=globe.pointOfView().altitude;
+          var altChanged=(Math.abs(alt-_currentAltitude)>0.05);
+          _currentAltitude=alt;
+          if(Math.abs(f-_zoomFactor)>0.03||altChanged){
+            _zoomFactor=f;
+            c.autoRotateSpeed=0.4*Math.min(1,Math.max(0.05,(_zoomFactor-0.1)/1.0));
+            renderPins();
+          }
+        }catch(ze){}
+      });
+    }catch(e){}
+
+    globe.width(window.innerWidth).height(window.innerHeight);
+    window.addEventListener('resize',function(){if(globe)globe.width(window.innerWidth).height(window.innerHeight);});
+
+    document.addEventListener('message',onMsg);
+    window.addEventListener('message',onMsg);
+
+    _ready=true;
+    setTimeout(function(){if(dbg)dbg.style.display='none';},2000);
+    S({type:'ready'});
+    L('ready');
+  }catch(e){L('INIT ERR:'+e.message);}
+}
+
+function onPin(p){
+  if(!p||!p.tripId||p.tripId==='__home__')return;
+  // Zoom progressivo: dimezza altitudine corrente, minimo 0.15
+  var pov=globe.pointOfView();
+  var newAlt=Math.max(0.15,pov.altitude/2);
+  globe.pointOfView({lat:p.lat,lng:p.lng,altitude:newAlt},1000);
+  S({type:'pinClick',tripId:p.tripId});
+}
+
+function onMsg(e){try{handleCmd(JSON.parse(typeof e.data==='string'?e.data:''));}catch(x){}}
+function handleMessageFromRN(d){if(typeof d==='string'){try{d=JSON.parse(d);}catch(e){return;}}handleCmd(d);}
+function handleCmd(d){
+  try{
+  if(!d||!d.type)return;
+  if(d.type==='updateTrips'){_itineraries=d.itineraries||[];updateTrips(d.trips);}
+  else if(d.type==='updateHome'){_home=d.home||null;renderPins();updateArcs();}
+  else if(d.type==='updateTravelLines'){_showTravelLines=d.show!==false;updateArcs();}
+  else if(d.type==='updateVisitedCountries'){
+    _visitedCountries=d.countries||[];
+    if(globe&&_countryFeatures.length>0){
+      globe.polygonsData(_countryFeatures);
+    }
+  }
+  else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.8},1500);
+  else if(d.type==='flythrough')startFlythrough(d.stops);
+  else if(d.type==='cleanup'){if(_scanAnimId)cancelAnimationFrame(_scanAnimId);if(globe){try{globe.scene().traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});}catch(ce){}}}
+  }catch(ex){S({type:'log',message:'CMD_ERR:'+ex.message});}
+}
+
+// === FLYTHROUGH ANIMATION ===
+function startFlythrough(stops){
+  if(!globe||!stops||stops.length<2||_flythroughActive)return;
+  _flythroughActive=true;
+  var ctrl=globe.controls();
+  ctrl.autoRotate=false;
+  var idx=0;
+  function flyNext(){
+    if(idx>=stops.length){
+      _flythroughActive=false;
+      ctrl.autoRotate=true;
+      S({type:'flythroughDone'});
+      return;
+    }
+    var stop=stops[idx];
+    var alt=idx===0?2.5:1.8;
+    var dur=idx===0?2000:2500;
+    globe.pointOfView({lat:stop.lat,lng:stop.lng,altitude:alt},dur);
+    idx++;
+    setTimeout(flyNext,dur+800);
+  }
+  flyNext();
+}
+
+// === RENDER INDIVIDUAL PINS ===
+function renderPins(){
+  if(!globe)return;
+  var dp=[],dr=[],dl=[];
+
+  // closeFactor: shrink pins/labels/rings at close zoom
+  var ctrl=globe.controls();
+  if(ctrl&&ctrl.object){
+    var dist=ctrl.object.position.length();
+    _closeFactor=Math.min(1.0,Math.max(0.5,(dist-100)/150));
+  }
+
+  // FIX: sincronizza _currentAltitude con il valore REALE della camera
+  // prima di valutare il gate delle label. Senza questo, al primo render
+  // _currentAltitude non è mai stato aggiornato e le label non appaiono.
+  try{
+    var pov=globe.pointOfView();
+    if(pov&&typeof pov.altitude==='number'){
+      _currentAltitude=pov.altitude;
+    }
+  }catch(e){}
+
+  if(_home){
+    dp.push({lat:_home.latitude,lng:_home.longitude,tripId:'__home__',color:'#FFD700',isHome:true,clusterCount:1});
+    dr.push({lat:_home.latitude,lng:_home.longitude,ringColor:'255,215,0'});
+    dl.push({lat:_home.latitude,lng:_home.longitude-(0.7*_closeFactor),tripId:'__home__',label:(_home.name||'Home').split(',')[0].trim(),isHome:true});
+  }
+
+  for(var i=0;i<_trips.length;i++){
+    var t=_trips[i];
+    var wl=t.isWishlist||false;
+    var count=t.clusterCount||1;
+    dp.push({
+      lat:t.latitude,lng:t.longitude,
+      tripId:t.id,
+      color:wl?'#EC4899':'#EF4444',
+      isHome:false,
+      isCluster:t.isCluster||false,
+      clusterCount:count,
+      isWishlist:wl
+    });
+    dr.push({lat:t.latitude,lng:t.longitude,ringColor:wl?'236,72,153':'239,68,68',isWishlist:wl});
+    if(t.label&&_currentAltitude<=2.5){
+      dl.push({lat:t.latitude,lng:t.longitude+(0.7*_closeFactor),tripId:t.id,label:t.label,isHome:false,isWishlist:wl});
+    }
+  }
+
+  globe.pointsData(dp).ringsData(dr).labelsData(dl);
+}
+
+// === UPDATE ARCS ===
+function updateArcs(){
+  if(!globe)return;
+  var t=_trips;
+  var a=[];
+  // Home->trip arcs: gated by _showTravelLines toggle, same as itinerary arcs
+  if(_showTravelLines&&_home&&t&&t.length>0){
+    t.forEach(function(x){
+      if(x.showArc&&!x.isWishlist){
+        a.push({
+          startLat:_home.latitude,startLng:_home.longitude,
+          endLat:x.latitude,endLng:x.longitude,
+          colors:['rgba(255,215,0,0.7)','rgba(239,68,68,0.55)']
+        });
+      }
+    });
+  }
+  // Itinerary arcs: use pre-computed cluster-aware stops
+  if(_showTravelLines&&_itineraries&&_itineraries.length>0){
+    _itineraries.forEach(function(itin){
+      var stops=itin.stops||[];
+      for(var j=0;j<stops.length-1;j++){
+        a.push({
+          startLat:stops[j].lat,startLng:stops[j].lng,
+          endLat:stops[j+1].lat,endLng:stops[j+1].lng,
+          colors:['rgba(245,158,11,0.65)','rgba(245,158,11,0.55)']
+        });
+      }
+    });
+  }
+  globe.arcsData(a);
+}
+
+// === MAIN UPDATE FUNCTION ===
+function updateTrips(t){
+  if(!globe||!t)return;
+  // Copy pin data (already clustered in React Native)
+  _trips=t.map(function(x){
+    return{
+      id:x.id,
+      latitude:x.latitude,
+      longitude:x.longitude,
+      isWishlist:x.isWishlist||false,
+      showArc:x.showArc||false,
+      isCluster:x.isCluster||false,
+      clusterCount:x.clusterCount||1,
+      label:x.label||''
+    };
+  });
+
+  renderPins();
+  updateArcs();
+
+  // Floating particles (red for trips, pink for wishlist)
+  var particles=[];
+  t.forEach(function(x){
+    var pColor=x.isWishlist?'#EC4899':'#EF4444';
+    var pCount=x.isWishlist?1:2;
+    for(var j=0;j<pCount;j++){
+      particles.push({
+        lat:x.latitude+(Math.random()-0.5)*3,
+        lng:x.longitude+(Math.random()-0.5)*3,
+        alt:0.05+Math.random()*0.1,
+        size:0.15+Math.random()*0.2,
+        color:pColor,
+        opacity:x.isWishlist?0.2+Math.random()*0.2:0.3+Math.random()*0.3
+      });
+    }
+  });
+  globe.customLayerData(particles);
+}
+</script>
+</body>
+</html>

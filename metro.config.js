@@ -6,4 +6,10 @@ const config = getDefaultConfig(__dirname);
 // Required for Three.js compatibility
 config.resolver.sourceExts.push('cjs');
 
+// Include HTML files as assets (for globe.html)
+config.resolver.assetExts.push('html');
+
+// Include .txt files as assets (for bundled vendor libraries)
+config.resolver.assetExts.push('txt');
+
 module.exports = config;
