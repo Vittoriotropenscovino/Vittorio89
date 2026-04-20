@@ -14,13 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { getDistanceKm } from '../utils/clusterTrips';
 import { MEDIA_DIR } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
 const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ visible, onClose, onSave, editTrip, itineraries }) => {
-    const { t, language } = useApp();
+    const { t, language, settings } = useApp();
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
     const isSmallPhone = SCREEN_WIDTH < 400;
@@ -77,6 +78,16 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             }
         }
     }, [editTrip, visible]);
+
+    useEffect(() => {
+        if (!editTrip && foundLocation && settings.homeLocation) {
+            const dist = getDistanceKm(
+                foundLocation.latitude, foundLocation.longitude,
+                settings.homeLocation.latitude, settings.homeLocation.longitude
+            );
+            setShowArc(dist > 100);
+        }
+    }, [foundLocation, settings.homeLocation, editTrip]);
 
     const resetForm = () => {
         setLocationQuery(''); setFoundLocation(null); setTitle('');
