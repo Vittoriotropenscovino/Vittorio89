@@ -50,47 +50,117 @@ jobs:
       - name: Patch build.gradle with signing config
         run: |
           python3 << 'EOF'
-          import re
+          import re, sys
 
           path = 'android/app/build.gradle'
           with open(path, 'r') as f:
               content = f.read()
 
-          # Add signingConfig block inside android { ... }
-          signing_config = '''
-              signingConfigs {
-                  release {
-                      if (project.hasProperty('TRAVELSPHERE_UPLOAD_STORE_FILE')) {
-                          storeFile file(TRAVELSPHERE_UPLOAD_STORE_FILE)
-                          storePassword TRAVELSPHERE_UPLOAD_STORE_PASSWORD
-                          keyAlias TRAVELSPHERE_UPLOAD_KEY_ALIAS
-                          keyPassword TRAVELSPHERE_UPLOAD_KEY_PASSWORD
-                      }
-                  }
-              }
-          '''
+          def find_matching_brace(s, start):
+              """Given position right after an opening '{', return position of matching '}'."""
+              depth = 0
+              i = start
+              while i < len(s):
+                  c = s[i]
+                  if c == '{':
+                      depth += 1
+                  elif c == '}':
+                      if depth == 0:
+                          return i
+                      depth -= 1
+                  i += 1
+              return -1
 
-          # Insert signingConfigs after 'android {'
-          content = re.sub(
-              r'(android\s*\{)',
-              r'\1' + signing_config,
-              content,
-              count=1
+          release_signing = (
+              "        release {\n"
+              "            if (project.hasProperty('TRAVELSPHERE_UPLOAD_STORE_FILE')) {\n"
+              "                storeFile file(TRAVELSPHERE_UPLOAD_STORE_FILE)\n"
+              "                storePassword TRAVELSPHERE_UPLOAD_STORE_PASSWORD\n"
+              "                keyAlias TRAVELSPHERE_UPLOAD_KEY_ALIAS\n"
+              "                keyPassword TRAVELSPHERE_UPLOAD_KEY_PASSWORD\n"
+              "            }\n"
+              "        }\n"
           )
 
-          # Change signingConfig from debug to release in release buildType
-          content = re.sub(
-              r'(buildTypes\s*\{[^}]*release\s*\{[^}]*?)signingConfig\s+signingConfigs\.debug',
-              r'\1signingConfig signingConfigs.release',
-              content,
-              flags=re.DOTALL
+          # 1) Inject `release { ... }` INTO the existing `signingConfigs { ... }` block.
+          #    The Expo template already provides `signingConfigs { debug { ... } }`,
+          #    so we merge rather than creating a second top-level block.
+          sc_match = re.search(r'signingConfigs\s*\{', content)
+          if sc_match:
+              after_open = sc_match.end()
+              close_idx = find_matching_brace(content, after_open)
+              if close_idx < 0:
+                  print("ERROR: could not find matching '}' for signingConfigs block", file=sys.stderr)
+                  sys.exit(1)
+              block_body = content[after_open:close_idx]
+              if re.search(r'\brelease\s*\{', block_body) is None:
+                  content = content[:after_open] + "\n" + release_signing + content[after_open:]
+                  print("Injected release {} inside existing signingConfigs block.")
+              else:
+                  print("release {} already present in signingConfigs block; leaving as-is.")
+          else:
+              # No signingConfigs block at all — create one just after `android {`.
+              block = "\n    signingConfigs {\n" + release_signing + "    }\n"
+              content, n = re.subn(r'(android\s*\{)', r'\1' + block, content, count=1)
+              if n == 0:
+                  print("ERROR: could not locate `android {` to insert signingConfigs block", file=sys.stderr)
+                  sys.exit(1)
+              print("Created new signingConfigs block with release {}.")
+
+          # 2) Inside the release buildType block, swap signingConfigs.debug -> .release.
+          #    The previous regex-only approach failed because `[^}]*` cannot cross the
+          #    closing `}` of the preceding `debug { ... }` block — so the replacement
+          #    silently did nothing and the AAB ended up signed with the debug key.
+          bt_match = re.search(r'buildTypes\s*\{', content)
+          if not bt_match:
+              print("ERROR: could not find buildTypes { block", file=sys.stderr)
+              sys.exit(1)
+          bt_after_open = bt_match.end()
+          bt_close = find_matching_brace(content, bt_after_open)
+          if bt_close < 0:
+              print("ERROR: could not find matching '}' for buildTypes block", file=sys.stderr)
+              sys.exit(1)
+
+          rel_match = re.search(r'\brelease\s*\{', content[bt_after_open:bt_close])
+          if not rel_match:
+              print("ERROR: could not find release {} inside buildTypes", file=sys.stderr)
+              sys.exit(1)
+          rel_after_open = bt_after_open + rel_match.end()
+          rel_close = find_matching_brace(content, rel_after_open)
+          if rel_close < 0:
+              print("ERROR: could not find matching '}' for release buildType", file=sys.stderr)
+              sys.exit(1)
+
+          rel_body = content[rel_after_open:rel_close]
+          new_rel_body, n_sub = re.subn(
+              r'signingConfig\s+signingConfigs\.debug',
+              'signingConfig signingConfigs.release',
+              rel_body,
           )
+          if n_sub == 0:
+              if 'signingConfig signingConfigs.release' in rel_body:
+                  print("release buildType already points at signingConfigs.release; ok.")
+              else:
+                  # No signingConfig line at all — add one.
+                  new_rel_body = "\n            signingConfig signingConfigs.release" + rel_body
+                  print("Inserted signingConfig signingConfigs.release into release buildType.")
+          else:
+              print(f"Replaced {n_sub} occurrence(s) of signingConfigs.debug -> .release in release buildType.")
+
+          content = content[:rel_after_open] + new_rel_body + content[rel_close:]
 
           with open(path, 'w') as f:
               f.write(content)
 
           print("build.gradle patched successfully.")
           EOF
+
+      - name: Dump patched build.gradle (for debugging)
+        run: |
+          echo "=== android/app/build.gradle (post-patch) ==="
+          cat android/app/build.gradle
+          echo "=== android/gradle.properties (signing-related) ==="
+          grep -E '^(TRAVELSPHERE_UPLOAD_|MYAPP_UPLOAD_)' android/gradle.properties || true
 
       - name: Build AAB with Gradle
         working-directory: android
@@ -108,6 +178,22 @@ jobs:
             find android/app/build/outputs/ -type f 2>/dev/null || echo "No build outputs found"
             exit 1
           fi
+
+      - name: Verify AAB is signed with release key (not debug)
+        run: |
+          set -e
+          AAB=TravelSphere-release.aab
+          echo "=== keytool -printcert -jarfile $AAB ==="
+          keytool -printcert -jarfile "$AAB" | tee /tmp/aab-cert.txt
+          if grep -qi 'CN=Android Debug' /tmp/aab-cert.txt; then
+            echo "::error::AAB is still signed with the Android Debug key. Play Console will reject it."
+            exit 1
+          fi
+          if ! grep -qi 'CN=TravelSphere' /tmp/aab-cert.txt; then
+            echo "::error::AAB certificate Owner is not CN=TravelSphere. Check keystore/alias."
+            exit 1
+          fi
+          echo "OK: AAB is signed with a non-debug certificate (CN=TravelSphere)."
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v5
