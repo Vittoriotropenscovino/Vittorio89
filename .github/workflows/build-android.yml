@@ -38,6 +38,73 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean
 
+      - name: Patch android/app/build.gradle for API 35
+        run: |
+          set -e
+          GRADLE_FILE="android/app/build.gradle"
+
+          if [ ! -f "$GRADLE_FILE" ]; then
+            echo "ERROR: $GRADLE_FILE not found after prebuild"
+            exit 1
+          fi
+
+          echo "=== ORIGINAL build.gradle (android block) ==="
+          grep -A 20 "^android {" "$GRADLE_FILE" | head -30
+          echo "================================================"
+
+          # Forza compileSdk a 35
+          sed -i 's/compileSdk [0-9]\+/compileSdk 35/g' "$GRADLE_FILE"
+          sed -i 's/compileSdkVersion [0-9]\+/compileSdkVersion 35/g' "$GRADLE_FILE"
+
+          # Forza targetSdkVersion a 35
+          sed -i 's/targetSdkVersion [0-9]\+/targetSdkVersion 35/g' "$GRADLE_FILE"
+
+          # Forza buildToolsVersion
+          sed -i 's/buildToolsVersion ["'\''"][0-9.]\+["'\''"]/buildToolsVersion "35.0.0"/g' "$GRADLE_FILE"
+
+          # Se non c'e' buildToolsVersion, aggiungilo dopo compileSdk
+          if ! grep -q "buildToolsVersion" "$GRADLE_FILE"; then
+            sed -i '/compileSdk 35/a\    buildToolsVersion "35.0.0"' "$GRADLE_FILE"
+          fi
+
+          echo "=== PATCHED build.gradle (android block) ==="
+          grep -A 20 "^android {" "$GRADLE_FILE" | head -30
+          echo "================================================"
+
+          # Verifiche finali
+          if ! grep -q "compileSdk 35\|compileSdkVersion 35" "$GRADLE_FILE"; then
+            echo "ERROR: compileSdk 35 not found after patch"
+            exit 1
+          fi
+          if ! grep -q "targetSdkVersion 35" "$GRADLE_FILE"; then
+            echo "ERROR: targetSdkVersion 35 not found after patch"
+            exit 1
+          fi
+          if ! grep -q 'buildToolsVersion "35.0.0"' "$GRADLE_FILE"; then
+            echo "ERROR: buildToolsVersion 35.0.0 not found after patch"
+            exit 1
+          fi
+
+          echo "SUCCESS: build.gradle patched for API 35"
+
+      - name: Patch android/build.gradle (root) for API 35
+        run: |
+          set -e
+          ROOT_GRADLE="android/build.gradle"
+
+          if [ -f "$ROOT_GRADLE" ]; then
+            # Cerca buildscript.ext blocks e forza le versioni
+            sed -i 's/compileSdkVersion = [0-9]\+/compileSdkVersion = 35/g' "$ROOT_GRADLE"
+            sed -i 's/targetSdkVersion = [0-9]\+/targetSdkVersion = 35/g' "$ROOT_GRADLE"
+            sed -i 's/buildToolsVersion = ["'\''"][0-9.]\+["'\''"]/buildToolsVersion = "35.0.0"/g' "$ROOT_GRADLE"
+
+            echo "=== android/build.gradle after patch ==="
+            grep -E "compileSdkVersion|targetSdkVersion|buildToolsVersion" "$ROOT_GRADLE" || echo "(nessun match, forse non serve)"
+            echo "========================================"
+          else
+            echo "android/build.gradle (root) non trovato, skip"
+          fi
+
       - name: Verify BILLING permission in generated manifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
