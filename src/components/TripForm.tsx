@@ -289,99 +289,109 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     const handlePickImages = async () => {
+        // Activate processing overlay immediately so the user cannot press Save
+        // or close the form between tapping "Gallery" and the picker returning.
+        setIsProcessingMedia(true);
+        setProcessedCount(0);
+        setTotalMediaCount(0);
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') { Alert.alert(t('permissionDenied') as string, t('galleryPermission') as string); return; }
+            if (status !== 'granted') {
+                setIsProcessingMedia(false);
+                Alert.alert(t('permissionDenied') as string, t('galleryPermission') as string);
+                return;
+            }
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
                 allowsMultipleSelection: true, quality: 0.8, aspect: [16, 9],
                 exif: true,
             });
-            if (!result.canceled && result.assets) {
-                const MAX_MEDIA = 100;
-                const currentCount = media.length;
-                const available = MAX_MEDIA - currentCount;
-                if (available <= 0) {
-                    Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
-                    return;
-                }
-                const assetsToUse = result.assets.slice(0, available);
-                if (assetsToUse.length < result.assets.length) {
-                    Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
-                }
-
-                const newMedia: MediaItem[] = assetsToUse.map((asset) => ({
-                    uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
-                    width: asset.width, height: asset.height,
-                }));
-
-                setIsProcessingMedia(true);
-                setProcessedCount(0);
-                setTotalMediaCount(newMedia.length);
-
-                const processed: MediaItem[] = [];
-                const CONCURRENCY = 3;
-                for (let i = 0; i < newMedia.length; i += CONCURRENCY) {
-                    const batch = newMedia.slice(i, i + CONCURRENCY);
-                    const results = await Promise.allSettled(
-                        batch.map((item) => processSingleMedia(item))
-                    );
-                    for (const r of results) {
-                        if (r.status === 'fulfilled') {
-                            processed.push(r.value);
-                        }
-                    }
-                    setProcessedCount(Math.min(i + CONCURRENCY, newMedia.length));
-                }
-
-                setMedia((prev) => [...prev, ...processed]);
+            if (result.canceled || !result.assets) {
                 setIsProcessingMedia(false);
+                return;
+            }
+            const MAX_MEDIA = 100;
+            const currentCount = media.length;
+            const available = MAX_MEDIA - currentCount;
+            if (available <= 0) {
+                setIsProcessingMedia(false);
+                Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
+                return;
+            }
+            const assetsToUse = result.assets.slice(0, available);
+            if (assetsToUse.length < result.assets.length) {
+                Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
+            }
 
-                // EXIF auto-fill: extract GPS and date from first image with EXIF data
-                if (!foundLocation) {
-                    for (const asset of assetsToUse) {
-                        const exif = (asset as any).exif;
-                        if (exif) {
-                            const gpsLat = exif.GPSLatitude;
-                            const gpsLng = exif.GPSLongitude;
-                            if (gpsLat && gpsLng && !isNaN(gpsLat) && !isNaN(gpsLng)) {
-                                const lat = exif.GPSLatitudeRef === 'S' ? -Math.abs(gpsLat) : Math.abs(gpsLat);
-                                const lng = exif.GPSLongitudeRef === 'W' ? -Math.abs(gpsLng) : Math.abs(gpsLng);
-                                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                                    try {
-                                        const res = await fetchWithTimeout(
-                                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
-                                        );
-                                        const data = await res.json();
-                                        if (data && data.display_name) {
-                                            const parts = data.display_name.split(', ');
-                                            const name = parts.slice(0, 3).join(', ');
-                                            setFoundLocation({ latitude: lat, longitude: lng, displayName: name });
-                                            setLocationQuery(name);
-                                            if (!title) setTitle(parts[0] || name);
-                                            if (data.address) {
-                                                setFoundCountry(data.address.country || '');
-                                                setFoundCountryCode((data.address.country_code || '').toUpperCase());
-                                            }
-                                            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                            Alert.alert('', t('exifAutoFill') as string);
+            const newMedia: MediaItem[] = assetsToUse.map((asset) => ({
+                uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
+                width: asset.width, height: asset.height,
+            }));
+
+            setTotalMediaCount(newMedia.length);
+
+            const processed: MediaItem[] = [];
+            const CONCURRENCY = 3;
+            for (let i = 0; i < newMedia.length; i += CONCURRENCY) {
+                const batch = newMedia.slice(i, i + CONCURRENCY);
+                const results = await Promise.allSettled(
+                    batch.map((item) => processSingleMedia(item))
+                );
+                for (const r of results) {
+                    if (r.status === 'fulfilled') {
+                        processed.push(r.value);
+                    }
+                }
+                setProcessedCount(Math.min(i + CONCURRENCY, newMedia.length));
+            }
+
+            setMedia((prev) => [...prev, ...processed]);
+            setIsProcessingMedia(false);
+
+            // EXIF auto-fill: extract GPS and date from first image with EXIF data
+            if (!foundLocation) {
+                for (const asset of assetsToUse) {
+                    const exif = (asset as any).exif;
+                    if (exif) {
+                        const gpsLat = exif.GPSLatitude;
+                        const gpsLng = exif.GPSLongitude;
+                        if (gpsLat && gpsLng && !isNaN(gpsLat) && !isNaN(gpsLng)) {
+                            const lat = exif.GPSLatitudeRef === 'S' ? -Math.abs(gpsLat) : Math.abs(gpsLat);
+                            const lng = exif.GPSLongitudeRef === 'W' ? -Math.abs(gpsLng) : Math.abs(gpsLng);
+                            if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                                try {
+                                    const res = await fetchWithTimeout(
+                                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+                                    );
+                                    const data = await res.json();
+                                    if (data && data.display_name) {
+                                        const parts = data.display_name.split(', ');
+                                        const name = parts.slice(0, 3).join(', ');
+                                        setFoundLocation({ latitude: lat, longitude: lng, displayName: name });
+                                        setLocationQuery(name);
+                                        if (!title) setTitle(parts[0] || name);
+                                        if (data.address) {
+                                            setFoundCountry(data.address.country || '');
+                                            setFoundCountryCode((data.address.country_code || '').toUpperCase());
                                         }
-                                    } catch { /* reverse geocode failed */ }
-                                }
+                                        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                        Alert.alert('', t('exifAutoFill') as string);
+                                    }
+                                } catch { /* reverse geocode failed */ }
                             }
-                            if (!date && exif.DateTimeOriginal) {
-                                const dtStr = String(exif.DateTimeOriginal);
-                                const match = dtStr.match(/(\d{4})[:\-](\d{2})[:\-](\d{2})/);
-                                if (match) {
-                                    const exifDate = `${match[1]}-${match[2]}-${match[3]}`;
-                                    setDate(exifDate);
-                                    setDateYear(parseInt(match[1], 10));
-                                    setDateMonth(parseInt(match[2], 10) - 1);
-                                    setDateDay(parseInt(match[3], 10));
-                                }
-                            }
-                            break;
                         }
+                        if (!date && exif.DateTimeOriginal) {
+                            const dtStr = String(exif.DateTimeOriginal);
+                            const match = dtStr.match(/(\d{4})[:\-](\d{2})[:\-](\d{2})/);
+                            if (match) {
+                                const exifDate = `${match[1]}-${match[2]}-${match[3]}`;
+                                setDate(exifDate);
+                                setDateYear(parseInt(match[1], 10));
+                                setDateMonth(parseInt(match[2], 10) - 1);
+                                setDateDay(parseInt(match[3], 10));
+                            }
+                        }
+                        break;
                     }
                 }
             }
@@ -392,37 +402,47 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     const handleCameraCapture = async () => {
+        // Activate processing overlay immediately so the Save button and form
+        // close are locked from the moment the user taps "Camera".
+        setIsProcessingMedia(true);
+        setProcessedCount(0);
+        setTotalMediaCount(0);
         try {
             if (media.length >= 100) {
+                setIsProcessingMedia(false);
                 Alert.alert(t('warning') as string, t('mediaLimitReached') as string);
                 return;
             }
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') { Alert.alert(t('permissionDenied') as string, t('cameraPermission') as string); return; }
+            if (status !== 'granted') {
+                setIsProcessingMedia(false);
+                Alert.alert(t('permissionDenied') as string, t('cameraPermission') as string);
+                return;
+            }
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
                 quality: 0.8, aspect: [16, 9],
             });
-            if (!result.canceled && result.assets) {
-                const newMedia: MediaItem[] = result.assets.map((asset) => ({
-                    uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
-                    width: asset.width, height: asset.height,
-                }));
-                setIsProcessingMedia(true);
-                setProcessedCount(0);
-                setTotalMediaCount(newMedia.length);
-                const processed: MediaItem[] = [];
-                for (const item of newMedia) {
-                    try {
-                        processed.push(await processSingleMedia(item));
-                    } catch {
-                        // skip failed
-                    }
-                    setProcessedCount((c) => c + 1);
-                }
-                setMedia((prev) => [...prev, ...processed]);
+            if (result.canceled || !result.assets) {
                 setIsProcessingMedia(false);
+                return;
             }
+            const newMedia: MediaItem[] = result.assets.map((asset) => ({
+                uri: asset.uri, type: asset.type === 'video' ? 'video' : 'image',
+                width: asset.width, height: asset.height,
+            }));
+            setTotalMediaCount(newMedia.length);
+            const processed: MediaItem[] = [];
+            for (const item of newMedia) {
+                try {
+                    processed.push(await processSingleMedia(item));
+                } catch {
+                    // skip failed
+                }
+                setProcessedCount((c) => c + 1);
+            }
+            setMedia((prev) => [...prev, ...processed]);
+            setIsProcessingMedia(false);
         } catch (error) {
             setIsProcessingMedia(false);
             Alert.alert(t('error') as string, t('cameraPermission') as string);
