@@ -38,6 +38,21 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean
 
+      - name: Verify BILLING permission in generated manifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          echo "=== AndroidManifest.xml ==="
+          cat "$MANIFEST"
+          if grep -q 'com.android.vending.BILLING' "$MANIFEST"; then
+            echo "OK: com.android.vending.BILLING present in AndroidManifest.xml"
+          else
+            echo "::warning::BILLING missing from generated manifest — injecting as fallback"
+            # Fallback: inject just before the closing </manifest> tag
+            sed -i 's|</manifest>|    <uses-permission android:name="com.android.vending.BILLING" />\n</manifest>|' "$MANIFEST"
+            grep -q 'com.android.vending.BILLING' "$MANIFEST" || { echo "::error::Failed to inject BILLING permission"; exit 1; }
+            echo "OK: BILLING injected via fallback"
+          fi
+
       - name: Configure signing in gradle
         run: |
           cat >> android/gradle.properties << EOF
@@ -194,6 +209,22 @@ jobs:
             exit 1
           fi
           echo "OK: AAB is signed with a non-debug certificate (CN=TravelSphere)."
+
+      - name: Verify BILLING permission in final AAB
+        run: |
+          set -e
+          AAB=TravelSphere-release.aab
+          # base/manifest/AndroidManifest.xml inside the AAB is in protobuf binary
+          # format, but permission names are stored as literal UTF-8 strings — so
+          # `strings | grep` reliably detects them without needing bundletool/aapt.
+          if unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings | grep -q 'com.android.vending.BILLING'; then
+            echo "OK: com.android.vending.BILLING present in AAB manifest."
+          else
+            echo "::error::BILLING permission is NOT present in the built AAB. Play Console will reject in-app product creation."
+            echo "--- permission strings in AAB manifest ---"
+            unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings | grep -Ei 'permission|BILLING' || true
+            exit 1
+          fi
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v5
