@@ -2,7 +2,7 @@ import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { Platform } from 'react-native';
 
 // RevenueCat API keys (configurare dopo creazione account RevenueCat)
-const REVENUECAT_ANDROID_KEY = 'YOUR_ANDROID_KEY';
+const REVENUECAT_ANDROID_KEY = 'goog_esXJmubPOlaUCmEYEdCGHpLDtox';
 const REVENUECAT_IOS_KEY = 'YOUR_IOS_KEY';
 
 const ENTITLEMENT_ID = 'premium';
