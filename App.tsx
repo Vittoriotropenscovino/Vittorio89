@@ -6,6 +6,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as NavigationBar from 'expo-navigation-bar';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -132,6 +133,9 @@ const AppContent: React.FC = () => {
   }, [editingTrip, saveTrip, t, closeForm, showSaveToast]);
 
   const handleAddTrip = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
     const nonWishlistTrips = trips.filter(t => !t.isWishlist).length;
     if (canAddTrip(nonWishlistTrips)) {
       openModal('form');
@@ -139,6 +143,13 @@ const AppContent: React.FC = () => {
       openModal('paywall');
     }
   }, [trips, canAddTrip, openModal]);
+
+  const openModalWithHaptic = useCallback((modal: Parameters<typeof openModal>[0]) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+    openModal(modal);
+  }, [openModal]);
 
   const handleDeleteTrip = useCallback(async (tripId: string) => {
     await deleteTrip(tripId);
@@ -238,6 +249,7 @@ const AppContent: React.FC = () => {
         showTravelLines={settings.showTravelLines !== false}
         visitedCountries={visitedCountries}
         flythroughStops={flythroughStops}
+        selectedTripId={selectedTrip?.id || null}
       />
 
       {/* Layer 1: UI overlay */}
@@ -319,7 +331,7 @@ const AppContent: React.FC = () => {
           >
             <Ionicons name="git-network-outline" size={20} color={settings.showTravelLines !== false ? '#F59E0B' : '#6B7280'} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itineraryButton} onPress={() => openModal('itineraryManager')}>
+          <TouchableOpacity style={styles.itineraryButton} onPress={() => openModalWithHaptic('itineraryManager')}>
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
@@ -353,10 +365,10 @@ const AppContent: React.FC = () => {
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
         onTripSelect={(trip) => selectTrip(trip)} onDelete={handleDeleteTrip}
         onToggleFavorite={toggleFavorite}
-        onOpenSettings={() => openModal('settings')}
-        onOpenStats={() => openModal('stats')}
-        onOpenCalendar={() => openModal('calendar')}
-        onOpenHelpGuide={() => openModal('helpGuide')}
+        onOpenSettings={() => openModalWithHaptic('settings')}
+        onOpenStats={() => openModalWithHaptic('stats')}
+        onOpenCalendar={() => openModalWithHaptic('calendar')}
+        onOpenHelpGuide={() => openModalWithHaptic('helpGuide')}
         homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}

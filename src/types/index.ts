@@ -77,6 +77,7 @@ export interface EarthGlobeProps {
     showTravelLines?: boolean;
     visitedCountries?: string[];
     flythroughStops?: { lat: number; lng: number }[] | null;
+    selectedTripId?: string | null;
 }
 
 // Trip Form Props - supports both create and edit mode

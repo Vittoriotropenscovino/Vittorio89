@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 interface AppContextType {
   settings: AppSettings;
-  t: (key: TranslationKey) => string;
+  t: (key: string) => string | string[];
   language: Language;
   setLanguage: (lang: Language) => void;
   updateSettings: (partial: Partial<AppSettings>) => void;
@@ -85,8 +85,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateSettings({ language: lang });
   }, [updateSettings]);
 
-  const t = useCallback((key: TranslationKey) => {
-    return translations[settings.language][key] ?? key;
+  const t = useCallback((key: string): string | string[] => {
+    const dict = translations[settings.language] as Record<string, string | string[]>;
+    return dict[key] ?? key;
   }, [settings.language]);
 
   const contextValue = useMemo(() => ({

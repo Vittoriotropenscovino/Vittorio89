@@ -8,10 +8,15 @@ interface Props {
   trips: Trip[];
   onSelect: (trip: Trip) => void;
   onClose: () => void;
-  t: (key: string) => string;
+  t: (key: string) => string | string[];
 }
 
 export default function PinSelector({ visible, trips, onSelect, onClose, t }: Props) {
+  const ts = (k: string): string => {
+    const v = t(k);
+    return typeof v === 'string' ? v : k;
+  };
+
   if (!visible || trips.length === 0) return null;
 
   const renderTrip = ({ item }: { item: Trip }) => (
@@ -31,7 +36,7 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
             {item.tags.slice(0, 3).map((tag, i) => (
               <View key={i} style={[styles.tag, { backgroundColor: (TAG_CONFIG[tag]?.color || '#888') + '30' }]}>
                 <Text style={[styles.tagText, { color: TAG_CONFIG[tag]?.color || '#888' }]}>
-                  {t(tag) || tag}
+                  {ts(tag) || tag}
                 </Text>
               </View>
             ))}
@@ -49,9 +54,9 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
         <View style={styles.container} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Ionicons name="location" size={20} color="#00d4ff" />
-            <Text style={styles.headerTitle}>{t('selectTrip')}</Text>
+            <Text style={styles.headerTitle}>{ts('selectTrip')}</Text>
             <Text style={styles.headerCount}>
-              {trips.length} {t('tripsInArea')}
+              {trips.length} {ts('tripsInArea')}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={22} color="#9CA3AF" />

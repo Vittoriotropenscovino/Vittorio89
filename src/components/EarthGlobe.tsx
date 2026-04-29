@@ -7,10 +7,11 @@
  */
 
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { EarthGlobeProps, Trip, ClusteredPin } from '../types';
 import { useApp } from '../contexts/AppContext';
@@ -93,7 +94,7 @@ const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'abou
 
 const READY_TIMEOUT_MS = 15000;
 
-function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops }: EarthGlobeProps) {
+function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops, selectedTripId }: EarthGlobeProps) {
   const { t } = useApp();
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
@@ -225,6 +226,13 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
     }
   }, [flythroughStops, sendToWebView]);
 
+  // Clear pin selection highlight when no trip is selected
+  useEffect(() => {
+    if (!selectedTripId && isReady.current) {
+      sendToWebView({ type: 'clearSelection' });
+    }
+  }, [selectedTripId, sendToWebView]);
+
   const handleMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
       try {
@@ -249,6 +257,9 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
           }
           pendingPins.current = null;
         } else if (data.type === 'pinClick') {
+          if (Platform.OS !== 'web') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          }
           const cluster = clusteredPinsRef.current.find((c) => c.id === data.tripId);
           const allTrips = tripsRef.current;
           if (cluster) {

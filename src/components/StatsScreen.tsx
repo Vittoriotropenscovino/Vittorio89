@@ -83,7 +83,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                                 </View>
                                 <View style={styles.detailItem}>
                                     <Ionicons name="heart" size={16} color="#F43F5E" />
-                                    <Text style={styles.detailText}>{stats.favCount} {t('byFavorites').toLowerCase()}</Text>
+                                    <Text style={styles.detailText}>{stats.favCount} {(t('byFavorites') as string).toLowerCase()}</Text>
                                 </View>
                             </View>
 
