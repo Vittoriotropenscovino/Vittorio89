@@ -26,12 +26,13 @@ interface ZoomableImageProps {
     width: number;
     height: number;
     isActive: boolean;
+    isZoomed: boolean;
     onZoomChange: (zoomed: boolean) => void;
     onSingleTap: () => void;
 }
 
 const ZoomableImage: React.FC<ZoomableImageProps> = ({
-    uri, width, height, isActive, onZoomChange, onSingleTap,
+    uri, width, height, isActive, isZoomed, onZoomChange, onSingleTap,
 }) => {
     const scale = useSharedValue(1);
     const translateX = useSharedValue(0);
@@ -71,7 +72,12 @@ const ZoomableImage: React.FC<ZoomableImageProps> = ({
             }
         });
 
+    // Pan only handles in-image panning when zoomed. When not zoomed, it must
+    // stay disabled so the parent FlatList captures horizontal swipes for paging.
     const pan = Gesture.Pan()
+        .enabled(isZoomed)
+        .minPointers(1)
+        .maxPointers(1)
         .onUpdate((e) => {
             if (scale.value > 1) {
                 translateX.value = savedTranslateX.value + e.translationX;
@@ -173,6 +179,7 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
                 width={SCREEN_WIDTH}
                 height={SCREEN_HEIGHT}
                 isActive={index === currentIndex}
+                isZoomed={isZoomed && index === currentIndex}
                 onZoomChange={setIsZoomed}
                 onSingleTap={toggleUI}
             />

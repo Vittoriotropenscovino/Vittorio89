@@ -130,7 +130,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     const geocodeWithNominatim = async (query: string): Promise<{ lat: number; lon: number; name: string; country?: string; countryCode?: string } | null> => {
         try {
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language}&addressdetails=1`;
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language},en&addressdetails=1`;
             const response = await fetchWithTimeout(url);
             if (!response.ok) return null;
             const data = await response.json();
@@ -148,9 +148,12 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         return null;
     };
 
+    const PHOTON_LANGS = ['en', 'de', 'fr', 'it', 'es'];
+    const photonLang = (lang: string): string => (PHOTON_LANGS.indexOf(lang) !== -1 ? lang : 'en');
+
     const geocodeWithPhoton = async (query: string): Promise<{ lat: number; lon: number; name: string; country?: string; countryCode?: string } | null> => {
         try {
-            const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=${language === 'it' ? 'it' : 'en'}`;
+            const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=${photonLang(language)}`;
             const response = await fetchWithTimeout(url);
             if (!response.ok) return null;
             const data = await response.json();
@@ -361,7 +364,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                                 try {
                                     const res = await fetchWithTimeout(
-                                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`
+                                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1&accept-language=${language},en`
                                     );
                                     const data = await res.json();
                                     if (data && data.display_name) {

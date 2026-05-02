@@ -352,7 +352,7 @@ const SettingsScreen: React.FC<Props> = ({
         setSearchingHome(true);
         try {
             const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeQuery.trim())}&limit=1`,
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeQuery.trim())}&limit=1&accept-language=${language},en&addressdetails=1`,
                 { headers: { 'User-Agent': 'TravelSphere/1.0' } }
             );
             const data = await res.json();
