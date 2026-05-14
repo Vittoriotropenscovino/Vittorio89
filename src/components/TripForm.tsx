@@ -8,7 +8,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
-import * as Location from 'expo-location';
 import * as Crypto from 'expo-crypto';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -172,28 +171,6 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         return null;
     };
 
-    const geocodeWithNative = async (query: string): Promise<{ lat: number; lon: number; name: string } | null> => {
-        try {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') return null;
-            const coords = await Location.geocodeAsync(query);
-            if (coords && coords.length > 0) {
-                const { latitude, longitude } = coords[0];
-                let displayName = query;
-                try {
-                    const reverse = await Location.reverseGeocodeAsync({ latitude, longitude });
-                    if (reverse && reverse.length > 0) {
-                        const r = reverse[0];
-                        const parts = [r.city || r.subregion, r.region, r.country].filter(Boolean);
-                        if (parts.length > 0) displayName = parts.join(', ');
-                    }
-                } catch { /* use query */ }
-                return { lat: latitude, lon: longitude, name: displayName };
-            }
-        } catch { /* native unavailable */ }
-        return null;
-    };
-
     const handleGeocode = async () => {
         if (!locationQuery.trim()) { Alert.alert(t('error') as string, t('enterLocation') as string); return; }
         // Check network connectivity before geocoding
@@ -225,15 +202,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 return;
             }
 
-            // 2. Fallback: native geocoding (asks location permission only if HTTP failed)
-            const nativeResult = await geocodeWithNative(locationQuery);
-            if (nativeResult) {
-                setFoundLocation({ latitude: nativeResult.lat, longitude: nativeResult.lon, displayName: nativeResult.name });
-                if (!title) setTitle(locationQuery);
-                return;
-            }
-
-            // 3. All 3 methods failed
+            // 2. Both HTTP geocoders failed
             Alert.alert(t('locationNotFound') as string, t('locationNotFoundText') as string);
         } catch (error) {
             Alert.alert(t('error') as string, t('searchError') as string);
@@ -298,12 +267,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         setProcessedCount(0);
         setTotalMediaCount(0);
         try {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-                setIsProcessingMedia(false);
-                Alert.alert(t('permissionDenied') as string, t('galleryPermission') as string);
-                return;
-            }
+            // Android 13+ uses the system Photo Picker (no runtime permission needed).
+            // expo-image-picker v16 routes through it automatically.
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
                 allowsMultipleSelection: true, quality: 0.8, aspect: [16, 9],

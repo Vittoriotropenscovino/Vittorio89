@@ -2,7 +2,7 @@
   "expo": {
     "name": "TravelSphere",
     "slug": "travelsphere",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -41,7 +41,7 @@
     },
     "android": {
       "package": "com.travelsphere.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "targetSdkVersion": 35,
       "compileSdkVersion": 35,
       "adaptiveIcon": {
@@ -49,12 +49,6 @@
         "backgroundColor": "#0a0a0f"
       },
       "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_MEDIA_VIDEO",
-
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
@@ -66,7 +60,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-location",
       [
         "expo-image-picker",
         {
@@ -94,7 +87,8 @@
           "android": {
             "targetSdkVersion": 35,
             "compileSdkVersion": 35,
-            "buildToolsVersion": "35.0.0"
+            "buildToolsVersion": "35.0.0",
+            "useLegacyPackaging": false
           }
         }
       ]
