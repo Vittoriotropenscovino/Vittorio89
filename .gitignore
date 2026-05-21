@@ -23,3 +23,6 @@ credentials.json
 
 # EAS local cache
 .eas/
+
+# Use npm (package-lock.json), not yarn
+yarn.lock
