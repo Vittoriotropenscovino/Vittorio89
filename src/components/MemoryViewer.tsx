@@ -108,7 +108,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     <Ionicons name="videocam" size={22} color="#00d4ff" />
                 </View>
             ) : (
-                <Image source={{ uri: item.thumbnailUri || item.uri }} style={styles.thumbImage} />
+                <Image source={{ uri: item.thumbnailUri || item.uri }} style={styles.thumbImage} resizeMode="cover" />
             )}
         </TouchableOpacity>
     );
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
         borderColor: 'transparent', opacity: 0.6,
     },
     thumbnailActive: { borderColor: '#00d4ff', opacity: 1 },
-    thumbImage: { width: '100%', height: '100%' },
+    thumbImage: { ...StyleSheet.absoluteFillObject },
     videoThumbBg: {
         width: '100%', height: '100%', backgroundColor: 'rgba(0,20,40,0.8)',
         justifyContent: 'center', alignItems: 'center',
