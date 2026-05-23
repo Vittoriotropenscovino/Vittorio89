@@ -9,6 +9,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import Constants from 'expo-constants';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppProvider, useApp } from './src/contexts/AppContext';
@@ -279,7 +280,7 @@ const AppContent: React.FC = () => {
           </TouchableOpacity>
           <View style={styles.statusIndicatorInline}>
             <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{t('version')}</Text>
+            <Text style={styles.statusText}>{`v${Constants.expoConfig?.version ?? '1.1.0'}`}</Text>
           </View>
         </View>
 
