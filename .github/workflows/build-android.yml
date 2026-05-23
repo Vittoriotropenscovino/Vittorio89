@@ -25,7 +25,7 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile || yarn install
+        run: npm ci
 
       - name: Fix Expo dependency versions
         run: npx expo install --fix

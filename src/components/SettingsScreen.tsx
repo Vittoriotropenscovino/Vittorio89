@@ -18,6 +18,7 @@ import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 import { Trip, Itinerary } from '../types';
 import StorageService from '../services/StorageService';
+import Constants from 'expo-constants';
 import { validateImportData } from '../utils/validateTrip';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
@@ -605,7 +606,7 @@ const SettingsScreen: React.FC<Props> = ({
                                 onPress={handleVersionTap}
                                 right={
                                     <Text style={styles.versionText}>
-                                        1.0.0{isDevMode ? ' (DEV)' : ''}
+                                        {Constants.expoConfig?.version ?? '1.1.0'}{isDevMode ? ' (DEV)' : ''}
                                     </Text>
                                 }
                             />
