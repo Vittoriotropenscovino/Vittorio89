@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    View, Modal, StyleSheet, TouchableOpacity, Image, FlatList,
+    View, Modal, StyleSheet, TouchableOpacity, FlatList,
     useWindowDimensions, StatusBar, Text, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -130,7 +131,7 @@ const ZoomableImage: React.FC<ZoomableImageProps> = ({
     return (
         <GestureDetector gesture={composed}>
             <Animated.View style={[{ width, height, justifyContent: 'center', alignItems: 'center' }, animatedStyle]}>
-                <Image source={{ uri }} style={{ width, height }} resizeMode="contain" />
+                <Image source={{ uri }} style={{ width, height }} contentFit="contain" />
             </Animated.View>
         </GestureDetector>
     );

@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
-    View, Text, Modal, StyleSheet, TouchableOpacity, Image,
+    View, Text, Modal, StyleSheet, TouchableOpacity,
     FlatList, useWindowDimensions, Alert, Platform, Share,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -89,7 +90,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     isLooping={false}
                 />
             ) : (
-                <Image source={{ uri: item.uri }} style={styles.media} resizeMode="contain" />
+                <Image source={{ uri: item.uri }} style={styles.media} contentFit="contain" />
             )}
         </TouchableOpacity>
     );
@@ -108,7 +109,13 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     <Ionicons name="videocam" size={22} color="#00d4ff" />
                 </View>
             ) : (
-                <Image source={{ uri: item.thumbnailUri || item.uri }} style={{ width: thumbSize, height: thumbSize, borderRadius: 8 }} resizeMode="cover" />
+                <Image
+                    source={{ uri: item.thumbnailUri || item.uri }}
+                    style={{ width: thumbSize, height: thumbSize, borderRadius: 8 }}
+                    contentFit="cover"
+                    onLoad={() => console.log('[THUMB] loaded', item.thumbnailUri || item.uri)}
+                    onError={(e) => console.warn('[THUMB] error', item.thumbnailUri || item.uri, e?.error)}
+                />
             )}
         </TouchableOpacity>
     );

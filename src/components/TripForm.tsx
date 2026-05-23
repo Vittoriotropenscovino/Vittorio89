@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, Modal, StyleSheet,
-    Alert, ActivityIndicator, ScrollView, Image, useWindowDimensions, Platform, Switch,
+    Alert, ActivityIndicator, ScrollView, useWindowDimensions, Platform, Switch,
 } from 'react-native';
 
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -667,7 +668,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
                                             {media.map((item, index) => (
                                                 <View key={index} style={[styles.mediaItem, dynamicStyles.mediaItem]}>
-                                                    <Image source={{ uri: item.uri }} style={{ width: mediaThumbSize, height: mediaThumbSize }} resizeMode="cover" />
+                                                    <Image source={{ uri: item.uri }} style={{ width: mediaThumbSize, height: mediaThumbSize }} contentFit="cover" />
                                                     <TouchableOpacity style={styles.removeMediaBtn} onPress={() => removeMedia(index)}
                                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                                         <Ionicons name="close" size={12} color="#fff" />
