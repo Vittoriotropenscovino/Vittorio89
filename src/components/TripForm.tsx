@@ -474,10 +474,11 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const isEditMode = !!editTrip;
     const allTags: TripTag[] = ['sea', 'mountain', 'city', 'adventure', 'culture', 'food', 'nature', 'romantic'];
 
+    const mediaThumbSize = isSmallPhone ? 60 : 80;
     const dynamicStyles = {
         blurContainer: { width: isTablet ? SCREEN_WIDTH * 0.5 : SCREEN_WIDTH * 0.85, maxWidth: 550, minWidth: 300 },
         scrollContent: { maxHeight: SCREEN_HEIGHT * 0.6 },
-        mediaItem: { width: isSmallPhone ? 60 : 80, height: isSmallPhone ? 60 : 80 },
+        mediaItem: { width: mediaThumbSize, height: mediaThumbSize },
     };
 
     return (
@@ -666,7 +667,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
                                             {media.map((item, index) => (
                                                 <View key={index} style={[styles.mediaItem, dynamicStyles.mediaItem]}>
-                                                    <Image source={{ uri: item.uri }} style={styles.mediaThumb} resizeMode="cover" />
+                                                    <Image source={{ uri: item.uri }} style={{ width: mediaThumbSize, height: mediaThumbSize }} resizeMode="cover" />
                                                     <TouchableOpacity style={styles.removeMediaBtn} onPress={() => removeMedia(index)}
                                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                                         <Ionicons name="close" size={12} color="#fff" />
@@ -789,7 +790,6 @@ const styles = StyleSheet.create({
     mediaPickerText: { color: '#9CA3AF', fontSize: 13 },
     mediaPreview: { marginTop: 12 },
     mediaItem: { marginRight: 10, borderRadius: 10, overflow: 'hidden', position: 'relative' },
-    mediaThumb: { ...StyleSheet.absoluteFillObject },
     removeMediaBtn: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(239,68,68,0.9)', borderRadius: 10, padding: 4 },
     mediaCountLabel: { color: '#9CA3AF', fontSize: 12, marginTop: 8, marginBottom: 6, opacity: 0.7, fontWeight: '500' },
     videoTag: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },

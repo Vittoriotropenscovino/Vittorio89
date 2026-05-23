@@ -4,9 +4,12 @@ import * as LocalAuthentication from 'expo-local-authentication';
 
 type TranslateFn = (key: string) => string | string[];
 
+const BACKGROUND_GRACE_MS = 5 * 60 * 1000;
+
 export function useAuth(biometricEnabled: boolean, isSettingsLoaded: boolean, t: TranslateFn) {
   const [authenticated, setAuthenticated] = useState(false);
   const appStateRef = useRef(AppState.currentState);
+  const backgroundedAtRef = useRef<number>(0);
 
   // Biometric auth on startup
   useEffect(() => {
@@ -34,25 +37,31 @@ export function useAuth(biometricEnabled: boolean, isSettingsLoaded: boolean, t:
     })();
   }, [isSettingsLoaded, biometricEnabled, t]);
 
-  // Biometric re-auth when app returns from background
+  // Grace period: brief backgrounds (photo/camera picker) must not re-auth — re-auth unmounts any open form and wipes its state.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
+      if (appStateRef.current === 'active' && nextState.match(/inactive|background/)) {
+        backgroundedAtRef.current = Date.now();
+      }
       if (
         appStateRef.current.match(/background/) &&
         nextState === 'active' &&
         biometricEnabled
       ) {
-        setAuthenticated(false);
-        (async () => {
-          try {
-            const result = await LocalAuthentication.authenticateAsync({
-              promptMessage: t('biometricPrompt') as string,
-            });
-            setAuthenticated(result.success);
-          } catch {
-            setAuthenticated(false);
-          }
-        })();
+        const elapsed = Date.now() - backgroundedAtRef.current;
+        if (elapsed >= BACKGROUND_GRACE_MS) {
+          setAuthenticated(false);
+          (async () => {
+            try {
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: t('biometricPrompt') as string,
+              });
+              setAuthenticated(result.success);
+            } catch {
+              setAuthenticated(false);
+            }
+          })();
+        }
       }
       appStateRef.current = nextState;
     });
