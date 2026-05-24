@@ -226,7 +226,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                 { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
             );
             return result.uri;
-        } catch {
+        } catch (e) {
+            console.warn('[TripForm] compressImage failed, using original', e);
             return uri;
         }
     };
@@ -242,7 +243,8 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             const thumbUri = MEDIA_DIR + thumbFilename;
             await FileSystem.copyAsync({ from: thumb.uri, to: thumbUri });
             return thumbUri;
-        } catch {
+        } catch (e) {
+            console.warn('[TripForm] generateThumbnail failed', e);
             return undefined;
         }
     };

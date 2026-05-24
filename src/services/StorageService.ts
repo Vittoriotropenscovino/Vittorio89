@@ -13,7 +13,7 @@ const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
 const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_BACKUPS = 3;
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 const SCHEMA_VERSION_KEY = '@travelsphere_schema_version';
 const isWeb = Platform.OS === 'web';
 
@@ -98,6 +98,13 @@ export const StorageService = {
                         await FileSystem.deleteAsync(media.uri, { idempotent: true });
                     } catch (error) {
                         console.error('Error deleting media file:', error);
+                    }
+                }
+                if (media.thumbnailUri && media.thumbnailUri.startsWith(MEDIA_DIR)) {
+                    try {
+                        await FileSystem.deleteAsync(media.thumbnailUri, { idempotent: true });
+                    } catch (error) {
+                        console.error('Error deleting thumbnail file:', error);
                     }
                 }
             }
@@ -288,8 +295,15 @@ export const StorageService = {
             }));
         }
 
-        // Future migrations:
-        // if (currentVersion < 2) { ... }
+        // Migration 1 → 2: force the thumbnail self-heal pass on next launch.
+        // cleanOrphanedMedia previously deleted every {uuid}_thumb.jpg because
+        // its referenced-set was built only from m.uri. Clearing LAST_CLEANUP_KEY
+        // makes checkAndCleanOrphanedMedia run immediately, which now self-heals
+        // dead thumbnailUri pointers on existing trips.
+        if (currentVersion < 2) {
+            console.log('[Migration] v1 → v2: force thumbnail self-heal');
+            await AsyncStorage.removeItem(LAST_CLEANUP_KEY);
+        }
 
         await StorageService.saveTrips(migratedTrips);
         await StorageService.saveItineraries(migratedItineraries);
@@ -362,14 +376,41 @@ export const StorageService = {
             if (!dirInfo.exists) return { deletedCount: 0, freedBytes: 0 };
 
             const files = await FileSystem.readDirectoryAsync(MEDIA_DIR);
+            const fileSet = new Set(files);
             const trips = await StorageService.loadTrips();
 
-            // Collect all filenames referenced by trips
+            // Self-heal: clear thumbnailUri pointers to files that no longer exist on disk
+            let mutated = false;
+            const healedTrips = trips.map((trip) => ({
+                ...trip,
+                media: trip.media.map((m) => {
+                    if (m.thumbnailUri) {
+                        const fn = m.thumbnailUri.split('/').pop();
+                        if (fn && !fileSet.has(fn)) {
+                            mutated = true;
+                            return { ...m, thumbnailUri: undefined };
+                        }
+                    }
+                    return m;
+                }),
+            }));
+            if (mutated) {
+                await StorageService.saveTrips(healedTrips);
+                console.log('[TravelSphere] Self-healed dead thumbnailUri references');
+            }
+
+            // Collect filenames referenced by trips — BOTH main uri AND thumbnailUri.
+            // Previous version only checked m.uri, so every {uuid}_thumb.jpg was
+            // treated as orphaned and deleted on first launch after install.
             const referencedFiles = new Set<string>();
-            trips.forEach((trip) => {
+            healedTrips.forEach((trip) => {
                 trip.media.forEach((m) => {
-                    const filename = m.uri.split('/').pop();
-                    if (filename) referencedFiles.add(filename);
+                    const mainFn = m.uri.split('/').pop();
+                    if (mainFn) referencedFiles.add(mainFn);
+                    if (m.thumbnailUri) {
+                        const thumbFn = m.thumbnailUri.split('/').pop();
+                        if (thumbFn) referencedFiles.add(thumbFn);
+                    }
                 });
             });
 

@@ -113,8 +113,6 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                     source={{ uri: item.thumbnailUri || item.uri }}
                     style={{ width: thumbSize, height: thumbSize, borderRadius: 8 }}
                     contentFit="cover"
-                    onLoad={() => console.log('[THUMB] loaded', item.thumbnailUri || item.uri)}
-                    onError={(e) => console.warn('[THUMB] error', item.thumbnailUri || item.uri, e?.error)}
                 />
             )}
         </TouchableOpacity>
