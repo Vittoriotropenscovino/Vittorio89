@@ -53,6 +53,7 @@
     "expo-screen-orientation": "~8.1.7",
     "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
+    "expo-store-review": "~8.1.5",
     "expo-updates": "~0.28.18",
     "globe.gl": "^2.45.1",
     "react": "19.0.0",

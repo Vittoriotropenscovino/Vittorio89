@@ -28,6 +28,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
 }));
 
+jest.mock('expo-store-review', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(false),
+  requestReview: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockAlert = jest.fn();
 const mockAppStateRemove = jest.fn();
 jest.mock('react-native', () => ({

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import StorageService from '../services/StorageService';
+import { requestReviewIfAppropriate } from '../utils/reviewPrompt';
 import { Trip, Itinerary } from '../types';
 
 type TranslateFn = (key: string) => string | string[];
@@ -97,6 +98,13 @@ export function useTrips(t: TranslateFn) {
       tripId = generateId();
       const newTrip: Trip = { ...tripData, id: tripId, createdAt: Date.now() };
       setTrips((prev) => [...prev, newTrip]);
+      // Positive-signal review prompt: when a newly added trip brings the total
+      // to 3. tripsRef.current holds the latest committed list (this callback is
+      // memoized, so the `trips` closure would be stale). Fire-and-forget and
+      // idempotent (guarded by an AsyncStorage flag), so it never blocks saving.
+      if (tripsRef.current.length + 1 === 3) {
+        requestReviewIfAppropriate().catch(() => {});
+      }
     }
     // Update itinerary membership
     if (tripData.itineraryId) {
