@@ -98,11 +98,11 @@ export function useTrips(t: TranslateFn) {
       tripId = generateId();
       const newTrip: Trip = { ...tripData, id: tripId, createdAt: Date.now() };
       setTrips((prev) => [...prev, newTrip]);
-      // Positive-signal review prompt: when a newly added trip brings the total
-      // to 3. tripsRef.current holds the latest committed list (this callback is
-      // memoized, so the `trips` closure would be stale). Fire-and-forget and
-      // idempotent (guarded by an AsyncStorage flag), so it never blocks saving.
-      if (tripsRef.current.length + 1 === 3) {
+      // Positive-signal review prompt: when the user has at least 3 trips after
+      // adding this one. Using >= 3 (not === 3) so existing users who already
+      // crossed the threshold get the prompt too — not only those who cross it
+      // from now on. The AsyncStorage flag still guarantees it fires at most once.
+      if (tripsRef.current.length + 1 >= 3) {
         requestReviewIfAppropriate().catch(() => {});
       }
     }
