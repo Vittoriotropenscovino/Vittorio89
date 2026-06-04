@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { Trip, Itinerary } from '../types';
@@ -13,9 +14,85 @@ const BACKUP_DIR = FileSystem.documentDirectory + 'backups/';
 const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const CLEANUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_BACKUPS = 3;
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 const SCHEMA_VERSION_KEY = '@travelsphere_schema_version';
 const isWeb = Platform.OS === 'web';
+
+/**
+ * Regenerate the small {uuid}_thumb.jpg thumbnail for an image, using the exact
+ * same resize/compression parameters as the trip-form media pipeline. Exported
+ * so TripForm reuses this single implementation instead of duplicating it.
+ */
+export const generateThumbnail = async (
+    imageUri: string,
+    baseFilename: string
+): Promise<string | undefined> => {
+    try {
+        const thumb = await ImageManipulator.manipulateAsync(
+            imageUri,
+            [{ resize: { width: 150 } }],
+            { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        const thumbFilename = baseFilename.replace(/\.jpg$/, '_thumb.jpg');
+        const thumbUri = MEDIA_DIR + thumbFilename;
+        await FileSystem.copyAsync({ from: thumb.uri, to: thumbUri });
+        return thumbUri;
+    } catch (e) {
+        console.warn('[TravelSphere] generateThumbnail failed', e);
+        return undefined;
+    }
+};
+
+/**
+ * One-time self-heal for legacy trips whose {uuid}_thumb.jpg files were deleted
+ * by the old cleanOrphanedMedia bug. For every image media item whose thumbnail
+ * is missing on disk (or whose thumbnailUri is empty), regenerate the thumbnail
+ * from the item's own full-resolution file. Light: items with a healthy
+ * thumbnail are skipped. Per-trip try/catch so one bad trip cannot abort the
+ * whole pass. Returns the (possibly) updated trips array; the caller persists it.
+ */
+const healTripThumbnails = async (trips: any[]): Promise<any[]> => {
+    if (isWeb) return trips;
+    // Ensure the media directory exists before writing thumbnails into it.
+    const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
+    if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(MEDIA_DIR, { intermediates: true });
+    }
+    return Promise.all(
+        trips.map(async (trip: any) => {
+            try {
+                if (!Array.isArray(trip.media) || trip.media.length === 0) return trip;
+                const media = await Promise.all(
+                    trip.media.map(async (m: any) => {
+                        if (m.type !== 'image') return m;
+                        // Healthy thumbnail already on disk → leave untouched (cheap skip).
+                        if (m.thumbnailUri) {
+                            const ti = await FileSystem.getInfoAsync(m.thumbnailUri);
+                            if (ti.exists) return m;
+                        }
+                        // Thumbnail missing: regenerate from the item's own source file.
+                        const si = await FileSystem.getInfoAsync(m.uri);
+                        if (!si.exists) {
+                            // Source gone too → nothing to render; drop the dead pointer
+                            // so MemoryViewer falls back to a placeholder instead of ENOENT.
+                            return m.thumbnailUri ? { ...m, thumbnailUri: undefined } : m;
+                        }
+                        const filename = m.uri.split('/').pop() as string;
+                        const regenerated = await generateThumbnail(m.uri, filename);
+                        if (regenerated) return { ...m, thumbnailUri: regenerated };
+                        // Regeneration failed but source exists → fall back to full-res
+                        // so the UI still shows the image rather than an empty box.
+                        return { ...m, thumbnailUri: m.uri };
+                    })
+                );
+                return { ...trip, media };
+            } catch (e) {
+                console.warn('[TravelSphere] healTripThumbnails: trip failed', trip?.id, e);
+                return trip;
+            }
+        })
+    );
+};
 
 /**
  * Storage service for persisting trips data
@@ -303,6 +380,17 @@ export const StorageService = {
         if (currentVersion < 2) {
             console.log('[Migration] v1 → v2: force thumbnail self-heal');
             await AsyncStorage.removeItem(LAST_CLEANUP_KEY);
+        }
+
+        // Migration 2 → 3: regenerate {uuid}_thumb.jpg files that the old
+        // cleanOrphanedMedia bug deleted from disk. Runs here (inside the
+        // schema migration, before useTrips calls loadTrips) so the healed data
+        // is exactly what the app loads into state — this avoids the debounced
+        // auto-save racing in and overwriting the regenerated thumbnails. Gated
+        // by the schema version, so it runs exactly once; skips healthy trips.
+        if (currentVersion < 3) {
+            console.log('[Migration] v2 → v3: regenerating missing thumbnails');
+            migratedTrips = await healTripThumbnails(migratedTrips);
         }
 
         await StorageService.saveTrips(migratedTrips);

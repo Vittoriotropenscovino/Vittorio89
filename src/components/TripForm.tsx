@@ -15,7 +15,7 @@ import { BlurView } from 'expo-blur';
 import { TripFormProps, MediaItem, TripTag, TAG_CONFIG, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { getDistanceKm } from '../utils/clusterTrips';
-import { MEDIA_DIR } from '../services/StorageService';
+import { MEDIA_DIR, generateThumbnail } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
@@ -229,23 +229,6 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         } catch (e) {
             console.warn('[TripForm] compressImage failed, using original', e);
             return uri;
-        }
-    };
-
-    const generateThumbnail = async (imageUri: string, baseFilename: string): Promise<string | undefined> => {
-        try {
-            const thumb = await ImageManipulator.manipulateAsync(
-                imageUri,
-                [{ resize: { width: 150 } }],
-                { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
-            );
-            const thumbFilename = baseFilename.replace(/\.jpg$/, '_thumb.jpg');
-            const thumbUri = MEDIA_DIR + thumbFilename;
-            await FileSystem.copyAsync({ from: thumb.uri, to: thumbUri });
-            return thumbUri;
-        } catch (e) {
-            console.warn('[TripForm] generateThumbnail failed', e);
-            return undefined;
         }
     };
 

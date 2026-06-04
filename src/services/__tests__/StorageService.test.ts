@@ -14,9 +14,15 @@ jest.mock('expo-file-system', () => ({
   getInfoAsync: jest.fn().mockResolvedValue({ exists: false }),
   makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
   deleteAsync: jest.fn().mockResolvedValue(undefined),
+  copyAsync: jest.fn().mockResolvedValue(undefined),
   readDirectoryAsync: jest.fn().mockResolvedValue([]),
   writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
   readAsStringAsync: jest.fn().mockResolvedValue(''),
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn().mockResolvedValue({ uri: '/mock/documents/media/thumb.jpg' }),
+  SaveFormat: { JPEG: 'jpeg' },
 }));
 
 jest.mock('expo-crypto', () => ({
@@ -293,12 +299,12 @@ describe('StorageService', () => {
       expect(savedTrips[0].media).toEqual([]);
       expect(savedTrips[0].notes).toBe('');
       expect(savedTrips[0].title).toBe('Test'); // original field preserved
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@travelsphere_schema_version', '1');
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@travelsphere_schema_version', '3');
     });
 
     it('should not modify data already at current version', async () => {
       (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key === '@travelsphere_schema_version') return Promise.resolve('1');
+        if (key === '@travelsphere_schema_version') return Promise.resolve('3');
         return Promise.resolve(null);
       });
 
@@ -313,7 +319,7 @@ describe('StorageService', () => {
 
       await StorageService.migrateData();
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@travelsphere_schema_version', '1');
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('@travelsphere_schema_version', '3');
     });
 
     it('should be idempotent - running twice produces same result', async () => {
@@ -338,9 +344,9 @@ describe('StorageService', () => {
 
       jest.clearAllMocks();
 
-      // Second run: already at v1 → no writes
+      // Second run: already at current version → no writes
       (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
-        if (key === '@travelsphere_schema_version') return Promise.resolve('1');
+        if (key === '@travelsphere_schema_version') return Promise.resolve('3');
         return Promise.resolve(null);
       });
 
