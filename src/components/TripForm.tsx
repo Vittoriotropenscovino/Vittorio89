@@ -418,6 +418,30 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         setShowDatePicker(false);
     };
 
+    // Calendar helpers for the date picker modal. Weeks start on Monday;
+    // month/weekday names come from Intl via the app language (no extra i18n strings).
+    const goToMonth = (delta: number) => {
+        const d = new Date(dateYear, dateMonth + delta, 1);
+        setDateYear(d.getFullYear());
+        setDateMonth(d.getMonth());
+    };
+    const calendarMonthTitle = new Date(dateYear, dateMonth, 1)
+        .toLocaleDateString(language, { month: 'long', year: 'numeric' });
+    // Jan 1 2024 is a Monday, so day i+1 of that week yields Monday-first labels.
+    const calendarWeekdays = Array.from({ length: 7 }, (_, i) =>
+        new Date(2024, 0, i + 1).toLocaleDateString(language, { weekday: 'narrow' })
+    );
+    const calendarCells: (number | null)[] = (() => {
+        const firstDayOffset = (new Date(dateYear, dateMonth, 1).getDay() + 6) % 7;
+        const daysInMonth = new Date(dateYear, dateMonth + 1, 0).getDate();
+        return [
+            ...Array.from({ length: firstDayOffset }, () => null),
+            ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+        ];
+    })();
+    const today = new Date();
+    const isTodayInView = today.getFullYear() === dateYear && today.getMonth() === dateMonth;
+
     const handleSubmit = async () => {
         if (isSavingRef.current || isProcessingMedia) return;
         if (!foundLocation) { Alert.alert(t('error') as string, t('searchLocation') as string); return; }
@@ -706,28 +730,45 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                     <Modal visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
                         <View style={styles.datePickerOverlay}>
                             <View style={styles.datePickerCard}>
-                                <Text style={styles.datePickerTitle}>{t('selectDate')}</Text>
-                                <View style={styles.datePickerRow}>
-                                    {/* Year */}
-                                    <View style={styles.datePickerCol}>
-                                        <TouchableOpacity onPress={() => setDateYear(y => y + 1)}><Ionicons name="chevron-up" size={24} color="#60A5FA" /></TouchableOpacity>
-                                        <Text style={styles.datePickerValue}>{dateYear}</Text>
-                                        <TouchableOpacity onPress={() => setDateYear(y => y - 1)}><Ionicons name="chevron-down" size={24} color="#60A5FA" /></TouchableOpacity>
-                                    </View>
-                                    <Text style={styles.datePickerSep}>-</Text>
-                                    {/* Month */}
-                                    <View style={styles.datePickerCol}>
-                                        <TouchableOpacity onPress={() => setDateMonth(m => m < 11 ? m + 1 : 0)}><Ionicons name="chevron-up" size={24} color="#60A5FA" /></TouchableOpacity>
-                                        <Text style={styles.datePickerValue}>{String(dateMonth + 1).padStart(2, '0')}</Text>
-                                        <TouchableOpacity onPress={() => setDateMonth(m => m > 0 ? m - 1 : 11)}><Ionicons name="chevron-down" size={24} color="#60A5FA" /></TouchableOpacity>
-                                    </View>
-                                    <Text style={styles.datePickerSep}>-</Text>
-                                    {/* Day */}
-                                    <View style={styles.datePickerCol}>
-                                        <TouchableOpacity onPress={() => setDateDay(d => { const max = new Date(dateYear, dateMonth + 1, 0).getDate(); return d < max ? d + 1 : 1; })}><Ionicons name="chevron-up" size={24} color="#60A5FA" /></TouchableOpacity>
-                                        <Text style={styles.datePickerValue}>{String(dateDay).padStart(2, '0')}</Text>
-                                        <TouchableOpacity onPress={() => setDateDay(d => { const max = new Date(dateYear, dateMonth + 1, 0).getDate(); return d > 1 ? d - 1 : max; })}><Ionicons name="chevron-down" size={24} color="#60A5FA" /></TouchableOpacity>
-                                    </View>
+                                {/* Month navigation: ‹ › month, « » year */}
+                                <View style={styles.calendarHeader}>
+                                    <TouchableOpacity onPress={() => goToMonth(-12)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                                        <Ionicons name="play-back" size={16} color="#60A5FA" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => goToMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                                        <Ionicons name="chevron-back" size={20} color="#60A5FA" />
+                                    </TouchableOpacity>
+                                    <Text style={styles.calendarMonthTitle}>{calendarMonthTitle}</Text>
+                                    <TouchableOpacity onPress={() => goToMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                                        <Ionicons name="chevron-forward" size={20} color="#60A5FA" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => goToMonth(12)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                                        <Ionicons name="play-forward" size={16} color="#60A5FA" />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={styles.calendarWeekRow}>
+                                    {calendarWeekdays.map((wd, i) => (
+                                        <Text key={i} style={styles.calendarWeekday}>{wd}</Text>
+                                    ))}
+                                </View>
+                                <View style={styles.calendarGrid}>
+                                    {calendarCells.map((d, i) => d === null ? (
+                                        <View key={i} style={styles.calendarCell} />
+                                    ) : (
+                                        <TouchableOpacity
+                                            key={i}
+                                            style={[
+                                                styles.calendarCell,
+                                                isTodayInView && d === today.getDate() && styles.calendarCellToday,
+                                                d === dateDay && styles.calendarCellSelected,
+                                            ]}
+                                            onPress={() => setDateDay(d)}
+                                        >
+                                            <Text style={[styles.calendarCellText, d === dateDay && styles.calendarCellTextSelected]}>
+                                                {d}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
                                 </View>
                                 <View style={styles.datePickerButtons}>
                                     <TouchableOpacity style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
@@ -784,13 +825,18 @@ const styles = StyleSheet.create({
     submitBtnDisabled: { backgroundColor: '#374151' },
     submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
     datePickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    datePickerCard: { backgroundColor: '#1a1a2e', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)', padding: 24, minWidth: 280 },
-    datePickerTitle: { color: '#F0F0F0', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 20 },
-    datePickerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-    datePickerCol: { alignItems: 'center', gap: 6 },
-    datePickerValue: { color: '#00d4ff', fontSize: 28, fontWeight: '800', minWidth: 50, textAlign: 'center' },
-    datePickerSep: { color: '#4B5563', fontSize: 28, fontWeight: '300' },
-    datePickerButtons: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 24 },
+    datePickerCard: { backgroundColor: '#1a1a2e', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)', padding: 16, width: 296 },
+    calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 },
+    calendarMonthTitle: { flex: 1, color: '#F0F0F0', fontSize: 15, fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' },
+    calendarWeekRow: { flexDirection: 'row', marginBottom: 4 },
+    calendarWeekday: { width: 36, marginHorizontal: 1.5, textAlign: 'center', color: '#6B7280', fontSize: 11, fontWeight: '600' },
+    calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    calendarCell: { width: 36, height: 32, marginHorizontal: 1.5, marginVertical: 1.5, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+    calendarCellToday: { borderWidth: 1, borderColor: 'rgba(0,212,255,0.5)' },
+    calendarCellSelected: { backgroundColor: '#3B82F6' },
+    calendarCellText: { color: '#D1D5DB', fontSize: 13, fontWeight: '500' },
+    calendarCellTextSelected: { color: '#fff', fontWeight: '700' },
+    datePickerButtons: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 14 },
     datePickerCancel: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
     datePickerCancelText: { color: '#9CA3AF', fontSize: 15, fontWeight: '500' },
     datePickerConfirm: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#3B82F6' },
