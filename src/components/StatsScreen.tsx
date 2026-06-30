@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowD
 
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
+import { getTravelStats } from '../utils/travelStats';
 import { useApp } from '../contexts/AppContext';
 
 interface Props {
@@ -18,7 +19,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     const stats = useMemo(() => {
         const totalPhotos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'image').length, 0);
         const totalVideos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'video').length, 0);
-        const countries = new Set(trips.map(tr => tr.countryCode || tr.country || tr.locationName.split(',').pop()?.trim()).filter(Boolean)).size;
+        const countries = getTravelStats(trips).countries;
 
         // Trips by month
         const monthCounts = new Array(12).fill(0);
