@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, ActivityIndicator, Alert } from 'react-native';
+import * as Sharing from 'expo-sharing';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { getTravelStats } from '../utils/travelStats';
+import ShareCardCapture, { ShareCardCaptureHandle } from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 
 interface Props {
@@ -15,6 +17,36 @@ interface Props {
 const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     const { t } = useApp();
     const { height: screenHeight } = useWindowDimensions();
+
+    const captureHostRef = useRef<ShareCardCaptureHandle>(null);
+    const [sharing, setSharing] = useState(false);
+
+    // Reused by both the share card and the country count below (single source).
+    const travelStats = useMemo(() => getTravelStats(trips), [trips]);
+    const noTrips = trips.length === 0;
+
+    const handleShare = async () => {
+        if (sharing || noTrips) return;
+        try {
+            setSharing(true);
+            const uri = await captureHostRef.current?.capture();
+            if (!uri) throw new Error('capture returned no uri');
+            if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(uri, {
+                    mimeType: 'image/png',
+                    dialogTitle: t('shareGlobe') as string,
+                    UTI: 'public.png',
+                });
+            } else {
+                Alert.alert(t('error') as string, t('shareFailed') as string);
+            }
+        } catch (e) {
+            console.warn('[Share] globe share failed', e);
+            Alert.alert(t('error') as string, t('shareFailed') as string);
+        } finally {
+            setSharing(false);
+        }
+    };
 
     const stats = useMemo(() => {
         const totalPhotos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'image').length, 0);
@@ -76,6 +108,24 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                                 </View>
                             </View>
 
+                            {/* Share your globe */}
+                            <TouchableOpacity
+                                style={[styles.shareBtn, (sharing || noTrips) && styles.shareBtnDisabled]}
+                                onPress={handleShare}
+                                disabled={sharing || noTrips}
+                                activeOpacity={0.85}
+                            >
+                                {sharing ? (
+                                    <ActivityIndicator color="#021018" />
+                                ) : (
+                                    <Ionicons name="share-social" size={20} color="#021018" />
+                                )}
+                                <Text style={styles.shareBtnText}>{t('shareGlobe')}</Text>
+                            </TouchableOpacity>
+                            {noTrips && (
+                                <Text style={styles.shareHint}>{t('shareGlobeHint')}</Text>
+                            )}
+
                             {/* Details row */}
                             <View style={styles.detailRow}>
                                 <View style={styles.detailItem}>
@@ -122,6 +172,9 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                             </View>
                         </ScrollView>
                 </View>
+
+                {/* Off-screen ShareCard host — rendered (capturable) but unseen */}
+                <ShareCardCapture ref={captureHostRef} stats={travelStats} travelerName="" />
             </View>
         </Modal>
     );
@@ -140,6 +193,13 @@ const styles = StyleSheet.create({
     bigNum: { fontSize: 36, fontWeight: '900', color: '#00d4ff' },
     bigNumLabel: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
     bigNumDivider: { width: 1, height: 40, backgroundColor: 'rgba(0,212,255,0.15)' },
+    shareBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+        backgroundColor: '#00d4ff', borderRadius: 14, paddingVertical: 13, marginBottom: 16,
+    },
+    shareBtnDisabled: { backgroundColor: 'rgba(0,212,255,0.25)' },
+    shareBtnText: { color: '#021018', fontSize: 15, fontWeight: '800' },
+    shareHint: { color: '#6B7280', fontSize: 12, textAlign: 'center', marginTop: -8, marginBottom: 14 },
     detailRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 16 },
     detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     detailText: { color: '#9CA3AF', fontSize: 13 },
