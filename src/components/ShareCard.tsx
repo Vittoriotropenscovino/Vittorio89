@@ -5,6 +5,7 @@ import Svg, {
 } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
 import { TravelStats } from '../utils/travelStats';
+import { useApp } from '../contexts/AppContext';
 
 export const PLAY_STORE_URL =
     'https://play.google.com/store/apps/details?id=com.travelsphere.app';
@@ -50,14 +51,14 @@ const PLANE_PATH =
     'L0,5.4 L-3.4,6.6 L-3.4,5.6 L-1.8,4 L-1.8,-0.7 L-8,1 L-8,-0.5 L-1.8,-4.5 ' +
     'C-1.8,-7 -1,-9 0,-9 Z';
 
-const travelerBadge = (countries: number): string => {
-    if (countries === 0) return 'Il viaggio sta per iniziare ✈️';
-    if (countries <= 3) return "Solo l'inizio del viaggio ✈️";
-    if (countries <= 9) return 'Esploratore in crescita 🌍';
-    if (countries <= 24) return 'Viaggiatore esperto 🧭';
-    if (countries <= 49) return 'Esploratore seriale 🌍';
-    return 'Cittadino del mondo 🌐';
-};
+// Badge tier by number of distinct countries → index into t('cardBadges').
+const badgeIndex = (countries: number): number =>
+    countries === 0 ? 0
+        : countries <= 3 ? 1
+            : countries <= 9 ? 2
+                : countries <= 24 ? 3
+                    : countries <= 49 ? 4
+                        : 5;
 
 interface ShareCardProps {
     stats: TravelStats;
@@ -68,19 +69,28 @@ interface ShareCardProps {
 
 const ShareCard = forwardRef<View, ShareCardProps>(
     ({ stats, travelerName, width = 360 }, ref) => {
+        const { t } = useApp();
         const W = width;
         const H = Math.round(width * ASPECT);
         const u = W / BASE_W; // design-px → render-px
+        const panelInner = W - 140 * u - 72 * u; // content padding + panel padding
 
         const qrSize = Math.round(168 * u);
         const name = travelerName?.trim();
-        const badge = travelerBadge(stats.countries);
+
+        // Localized copy (falls back to key if missing). The card follows the app language.
+        const badgesRaw = t('cardBadges');
+        const badges = Array.isArray(badgesRaw) ? badgesRaw : [];
+        const badge = badges[badgeIndex(stats.countries)] || '';
+        const title = t('cardTitle') as string;
+        const traveler = name ? (t('cardTravelerTemplate') as string).replace('{name}', name) : '';
 
         // % of the world (195 sovereign countries). Capped at 100 to survive bad
         // data (countries > 195). >0 but rounds to 0 → "<1".
         const worldPct = Math.min(100, Math.round((stats.countries / 195) * 100));
         const showPct = stats.trips > 0;
         const pctText = worldPct === 0 ? '<1' : String(worldPct);
+        const pctParts = (t('cardWorldPct') as string).split('{pct}');
 
         return (
             <View
@@ -160,54 +170,83 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                             <View style={[styles.brandDot, { width: 22 * u, height: 22 * u, borderRadius: 11 * u }]} />
                             <Text style={[styles.brand, { fontSize: 34 * u, letterSpacing: 2 * u }]}>TRAVELSPHERE</Text>
                         </View>
-                        <Text style={[styles.title, { fontSize: 70 * u, lineHeight: 78 * u, marginTop: 26 * u }]}>
-                            Il mio mondo{'\n'}su TravelSphere 🌍
+                        <Text
+                            style={[styles.title, { fontSize: 70 * u, lineHeight: 78 * u, marginTop: 26 * u }]}
+                            numberOfLines={3}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.6}
+                        >
+                            {title}
                         </Text>
-                        {name ? (
+                        {traveler ? (
                             <Text
                                 style={[styles.traveler, { fontSize: 40 * u, marginTop: 18 * u }]}
                                 numberOfLines={1}
                                 ellipsizeMode="tail"
                             >
-                                I viaggi di {name}
+                                {traveler}
                             </Text>
                         ) : null}
                     </View>
 
                     {/* Stats panel (translucent dark = readability over the globe) */}
                     <View style={[styles.panel, { borderRadius: 40 * u, paddingVertical: 40 * u, paddingHorizontal: 36 * u, gap: 20 * u }]}>
-                        <View style={[styles.badge, { borderRadius: 999, paddingVertical: 12 * u, paddingHorizontal: 28 * u }]}>
-                            <Text style={[styles.badgeText, { fontSize: 34 * u }]}>{badge}</Text>
+                        <View style={[styles.badge, { borderRadius: 999, paddingVertical: 12 * u, paddingHorizontal: 28 * u, maxWidth: panelInner }]}>
+                            <Text
+                                style={[styles.badgeText, { fontSize: 34 * u }]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.6}
+                            >
+                                {badge}
+                            </Text>
                         </View>
 
                         <View style={[styles.statsRow, { gap: 10 * u }]}>
-                            <Stat value={stats.countries} label="Paesi" u={u} />
+                            <Stat value={stats.countries} label={t('cardCountries') as string} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                            <Stat value={stats.continents} label="Continenti" u={u} />
+                            <Stat value={stats.continents} label={t('cardContinents') as string} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                            <Stat value={stats.trips} label="Viaggi" u={u} />
+                            <Stat value={stats.trips} label={t('cardTrips') as string} u={u} />
                         </View>
 
                         {showPct ? (
-                            <Text style={[styles.pctLine, { fontSize: 40 * u }]}>
-                                Hai visto il <Text style={styles.pctNum}>{pctText}%</Text> del mondo 🌍
+                            <Text
+                                style={[styles.pctLine, { fontSize: 40 * u }]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.6}
+                            >
+                                {pctParts[0]}
+                                <Text style={styles.pctNum}>{pctText}%</Text>
+                                {pctParts[1] ?? ''}
                             </Text>
                         ) : null}
                     </View>
 
                     {/* Challenge + footer (claim + QR to Play Store) */}
                     <View style={{ gap: 28 * u }}>
-                        <Text style={[styles.challenge, { fontSize: 40 * u }]}>
-                            E tu, quanti ne hai visti? 🌍
+                        <Text
+                            style={[styles.challenge, { fontSize: 40 * u }]}
+                            numberOfLines={2}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.6}
+                        >
+                            {t('cardChallenge')}
                         </Text>
                         <View style={[styles.footer, { borderRadius: 28 * u, padding: 32 * u }]}>
                             <View style={styles.footerText}>
-                                <Text style={[styles.appName, { fontSize: 46 * u }]}>TravelSphere</Text>
-                                <Text style={[styles.claim, { fontSize: 28 * u, lineHeight: 38 * u, marginTop: 8 * u }]}>
-                                    Diario di viaggio 3D{'\n'}Niente account · Solo Android
+                                <Text style={[styles.appName, { fontSize: 46 * u }]} numberOfLines={1}>TravelSphere</Text>
+                                <Text
+                                    style={[styles.claim, { fontSize: 28 * u, lineHeight: 38 * u, marginTop: 8 * u }]}
+                                    numberOfLines={2}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.6}
+                                >
+                                    {t('cardClaim')}
                                 </Text>
-                                <Text style={[styles.scan, { fontSize: 24 * u, marginTop: 14 * u }]}>
-                                    ↓ Inquadra per scaricare
+                                <Text style={[styles.scan, { fontSize: 24 * u, marginTop: 14 * u }]} numberOfLines={1}>
+                                    {t('cardScan')}
                                 </Text>
                             </View>
                             <View style={[styles.qrBox, { borderRadius: 18 * u, padding: 16 * u }]}>
@@ -231,7 +270,7 @@ ShareCard.displayName = 'ShareCard';
 
 const Stat: React.FC<{ value: number; label: string; u: number }> = ({ value, label, u }) => (
     <View style={styles.stat}>
-        {/* adjustsFontSizeToFit shrinks 3+ digit numbers so the row never overflows */}
+        {/* adjustsFontSizeToFit shrinks 3+ digit numbers / long labels so the row never overflows */}
         <Text
             style={[styles.statValue, { fontSize: 120 * u }]}
             numberOfLines={1}
@@ -240,7 +279,14 @@ const Stat: React.FC<{ value: number; label: string; u: number }> = ({ value, la
         >
             {value}
         </Text>
-        <Text style={[styles.statLabel, { fontSize: 32 * u, marginTop: 4 * u }]} numberOfLines={1}>{label}</Text>
+        <Text
+            style={[styles.statLabel, { fontSize: 32 * u, marginTop: 4 * u }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+        >
+            {label}
+        </Text>
     </View>
 );
 
@@ -261,7 +307,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,212,255,0.14)',
         borderWidth: 1, borderColor: 'rgba(0,212,255,0.45)',
     },
-    badgeText: { color: '#7FE8FF', fontWeight: '800' },
+    badgeText: { color: '#7FE8FF', fontWeight: '800', textAlign: 'center' },
     statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     stat: { alignItems: 'center', flexShrink: 1 },
     statValue: { color: '#00d4ff', fontWeight: '900' },
