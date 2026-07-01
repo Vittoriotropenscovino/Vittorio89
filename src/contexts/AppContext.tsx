@@ -12,6 +12,8 @@ export interface AppSettings {
   hasAcceptedGDPR: boolean;
   homeLocation?: HomeLocation;
   showTravelLines?: boolean;
+  /** Optional free-text traveler name shown on the share card. Default ''. */
+  travelerName?: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {

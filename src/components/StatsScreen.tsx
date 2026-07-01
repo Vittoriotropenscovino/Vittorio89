@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
 import * as Sharing from 'expo-sharing';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +15,21 @@ interface Props {
 }
 
 const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
-    const { t } = useApp();
+    const { t, settings, updateSettings } = useApp();
     const { height: screenHeight } = useWindowDimensions();
 
     const captureHostRef = useRef<ShareCardCaptureHandle>(null);
     const [sharing, setSharing] = useState(false);
+    // Optional free-text traveler name (persisted in AppSettings). Local state
+    // drives the card live; we persist on end-editing and before sharing.
+    const [name, setName] = useState(settings.travelerName ?? '');
+    const trimmedName = name.trim();
+
+    const persistName = () => {
+        if (trimmedName !== (settings.travelerName ?? '')) {
+            updateSettings({ travelerName: trimmedName });
+        }
+    };
 
     // Reused by both the share card and the country count below (single source).
     const travelStats = useMemo(() => getTravelStats(trips), [trips]);
@@ -29,6 +39,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
         if (sharing || noTrips) return;
         try {
             setSharing(true);
+            persistName();
             const uri = await captureHostRef.current?.capture();
             if (!uri) throw new Error('capture returned no uri');
             if (await Sharing.isAvailableAsync()) {
@@ -108,6 +119,20 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                                 </View>
                             </View>
 
+                            {/* Optional traveler name (free text, no account) */}
+                            <TextInput
+                                style={styles.nameInput}
+                                value={name}
+                                onChangeText={setName}
+                                onEndEditing={persistName}
+                                onBlur={persistName}
+                                placeholder={t('travelerNamePlaceholder') as string}
+                                placeholderTextColor="#6B7280"
+                                maxLength={24}
+                                returnKeyType="done"
+                                autoCapitalize="words"
+                            />
+
                             {/* Share your globe */}
                             <TouchableOpacity
                                 style={[styles.shareBtn, (sharing || noTrips) && styles.shareBtnDisabled]}
@@ -174,7 +199,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                 </View>
 
                 {/* Off-screen ShareCard host — rendered (capturable) but unseen */}
-                <ShareCardCapture ref={captureHostRef} stats={travelStats} travelerName="" />
+                <ShareCardCapture ref={captureHostRef} stats={travelStats} travelerName={trimmedName} />
             </View>
         </Modal>
     );
@@ -193,6 +218,11 @@ const styles = StyleSheet.create({
     bigNum: { fontSize: 36, fontWeight: '900', color: '#00d4ff' },
     bigNumLabel: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
     bigNumDivider: { width: 1, height: 40, backgroundColor: 'rgba(0,212,255,0.15)' },
+    nameInput: {
+        backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
+        borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14,
+        marginBottom: 10,
+    },
     shareBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
         backgroundColor: '#00d4ff', borderRadius: 14, paddingVertical: 13, marginBottom: 16,

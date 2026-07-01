@@ -76,8 +76,9 @@ const ShareCard = forwardRef<View, ShareCardProps>(
         const name = travelerName?.trim();
         const badge = travelerBadge(stats.countries);
 
-        // % of the world (195 sovereign countries). >0 but rounds to 0 → "<1".
-        const worldPct = Math.round((stats.countries / 195) * 100);
+        // % of the world (195 sovereign countries). Capped at 100 to survive bad
+        // data (countries > 195). >0 but rounds to 0 → "<1".
+        const worldPct = Math.min(100, Math.round((stats.countries / 195) * 100));
         const showPct = stats.trips > 0;
         const pctText = worldPct === 0 ? '<1' : String(worldPct);
 
@@ -163,7 +164,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                             Il mio mondo{'\n'}su TravelSphere 🌍
                         </Text>
                         {name ? (
-                            <Text style={[styles.traveler, { fontSize: 40 * u, marginTop: 18 * u }]}>
+                            <Text
+                                style={[styles.traveler, { fontSize: 40 * u, marginTop: 18 * u }]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
                                 I viaggi di {name}
                             </Text>
                         ) : null}
@@ -226,8 +231,16 @@ ShareCard.displayName = 'ShareCard';
 
 const Stat: React.FC<{ value: number; label: string; u: number }> = ({ value, label, u }) => (
     <View style={styles.stat}>
-        <Text style={[styles.statValue, { fontSize: 120 * u }]}>{value}</Text>
-        <Text style={[styles.statLabel, { fontSize: 32 * u, marginTop: 4 * u }]}>{label}</Text>
+        {/* adjustsFontSizeToFit shrinks 3+ digit numbers so the row never overflows */}
+        <Text
+            style={[styles.statValue, { fontSize: 120 * u }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+        >
+            {value}
+        </Text>
+        <Text style={[styles.statLabel, { fontSize: 32 * u, marginTop: 4 * u }]} numberOfLines={1}>{label}</Text>
     </View>
 );
 
