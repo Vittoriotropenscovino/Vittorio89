@@ -10,7 +10,7 @@ import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { EarthGlobeProps, Trip, ClusteredPin } from '../types';

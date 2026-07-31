@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
 
 // Mock modules before importing StorageService
@@ -9,7 +9,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(),
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/mock/documents/',
   getInfoAsync: jest.fn().mockResolvedValue({ exists: false }),
   makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
@@ -147,7 +147,7 @@ describe('StorageService', () => {
         setItem: jest.fn(),
         removeItem: jest.fn(),
       }));
-      jest.doMock('expo-file-system', () => ({
+      jest.doMock('expo-file-system/legacy', () => ({
         documentDirectory: '/mock/documents/',
         getInfoAsync: jest.fn(),
         makeDirectoryAsync: jest.fn(),
@@ -163,7 +163,7 @@ describe('StorageService', () => {
 
       const { StorageService: WebStorageService } = require('../StorageService');
       const WebAsyncStorage = require('@react-native-async-storage/async-storage');
-      const WebFileSystem = require('expo-file-system');
+      const WebFileSystem = require('expo-file-system/legacy');
 
       (WebAsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify([mockTripWithMedia]));
       const loaded = await WebStorageService.loadTrips();

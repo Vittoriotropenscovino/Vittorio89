@@ -16,7 +16,7 @@ jest.mock('expo-crypto', () => ({
   randomUUID: mockRandomUUID,
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/mock/documents/',
   getInfoAsync: jest.fn().mockResolvedValue({ exists: false }),
   deleteAsync: jest.fn().mockResolvedValue(undefined),

@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import EarthGlobe from './src/components/EarthGlobe';
@@ -37,6 +37,10 @@ import { clusterTrips } from './src/utils/clusterTrips';
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
+  // API 36 enforces edge-to-edge with no opt-out: the absolutely-positioned
+  // overlays below would otherwise sit under the system bars / camera cutout,
+  // which in landscape means the left or right edge, not just top/bottom.
+  const insets = useSafeAreaInsets();
 
   const {
     trips, setTrips, itineraries, setItineraries, isLoading,
@@ -95,12 +99,13 @@ const AppContent: React.FC = () => {
     }
   }, [trips.length, pulseAnim]);
 
-  // Hide Android navigation bar
+  // Hide Android navigation bar.
+  // Targeting API 36 forces edge-to-edge, where setBehaviorAsync and
+  // setBackgroundColorAsync are no-ops that only log warnings — swipe-to-reveal
+  // and a transparent bar are the built-in behaviour there, so we just hide it.
   const hideNavigationBar = useCallback(() => {
     if (Platform.OS === 'android') {
       NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-      NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => {});
-      NavigationBar.setBackgroundColorAsync('transparent').catch(() => {});
     }
   }, []);
 
@@ -271,7 +276,7 @@ const AppContent: React.FC = () => {
         <OfflineBanner />
 
         {/* Top-right buttons */}
-        <View style={styles.topRightButtons}>
+        <View style={[styles.topRightButtons, { top: 24 + insets.top, right: 20 + insets.right }]}>
           <TouchableOpacity style={styles.topButton} onPress={handleCastScreen}>
             <Ionicons name="tv-outline" size={16} color="#00d4ff" />
           </TouchableOpacity>
@@ -285,7 +290,7 @@ const AppContent: React.FC = () => {
         </View>
 
         {/* Bottom-left stats */}
-        <View style={styles.statsBar}>
+        <View style={[styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }]}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="airplane" size={13} color="#00d4ff" />
@@ -313,7 +318,7 @@ const AppContent: React.FC = () => {
 
         {/* Welcome overlay */}
         {trips.length === 0 && (
-          <View style={styles.welcomeOverlay} pointerEvents="box-none">
+          <View style={[styles.welcomeOverlay, { bottom: 100 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
             <View style={styles.welcomeCard}>
               <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
               <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
@@ -325,7 +330,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Add buttons */}
-        <View style={styles.addButtonContainer}>
+        <View style={[styles.addButtonContainer, { bottom: 28 + insets.bottom, right: 20 + insets.right }]}>
           <TouchableOpacity
             style={[styles.travelLinesButton, settings.showTravelLines === false && styles.travelLinesButtonOff]}
             onPress={handleToggleTravelLines}
@@ -448,7 +453,9 @@ const App: React.FC = () => (
   <ErrorBoundary>
     <AppProvider>
       <SafeAreaProvider>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
+        {/* Under edge-to-edge (API 36) the bar is always translucent and
+            backgroundColor is unsupported, so only the icon style applies. */}
+        <StatusBar style="light" />
         <AppContent />
       </SafeAreaProvider>
     </AppProvider>
