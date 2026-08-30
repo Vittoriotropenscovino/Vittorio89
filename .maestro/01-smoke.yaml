@@ -1,0 +1,19 @@
+# Smoke test: l'app si avvia, il globo carica, la UI principale c'è.
+# Il primo da lanciare dopo ogni build: se fallisce questo, non provare gli altri.
+#
+# NON usa clearState: sul tuo telefono cancellerebbe i viaggi veri.
+appId: com.travelsphere.app
+---
+- launchApp
+
+# Il globo gira in una WebView: il caricamento richiede qualche secondo.
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Ancore stabili: sono accessibilityLabel, non cambiano con la lingua dell'app.
+- assertVisible:
+    id: "Menu"
+- assertVisible:
+    id: "Add Trip"
+
+- takeScreenshot: 01-globo-principale

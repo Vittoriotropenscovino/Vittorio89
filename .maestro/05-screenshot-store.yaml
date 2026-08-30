@@ -1,0 +1,60 @@
+# Cattura gli screenshot per la scheda Play Store, nell'ordine del piano ASO.
+# Non e' un test: non asserisce nulla, serve solo a produrre immagini pulite.
+#
+# PRIMA DI LANCIARLO, prepara il telefono:
+#  - qualche viaggio salvato, ben distribuito nel mondo (il globo deve sembrare pieno)
+#  - almeno un viaggio con foto belle
+#  - batteria carica e notifiche silenziate: compaiono nella barra di stato
+#
+# L'app e' in LANDSCAPE: questi screenshot sono orizzontali. Play Store li
+# accetta, e occupano piu' spazio visivo di quelli verticali.
+appId: com.travelsphere.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# 1 — Il globo pieno di pin: e' il colpo d'occhio che ti differenzia
+- takeScreenshot: store-1-globo
+
+# 2 — Statistiche
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+- tapOn: "Statistiche"
+- waitForAnimationToEnd
+- takeScreenshot: store-2-statistiche
+- back
+- waitForAnimationToEnd
+
+# 3 — Un viaggio con le sue foto
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+- tapOn:
+    point: "50%,35%"
+- waitForAnimationToEnd
+- takeScreenshot: store-3-viaggio-con-foto
+- back
+- waitForAnimationToEnd
+
+# 4 — Impostazioni: e' la prova visiva del "nessun account"
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+- tapOn: "Impostazioni"
+- waitForAnimationToEnd
+- takeScreenshot: store-4-impostazioni-privacy
+- back
+- waitForAnimationToEnd
+
+# 5 — Form di creazione viaggio
+- tapOn:
+    id: "Add Trip"
+- waitForAnimationToEnd
+- takeScreenshot: store-5-nuovo-viaggio
+- back
+
+# RICORDA: gli screenshot grezzi non bastano. Prima di caricarli su Play Console
+# aggiungi il testo sovrapposto (capitolo 6 del PDF ASO): la maggior parte degli
+# utenti guarda solo i primi due e non li ingrandisce.

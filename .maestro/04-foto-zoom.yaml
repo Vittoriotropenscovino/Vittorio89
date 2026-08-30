@@ -1,0 +1,58 @@
+# Zoom foto a schermo intero: verifica Reanimated 3 sotto SDK 54.
+# E' il pezzo piu' a rischio dell'upgrade, perche' Reanimated 4 (solo New Arch)
+# e' stato volutamente escluso e siamo rimasti sulla v3.
+#
+# Richiede un viaggio CON ALMENO UNA FOTO.
+#
+# Limite di Maestro: non sa fare il pinch a due dita. Il doppio tap copre lo
+# stesso percorso di codice (scala 1x <-> 2.5x). Il pinch vero va provato a mano.
+appId: com.travelsphere.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+# Apre il primo viaggio della lista
+- tapOn:
+    point: "50%,35%"
+- waitForAnimationToEnd
+- takeScreenshot: 04a-viewer-viaggio
+
+# Apre la foto a schermo intero
+- tapOn:
+    point: "50%,45%"
+- waitForAnimationToEnd
+- takeScreenshot: 04b-foto-fullscreen
+
+# Doppio tap -> zoom 2.5x
+- doubleTapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: 04c-zoom-2.5x
+
+# Da zoomato il pan e' attivo e la FlatList e' bloccata (scrollEnabled=false):
+# questo swipe deve spostare l'immagine, NON cambiare foto.
+- swipe:
+    start: "70%,50%"
+    end: "30%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: 04d-pan-da-zoomato-NON-deve-cambiare-foto
+
+# Doppio tap -> torna a 1x
+- doubleTapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: 04e-tornato-a-1x
+
+# Ora NON zoomato: lo swipe deve cambiare foto (se ce n'e' piu' di una)
+- swipe:
+    start: "80%,50%"
+    end: "20%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: 04f-swipe-cambia-foto
+
+- back
+- back

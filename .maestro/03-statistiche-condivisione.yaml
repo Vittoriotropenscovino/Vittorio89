@@ -1,0 +1,38 @@
+# Statistiche + "Condividi il tuo globo".
+# E' il flusso che verifica il pezzo piu' fragile: la cattura PNG della ShareCard
+# (react-native-view-shot). Se il PNG esce vuoto, si vede qui.
+#
+# Richiede almeno 1 viaggio salvato, altrimenti il bottone e' disabilitato.
+appId: com.travelsphere.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+- tapOn: "Statistiche"
+- waitForAnimationToEnd
+- takeScreenshot: 03a-statistiche
+
+- assertVisible: "Condividi il tuo globo"
+
+# Il campo nome e' opzionale: comparira' sulla card come "I viaggi di ..."
+- tapOn:
+    hint: "Il tuo nome (opzionale)"
+- inputText: "Vittorio"
+- hideKeyboard
+- takeScreenshot: 03b-nome-inserito
+
+- tapOn: "Condividi il tuo globo"
+# La cattura del PNG passa per un render off-screen: lasciale tempo.
+- waitForAnimationToEnd:
+    timeout: 20000
+
+# Se arriva qui, lo share sheet di Android e' aperto con l'immagine.
+# CONTROLLA QUESTO SCREENSHOT A OCCHIO: l'anteprima non deve essere vuota o tagliata.
+- takeScreenshot: 03c-share-sheet-VERIFICA-ANTEPRIMA
+
+- back
+- waitForAnimationToEnd

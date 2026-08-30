@@ -1,0 +1,66 @@
+# Percorso critico: creare un viaggio dall'inizio alla fine.
+# Copre geocodifica, il calendario nuovo e il salvataggio.
+#
+# ATTENZIONE: crea un viaggio VERO nei tuoi dati. Alla fine c'e' la sezione
+# per cancellarlo: lasciala attiva se non vuoi accumulare viaggi di test.
+appId: com.travelsphere.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- tapOn:
+    id: "Add Trip"
+- waitForAnimationToEnd
+
+# --- Ricerca localita' (richiede rete: usa Nominatim/Photon) ---
+- tapOn:
+    hint: "es. New York, Bali, Parigi..."
+- inputText: "Lisbona"
+- hideKeyboard
+- takeScreenshot: 02a-ricerca-localita
+
+# Il bottone di ricerca e' l'icona lente accanto al campo.
+- tapOn:
+    point: "92%,30%"
+- waitForAnimationToEnd:
+    timeout: 12000
+- takeScreenshot: 02b-localita-trovata
+
+# --- Titolo ---
+- tapOn:
+    below: "Titolo"
+- inputText: "Test automatico Maestro"
+- hideKeyboard
+
+# --- Data: apre il calendario nuovo ---
+- tapOn: "Seleziona data"
+- waitForAnimationToEnd
+- takeScreenshot: 02c-calendario
+# Sceglie il giorno 15 del mese corrente
+- tapOn: "15"
+- tapOn: "Conferma"
+- waitForAnimationToEnd
+
+- takeScreenshot: 02d-form-compilato
+
+# --- Salva ---
+- scrollUntilVisible:
+    element: "Salva"
+    direction: DOWN
+- tapOn: "Salva"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: 02e-viaggio-salvato
+
+# --- Pulizia: rimuove il viaggio di test ---
+# Commenta questo blocco se vuoi ispezionare il risultato a mano.
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd
+- tapOn: "Test automatico Maestro"
+- waitForAnimationToEnd
+- tapOn:
+    point: "88%,12%"     # icona cestino nell'header del viewer
+- tapOn: "Elimina"
+- waitForAnimationToEnd
