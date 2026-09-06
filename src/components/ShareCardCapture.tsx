@@ -35,8 +35,10 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Off-screen host for ShareCard + imperative capture().
  *
  * The card is mounted in the tree (so react-native-svg / the QR actually draw)
- * but parked behind the app's opaque root via a negative zIndex, so the user
- * never sees a "card screen" — they just receive the finished PNG.
+ * but parked far off-screen, so the user never sees a "card screen" — they just
+ * receive the finished PNG. Off-screen positioning rather than z-ordering: the
+ * host is rendered inside translucent overlays, which a negative zIndex cannot
+ * hide behind.
  *
  * Capturing too early is THE classic failure (blank/cropped PNG). We guard it:
  *   1) wait until the card has reported a real layout (onLayout, width > 0),
@@ -96,9 +98,13 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
 ShareCardCapture.displayName = 'ShareCardCapture';
 
 const styles = StyleSheet.create({
-    // Within the render tree (drawable/capturable) but behind the opaque root,
-    // so it stays invisible to the user.
-    host: { position: 'absolute', top: 0, left: 0, zIndex: -1 },
+    // Parked far off-screen: mounted and laid out (so react-native-svg and the QR
+    // actually draw, and captureRef can snapshot it) but never visible.
+    //
+    // NOT zIndex: -1 — that only hides the card behind whatever is painted on top
+    // of it, and StatsScreen's overlay is rgba(0,0,0,0.7), i.e. translucent. In
+    // landscape the card showed through as ghost text over the stats panel.
+    host: { position: 'absolute', top: 0, left: -10000 },
 });
 
 export default ShareCardCapture;
