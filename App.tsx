@@ -34,6 +34,7 @@ import PinSelector from './src/components/PinSelector';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
 import { clusterTrips } from './src/utils/clusterTrips';
+import { getTravelStats } from './src/utils/travelStats';
 
 const AppContent: React.FC = () => {
   const { t, settings, updateSettings, isSettingsLoaded } = useApp();
@@ -79,8 +80,12 @@ const AppContent: React.FC = () => {
   // Stats
   const stats = useMemo(() => {
     const totalMedia = trips.reduce((sum, tr) => sum + tr.media.length, 0);
-    const uniqueLocations = new Set(trips.map((tr) => tr.locationName.split(',').pop()?.trim())).size;
-    return { totalMedia, uniqueLocations };
+    // Distinct countries must come from getTravelStats, the same source the
+    // Statistics screen uses. Counting the tail of locationName here instead
+    // over-counted: "Roma, Lazio, Italia" and "Milan, Italy" looked like two
+    // countries, while getTravelStats collapses both onto countryCode "IT".
+    const countries = getTravelStats(trips).countries;
+    return { totalMedia, countries };
   }, [trips]);
 
   // Pulse animation for empty state
@@ -308,8 +313,8 @@ const AppContent: React.FC = () => {
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
                   <Ionicons name="flag-outline" size={13} color="#00d4ff" />
-                  <Text style={styles.statValue}>{stats.uniqueLocations}</Text>
-                  <Text style={styles.statLabel}>{stats.uniqueLocations === 1 ? t('country_s') : t('countries_p')}</Text>
+                  <Text style={styles.statValue}>{stats.countries}</Text>
+                  <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
                 </View>
               </>
             )}

@@ -53,6 +53,18 @@ describe('getTravelStats', () => {
         expect(stats).toEqual({ countries: 2, continents: 0, trips: 2 });
     });
 
+    it('collapses the same country saved under different localized names', () => {
+        // Regression: the home-screen HUD used to count only the tail of
+        // locationName, so these two read as two different countries and it
+        // showed 24 where the Statistics screen showed 17. countryCode is what
+        // makes them one.
+        const trips = [
+            makeTrip({ locationName: 'Roma, Lazio, Italia', country: 'Italia', countryCode: 'IT' }),
+            makeTrip({ locationName: 'Milan, Italy', country: 'Italy', countryCode: 'IT' }),
+        ];
+        expect(getTravelStats(trips).countries).toBe(1);
+    });
+
     it('counts continent even when countryCode is lowercase', () => {
         const stats = getTravelStats([makeTrip({ countryCode: 'it' })]);
         expect(stats.continents).toBe(1);
