@@ -22,7 +22,10 @@ export interface NominatimResult {
     };
 }
 
-export const geocodeWithNominatim = async (query: string, language = 'it'): Promise<NominatimResult[]> => {
+// `language` is intentionally required: a default silently geocoded every caller
+// in one fixed language, so forgetting the argument produced results in the
+// wrong language instead of a compile error.
+export const geocodeWithNominatim = async (query: string, language: string): Promise<NominatimResult[]> => {
     const response = await fetchWithTimeout(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language},en&addressdetails=1`,
         {

@@ -28,7 +28,7 @@ describe('geocoding', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const result = await geocodeWithNominatim('Roma');
+      const result = await geocodeWithNominatim('Roma', 'it');
       expect(result).toHaveLength(1);
       expect(result[0].lat).toBe('41.9027835');
       expect(result[0].display_name).toContain('Roma');
@@ -40,19 +40,32 @@ describe('geocoding', () => {
       );
     });
 
+    it('sends the requested language to Nominatim', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+
+      await geocodeWithNominatim('エジプト', 'ja');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('accept-language=ja,en'),
+        expect.anything(),
+      );
+    });
+
     it('should throw on non-ok response', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         status: 429,
       });
 
-      await expect(geocodeWithNominatim('Roma')).rejects.toThrow('Geocoding request failed');
+      await expect(geocodeWithNominatim('Roma', 'it')).rejects.toThrow('Geocoding request failed');
     });
 
     it('should throw on network error', async () => {
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
-      await expect(geocodeWithNominatim('Roma')).rejects.toThrow('Network error');
+      await expect(geocodeWithNominatim('Roma', 'it')).rejects.toThrow('Network error');
     });
   });
 

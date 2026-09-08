@@ -148,12 +148,19 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
         return null;
     };
 
+    // Photon only indexes these languages. It used to fall back to lang=en for
+    // every other one, which does not degrade gracefully: it returns confidently
+    // WRONG places — searching エジプト (Egypt) came back as "エジプトゾーン, Japan".
+    // Showing no result beats showing a wrong one, so for unsupported languages
+    // we skip Photon entirely and rely on Nominatim, which honours accept-language
+    // for all of them.
     const PHOTON_LANGS = ['en', 'de', 'fr', 'it', 'es'];
-    const photonLang = (lang: string): string => (PHOTON_LANGS.indexOf(lang) !== -1 ? lang : 'en');
+    const photonSupportsLanguage = PHOTON_LANGS.indexOf(language) !== -1;
 
     const geocodeWithPhoton = async (query: string): Promise<{ lat: number; lon: number; name: string; country?: string; countryCode?: string } | null> => {
+        if (!photonSupportsLanguage) return null;
         try {
-            const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=${photonLang(language)}`;
+            const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=${language}`;
             const response = await fetchWithTimeout(url);
             if (!response.ok) return null;
             const data = await response.json();

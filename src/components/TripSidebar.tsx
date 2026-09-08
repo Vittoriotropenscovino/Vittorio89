@@ -211,7 +211,7 @@ const TripSidebar: React.FC<Props> = ({
                                     style={[styles.quickActionBtn, homeLocation ? styles.homeActionSet : styles.homeActionUnset]}
                                     onPress={() => { onOpenSettings(); onClose(); }}>
                                     <Ionicons name="home" size={16} color="#FFD700" />
-                                    <Text style={styles.quickActionText} numberOfLines={1}>
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                                         {homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')}
                                     </Text>
                                 </TouchableOpacity>
@@ -219,25 +219,25 @@ const TripSidebar: React.FC<Props> = ({
                             {onOpenStats && (
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenStats(); onClose(); }}>
                                     <Ionicons name="stats-chart" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText}>{t('statistics')}</Text>
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics')}</Text>
                                 </TouchableOpacity>
                             )}
                             {onOpenCalendar && (
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenCalendar(); onClose(); }}>
                                     <Ionicons name="calendar" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText}>{t('calendar')}</Text>
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('calendar')}</Text>
                                 </TouchableOpacity>
                             )}
                             {onOpenSettings && (
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenSettings(); onClose(); }}>
                                     <Ionicons name="settings" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText}>{t('settings')}</Text>
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('settings')}</Text>
                                 </TouchableOpacity>
                             )}
                             {onOpenHelpGuide && (
                                 <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenHelpGuide(); onClose(); }}>
                                     <Ionicons name="help-circle" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText}>{t('helpGuideMenuItem')}</Text>
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
