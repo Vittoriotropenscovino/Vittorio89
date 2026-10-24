@@ -66,20 +66,22 @@ describe('country count stays consistent between the HUD and Statistics', () => 
             makeTrip({ locationName: 'Tokyo, Japan', countryCode: 'JP' }),
             makeTrip({ locationName: 'Berlin, Deutschland', countryCode: 'DE' }),
             makeTrip({ locationName: 'Wien, Österreich', countryCode: 'AT' }),
-            // Wishlist entries are counted too — by both, which is what matters.
+            // A wishlist entry: not visited yet, so it is not a visited country
+            // (same rule as the lit countries on the globe).
             makeTrip({ locationName: 'Cairo, Egypt', countryCode: 'EG', isWishlist: true }),
         ];
 
         expect(trips).toHaveLength(11);
-        // 8 distinct countries: IT, FR, ES, PT, JP, DE, AT, EG.
-        expect(getTravelStats(trips).countries).toBe(8);
+        // 7 distinct visited countries: IT, FR, ES, PT, JP, DE, AT (EG is wishlist).
+        expect(getTravelStats(trips).countries).toBe(7);
+        expect(getTravelStats(trips).trips).toBe(10);
 
         // The old hand-rolled HUD logic, kept here only to show what it used to
         // return on the very same data — 10, because it split IT and FR in two.
         const legacyCount = new Set(
             trips.map((tr) => tr.locationName.split(',').pop()?.trim())
         ).size;
-        expect(legacyCount).toBe(10);
+        expect(legacyCount).toBe(10);   // IT and FR split in two, EG counted
         expect(legacyCount).not.toBe(getTravelStats(trips).countries);
     });
 });

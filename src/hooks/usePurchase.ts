@@ -5,6 +5,11 @@ import PurchaseService from '../services/PurchaseService';
 
 const FREE_TRIP_LIMIT = 3;
 const DEV_MODE_KEY = '@travelsphere_dev_mode';
+/** Last known Premium state, so a paying user is Premium from the first frame
+ *  (and offline), not only after RevenueCat answers. */
+const PREMIUM_CACHE_KEY = '@travelsphere_premium_cache';
+/** The dev unlock only exists in development builds. */
+const devFlagOn = async () => __DEV__ && (await AsyncStorage.getItem(DEV_MODE_KEY)) === 'true';
 
 export function usePurchase() {
   const [isPremium, setIsPremium] = useState(false);
@@ -14,16 +19,18 @@ export function usePurchase() {
 
   useEffect(() => {
     async function init() {
-      // Check dev mode flag from AsyncStorage
-      const devModeFlag = await AsyncStorage.getItem(DEV_MODE_KEY);
-      if (devModeFlag === 'true') {
-        setIsDevModeState(true);
-      }
+      if (await devFlagOn()) setIsDevModeState(true);
+      if ((await AsyncStorage.getItem(PREMIUM_CACHE_KEY)) === 'true') setIsPremium(true);
 
       await PurchaseService.initialize();
 
       const premium = await PurchaseService.isPremium();
-      setIsPremium(premium);
+      // Only a positive answer overwrites the cache: an offline check that fails
+      // must not lock out someone who has paid.
+      if (premium) {
+        setIsPremium(true);
+        AsyncStorage.setItem(PREMIUM_CACHE_KEY, 'true').catch(() => {});
+      }
 
       const pkg = await PurchaseService.getOfferings();
       if (pkg) {
@@ -39,8 +46,7 @@ export function usePurchase() {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextState) => {
       if (nextState === 'active') {
-        const devModeFlag = await AsyncStorage.getItem(DEV_MODE_KEY);
-        setIsDevModeState(devModeFlag === 'true');
+        setIsDevModeState(await devFlagOn());
       }
     });
     return () => subscription.remove();
@@ -50,6 +56,7 @@ export function usePurchase() {
     const success = await PurchaseService.purchase();
     if (success) {
       setIsPremium(true);
+      AsyncStorage.setItem(PREMIUM_CACHE_KEY, 'true').catch(() => {});
     }
     return success;
   }, []);
@@ -58,6 +65,7 @@ export function usePurchase() {
     const success = await PurchaseService.restorePurchases();
     if (success) {
       setIsPremium(true);
+      AsyncStorage.setItem(PREMIUM_CACHE_KEY, 'true').catch(() => {});
     }
     return success;
   }, []);

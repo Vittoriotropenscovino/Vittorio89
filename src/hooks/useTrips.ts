@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import StorageService from '../services/StorageService';
-import { requestReviewIfAppropriate } from '../utils/reviewPrompt';
 import { Trip, Itinerary } from '../types';
 
 type TranslateFn = (key: string) => string | string[];
@@ -98,13 +97,9 @@ export function useTrips(t: TranslateFn) {
       tripId = generateId();
       const newTrip: Trip = { ...tripData, id: tripId, createdAt: Date.now() };
       setTrips((prev) => [...prev, newTrip]);
-      // Positive-signal review prompt: when the user has at least 3 trips after
-      // adding this one. Using >= 3 (not === 3) so existing users who already
-      // crossed the threshold get the prompt too — not only those who cross it
-      // from now on. The AsyncStorage flag still guarantees it fires at most once.
-      if (tripsRef.current.length + 1 >= 3) {
-        requestReviewIfAppropriate().catch(() => {});
-      }
+      // No review prompt here: at the 3rd trip a free user is one step away from the
+      // paywall, a bad moment to ask for stars. The prompt fires after a globe share
+      // (StatsScreen) instead.
     }
     // Update itinerary membership
     if (tripData.itineraryId) {

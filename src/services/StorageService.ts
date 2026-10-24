@@ -199,11 +199,14 @@ export const StorageService = {
         try {
             await AsyncStorage.removeItem(TRIPS_STORAGE_KEY);
             await AsyncStorage.removeItem(ITINERARIES_STORAGE_KEY);
-            // Also clear media directory (native only)
+            // Also clear media and automatic backups (native only): backups hold
+            // places and notes, and the user was promised everything is deleted.
             if (!isWeb) {
-                const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-                if (dirInfo.exists) {
-                    await FileSystem.deleteAsync(MEDIA_DIR, { idempotent: true });
+                for (const dir of [MEDIA_DIR, BACKUP_DIR]) {
+                    const dirInfo = await FileSystem.getInfoAsync(dir);
+                    if (dirInfo.exists) {
+                        await FileSystem.deleteAsync(dir, { idempotent: true });
+                    }
                 }
             }
         } catch (error) {

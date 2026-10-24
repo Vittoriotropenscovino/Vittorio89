@@ -56,7 +56,7 @@ class PurchaseService {
       const pkg = await this.getOfferings();
       if (!pkg) {
         console.error('[TravelSphere] No package available');
-        return false;
+        throw new Error('No package available');
       }
 
       const { customerInfo } = await Purchases.purchasePackage(pkg);
@@ -67,7 +67,8 @@ class PurchaseService {
         return false;
       }
       console.error('[TravelSphere] Purchase failed:', error);
-      return false;
+      // A real failure (not a cancel) is rethrown so the paywall can tell the user.
+      throw error;
     }
   }
 

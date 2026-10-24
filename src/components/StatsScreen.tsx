@@ -5,6 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { getTravelStats } from '../utils/travelStats';
+import { requestReviewIfAppropriate } from '../utils/reviewPrompt';
 import ShareCardCapture, { ShareCardCaptureHandle } from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 
@@ -48,6 +49,9 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                     dialogTitle: t('shareGlobe') as string,
                     UTI: 'public.png',
                 });
+                // Happy moment: the user just showed off their globe. The share sheet is
+                // closed when shareAsync resolves, so the review dialog doesn't overlap it.
+                requestReviewIfAppropriate().catch(() => {});
             } else {
                 Alert.alert(t('error') as string, t('shareFailed') as string);
             }
@@ -155,7 +159,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                             <View style={styles.detailRow}>
                                 <View style={styles.detailItem}>
                                     <Ionicons name="videocam-outline" size={16} color="#8B5CF6" />
-                                    <Text style={styles.detailText}>{stats.totalVideos} video</Text>
+                                    <Text style={styles.detailText}>{stats.totalVideos} {t('statsVideos')}</Text>
                                 </View>
                                 <View style={styles.detailItem}>
                                     <Ionicons name="heart" size={16} color="#F43F5E" />

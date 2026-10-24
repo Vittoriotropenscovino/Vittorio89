@@ -56,7 +56,7 @@ const AppContent: React.FC = () => {
     setSidebarOpen, showSaveToast, hideSaveToast,
   } = useModals();
 
-  const { authenticated } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
+  const { authenticated, retry: retryAuth } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
   const visitedCountries = useFogOfWar(trips);
   const { isPremium, price, purchase, restore, canAddTrip, remainingFreeTrips, FREE_TRIP_LIMIT, setDevMode } = usePurchase();
 
@@ -137,11 +137,21 @@ const AppContent: React.FC = () => {
   }, [autoFlyTarget]);
 
   const handleSaveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>) => {
+    // A wishlist place turned into a visited trip counts against the free limit,
+    // like a new trip from "+": otherwise the limit could be skipped this way.
+    if (editingTrip?.isWishlist && !tripData.isWishlist) {
+      const nonWishlistTrips = trips.filter(tr => !tr.isWishlist).length;
+      if (!canAddTrip(nonWishlistTrips)) {
+        closeForm();
+        openModal('paywall');
+        return;
+      }
+    }
     saveTrip(tripData, editingTrip);
     closeForm();
     showSaveToast(t('saved') as string);
     setAutoFlyTarget({ latitude: tripData.latitude, longitude: tripData.longitude });
-  }, [editingTrip, saveTrip, t, closeForm, showSaveToast]);
+  }, [editingTrip, saveTrip, t, closeForm, showSaveToast, trips, canAddTrip, openModal]);
 
   const handleAddTrip = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -218,6 +228,10 @@ const AppContent: React.FC = () => {
       <View style={styles.loadingContainer}>
         <Ionicons name="lock-closed" size={48} color="#00d4ff" />
         <Text style={{ color: '#9CA3AF', marginTop: 16 }}>{t('biometricPrompt')}</Text>
+        <TouchableOpacity onPress={retryAuth} accessibilityRole="button"
+          style={{ marginTop: 28, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 24, backgroundColor: 'rgba(0,212,255,0.15)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.5)' }}>
+          <Text style={{ color: '#00d4ff', fontSize: 16, fontWeight: '600' }}>{t('biometricRetry')}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -236,6 +250,8 @@ const AppContent: React.FC = () => {
           onAccept={handleGDPRAccept}
           onShowPrivacy={() => openModal('privacy')}
         />
+        {/* The privacy policy must be readable BEFORE accepting the consent */}
+        {activeModal === 'privacy' && <PrivacyPolicy visible onClose={() => closeModal()} />}
       </View>
     );
   }
@@ -388,7 +404,7 @@ const AppContent: React.FC = () => {
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onShowHelpGuide={() => openModal('helpGuide')}
         onItinerariesReset={() => setItineraries([])}
-        isPremium={isPremium} price={price} onPurchase={purchase} onRestore={restore}
+        isPremium={isPremium} price={price} onPurchase={purchase} onRestore={restore} freeLimit={FREE_TRIP_LIMIT}
         onDevModeToggle={setDevMode} />
       {activeModal === 'privacy' && <PrivacyPolicy visible={activeModal === 'privacy'} onClose={() => closeModal()} />}
       {activeModal === 'terms' && <TermsOfService visible={activeModal === 'terms'} onClose={() => closeModal()} />}

@@ -25,6 +25,8 @@ export const countryKeyOf = (trip: Trip): string | undefined => {
  * - continents: distinct continents, derived from each trip's ISO countryCode
  *   when present (trips without a country code don't contribute here).
  * - trips: total number of saved trips.
+ * Wishlist entries (places not visited yet) are left out of all three numbers,
+ * exactly like the lit countries on the globe (useFogOfWar).
  * Handles the empty case (returns all zeros).
  */
 export const getTravelStats = (trips: Trip[]): TravelStats => {
@@ -35,7 +37,10 @@ export const getTravelStats = (trips: Trip[]): TravelStats => {
     const countries = new Set<string>();
     const continents = new Set<string>();
 
+    let visited = 0;
     for (const trip of trips) {
+        if (trip.isWishlist) continue;
+        visited++;
         const key = countryKeyOf(trip);
         if (key) countries.add(key);
 
@@ -46,6 +51,6 @@ export const getTravelStats = (trips: Trip[]): TravelStats => {
     return {
         countries: countries.size,
         continents: continents.size,
-        trips: trips.length,
+        trips: visited,
     };
 };

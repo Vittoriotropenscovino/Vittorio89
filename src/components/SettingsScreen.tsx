@@ -47,6 +47,7 @@ interface Props {
     onPurchase?: () => Promise<boolean>;
     onRestore?: () => Promise<boolean>;
     onDevModeToggle?: (enabled: boolean) => void;
+    freeLimit?: number;
 }
 
 const DEV_MODE_KEY = '@travelsphere_dev_mode';
@@ -54,7 +55,7 @@ const DEV_TAP_TARGET = 7;
 
 const SettingsScreen: React.FC<Props> = ({
     visible, onClose, trips, itineraries, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
-    isPremium, price, onPurchase, onRestore, onDevModeToggle,
+    isPremium, price, onPurchase, onRestore, onDevModeToggle, freeLimit = 3,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
     const [importing, setImporting] = useState(false);
@@ -94,6 +95,9 @@ const SettingsScreen: React.FC<Props> = ({
     }, [visible]);
 
     const handleVersionTap = useCallback(() => {
+        // The hidden Premium unlock exists only in development builds: in the
+        // published app tapping the version does nothing.
+        if (!__DEV__) return;
         const newCount = devTapCount + 1;
         setDevTapCount(newCount);
         if (devTapTimer.current) clearTimeout(devTapTimer.current);
@@ -178,6 +182,13 @@ const SettingsScreen: React.FC<Props> = ({
                     return;
                 }
 
+                // The free limit counts visited trips: a backup must not bypass it.
+                const visitedAfter = [...trips, ...importResult.trips].filter((tr) => !tr.isWishlist).length;
+                if (!isPremium && visitedAfter > freeLimit) {
+                    Alert.alert(t('importData') as string, (t('importNeedsPremium') as string).replace('{0}', String(freeLimit)));
+                    return;
+                }
+
                 const message = (t('importValidTrips') as string)
                     .replace('{valid}', String(importResult.trips.length))
                     .replace('{skipped}', String(importResult.skipped));
@@ -247,6 +258,9 @@ const SettingsScreen: React.FC<Props> = ({
                     style: 'destructive',
                     onPress: async () => {
                         await StorageService.clearAll();
+                        // "Permanently deleted" must be true: home city and traveler
+                        // name go too (backups are removed by clearAll).
+                        updateSettings({ homeLocation: undefined, travelerName: '' });
                         onTripsUpdate([]);
                         if (onItinerariesReset) onItinerariesReset();
                         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -563,10 +577,19 @@ const SettingsScreen: React.FC<Props> = ({
                                 <Text style={styles.settingLabel}>{isPremium ? t('premiumActive') : t('freeVersion')}</Text>
                             </View>
                             {!isPremium && onPurchase && (
-                                <SettingRow icon="star-outline" iconColor="#F59E0B" label={`${t('upgradePremium')} — ${price || '€3,49'}`} onPress={onPurchase} />
+                                <SettingRow icon="star-outline" iconColor="#F59E0B" label={`${t('upgradePremium')} — ${price || '€3,49'}`} onPress={async () => {
+                                    try {
+                                        if (await onPurchase()) Alert.alert('', t('paywallSuccess') as string);
+                                    } catch {
+                                        Alert.alert(t('error') as string, t('purchaseFailed') as string);
+                                    }
+                                }} />
                             )}
                             {onRestore && (
-                                <SettingRow icon="refresh-outline" iconColor="#60A5FA" label={t('restorePurchases') as string} onPress={onRestore} />
+                                <SettingRow icon="refresh-outline" iconColor="#60A5FA" label={t('restorePurchases') as string} onPress={async () => {
+                                    const ok = await onRestore().catch(() => false);
+                                    Alert.alert('', (ok ? t('restoreSuccess') : t('restoreFailed')) as string);
+                                }} />
                             )}
 
                             <SectionHeader title={t('privacy') as string} />
@@ -580,9 +603,7 @@ const SettingsScreen: React.FC<Props> = ({
                                 onPress={() => {
                                     Alert.alert(
                                         t('replayOnboarding') as string,
-                                        language === 'it'
-                                            ? 'Rivedrai la selezione lingua e le slide introduttive al prossimo avvio.'
-                                            : 'You will see the language selection and intro slides on next launch.',
+                                        t('replayOnboardingHint') as string,
                                         [
                                             { text: t('cancel') as string, style: 'cancel' },
                                             {

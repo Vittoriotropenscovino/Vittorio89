@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppState } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 
@@ -68,5 +68,18 @@ export function useAuth(biometricEnabled: boolean, isSettingsLoaded: boolean, t:
     return () => sub.remove();
   }, [biometricEnabled, t]);
 
-  return { authenticated };
+  // Manual retry from the lock screen: without it, a cancelled prompt left the user
+  // locked out with no way back except force-closing the app.
+  const retry = useCallback(async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: t('biometricPrompt') as string,
+      });
+      setAuthenticated(result.success);
+    } catch {
+      setAuthenticated(false);
+    }
+  }, [t]);
+
+  return { authenticated, retry };
 }

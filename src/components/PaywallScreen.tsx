@@ -35,7 +35,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
         }, 1500);
       }
     } catch {
-      Alert.alert('Error', String(t('restoreFailed')));
+      Alert.alert(String(t('error')), String(t('purchaseFailed')));
     } finally {
       setPurchasing(false);
     }
