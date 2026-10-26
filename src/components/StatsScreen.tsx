@@ -68,9 +68,13 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
         const totalVideos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'video').length, 0);
         const countries = getTravelStats(trips).countries;
 
+        // Dates describe trips already made: wishlist places are left out, like in
+        // the trip and country counts.
+        const visited = trips.filter(tr => !tr.isWishlist);
+
         // Trips by month
         const monthCounts = new Array(12).fill(0);
-        trips.forEach(tr => {
+        visited.forEach(tr => {
             if (tr.date) {
                 const m = parseInt(tr.date.split('-')[1], 10);
                 if (m >= 1 && m <= 12) monthCounts[m - 1]++;
@@ -79,7 +83,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
         const maxMonth = Math.max(...monthCounts, 1);
 
         // First and last trip
-        const sorted = [...trips].sort((a, b) => a.date.localeCompare(b.date));
+        const sorted = visited.filter(tr => tr.date).sort((a, b) => a.date.localeCompare(b.date));
         const firstDate = sorted.length > 0 ? sorted[0].date : '-';
         const lastDate = sorted.length > 0 ? sorted[sorted.length - 1].date : '-';
 
@@ -108,7 +112,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
                             {/* Big numbers */}
                             <View style={styles.bigNumbers}>
                                 <View style={styles.bigNumItem}>
-                                    <Text style={styles.bigNum}>{trips.length}</Text>
+                                    <Text style={styles.bigNum}>{travelStats.trips}</Text>
                                     <Text style={styles.bigNumLabel}>{t('totalTrips')}</Text>
                                 </View>
                                 <View style={styles.bigNumDivider} />

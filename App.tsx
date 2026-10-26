@@ -84,8 +84,10 @@ const AppContent: React.FC = () => {
     // Statistics screen uses. Counting the tail of locationName here instead
     // over-counted: "Roma, Lazio, Italia" and "Milan, Italy" looked like two
     // countries, while getTravelStats collapses both onto countryCode "IT".
+    // Trips and countries both leave out wishlist places, like the share card.
     const countries = getTravelStats(trips).countries;
-    return { totalMedia, countries };
+    const visitedTrips = getTravelStats(trips).trips;
+    return { totalMedia, countries, visitedTrips };
   }, [trips]);
 
   // Pulse animation for empty state
@@ -315,8 +317,8 @@ const AppContent: React.FC = () => {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="airplane" size={13} color="#00d4ff" />
-              <Text style={styles.statValue}>{trips.length}</Text>
-              <Text style={styles.statLabel}>{trips.length === 1 ? t('trip_s') : t('trips_p')}</Text>
+              <Text style={styles.statValue}>{stats.visitedTrips}</Text>
+              <Text style={styles.statLabel}>{stats.visitedTrips === 1 ? t('trip_s') : t('trips_p')}</Text>
             </View>
             {trips.length > 0 && (
               <>
