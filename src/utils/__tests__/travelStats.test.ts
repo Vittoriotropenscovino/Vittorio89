@@ -19,8 +19,8 @@ const makeTrip = (over: Partial<Trip>): Trip => ({
 describe('getTravelStats', () => {
     it('returns all zeros for no trips', () => {
         expect(getTravelStats([])).toEqual({ countries: 0, continents: 0, trips: 0 });
-        // @ts-expect-error guard against undefined input at runtime
         expect(getTravelStats(undefined)).toEqual({ countries: 0, continents: 0, trips: 0 });
+        expect(getTravelStats(null, [])).toEqual({ countries: 0, continents: 0, trips: 0 });
     });
 
     it('dedups countries: 3 trips in Italy = 1 country, 1 continent, 3 trips', () => {
@@ -49,8 +49,14 @@ describe('getTravelStats', () => {
             makeTrip({ locationName: 'Lisbona, Portogallo' }),
         ];
         const stats = getTravelStats(trips);
-        // 'Italia' and 'Portogallo' are distinct keys; no countryCode → 0 continents.
-        expect(stats).toEqual({ countries: 2, continents: 0, trips: 2 });
+        // 'Italia' → IT and 'Portogallo' → PT by name (1.3.0): 2 countries, and
+        // now their continent counts too (both Europe).
+        expect(stats).toEqual({ countries: 2, continents: 1, trips: 2 });
+    });
+
+    it('still counts a place whose country name is unknown, as before', () => {
+        const stats = getTravelStats([makeTrip({ locationName: 'Base Alfa, Terra di Nessuno' })]);
+        expect(stats).toEqual({ countries: 1, continents: 0, trips: 1 });
     });
 
     it('collapses the same country saved under different localized names', () => {
@@ -78,10 +84,38 @@ describe('getTravelStats', () => {
 });
 
 describe('countryKeyOf', () => {
-    it('prefers countryCode, then country, then locationName tail', () => {
+    it('prefers countryCode, then the country name, then the locationName tail', () => {
         expect(countryKeyOf(makeTrip({ countryCode: 'IT', country: 'Italia', locationName: 'Roma, Italia' }))).toBe('IT');
-        expect(countryKeyOf(makeTrip({ country: 'Italia', locationName: 'Roma, Italia' }))).toBe('Italia');
-        expect(countryKeyOf(makeTrip({ locationName: 'Roma, Lazio, Italia' }))).toBe('Italia');
+        // No code: the name is turned into the code, so it meets trips that have one.
+        expect(countryKeyOf(makeTrip({ country: 'Italia', locationName: 'Roma, Italia' }))).toBe('IT');
+        expect(countryKeyOf(makeTrip({ locationName: 'Roma, Lazio, Italia' }))).toBe('IT');
+        expect(countryKeyOf(makeTrip({ locationName: 'Wien, Österreich' }))).toBe('AT');
+    });
+
+    it('keeps an unknown name as its own key (case and accents ignored)', () => {
+        expect(countryKeyOf(makeTrip({ locationName: 'Base Alfa, Terra di Nessùno' }))).toBe('terra di nessuno');
+        expect(countryKeyOf(makeTrip({ locationName: '' }))).toBeUndefined();
+    });
+});
+
+describe('getTravelStats with marked countries', () => {
+    it('counts marked countries as countries and continents, never as trips', () => {
+        expect(getTravelStats([], ['IT', 'JP', 'BR'])).toEqual({ countries: 3, continents: 3, trips: 0 });
+    });
+
+    it('a country both travelled and marked counts once', () => {
+        const trips = [makeTrip({ countryCode: 'IT' }), makeTrip({ countryCode: 'FR' })];
+        expect(getTravelStats(trips, ['IT', 'ES'])).toEqual({ countries: 3, continents: 1, trips: 2 });
+    });
+
+    it('an old trip without code and the same country marked count once', () => {
+        const trips = [makeTrip({ locationName: 'Roma, Italia' })];
+        expect(getTravelStats(trips, ['IT']).countries).toBe(1);
+    });
+
+    it('a wishlist trip does not make a marked country count twice or a trip', () => {
+        const trips = [makeTrip({ countryCode: 'EG', isWishlist: true })];
+        expect(getTravelStats(trips, ['EG'])).toEqual({ countries: 1, continents: 1, trips: 0 });
     });
 });
 

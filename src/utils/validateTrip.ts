@@ -1,5 +1,19 @@
 import { Trip, MediaItem, TripTag } from '../types';
 import * as Crypto from 'expo-crypto';
+import { sanitizeCountryCodes } from './countries';
+
+/**
+ * Marked countries ("Where have you been?") inside a backup file. Backups made
+ * before 1.3.0 have none → empty list, and they import exactly as before.
+ */
+export function extractMarkedCountries(json: unknown): string[] {
+  if (!json || typeof json !== 'object') return [];
+  const obj = json as Record<string, unknown>;
+  if (obj.data && typeof obj.data === 'object') {
+    return sanitizeCountryCodes((obj.data as Record<string, unknown>).markedCountries);
+  }
+  return sanitizeCountryCodes(obj.markedCountries);
+}
 
 const VALID_TAGS: ReadonlySet<string> = new Set<TripTag>([
   'sea', 'mountain', 'city', 'adventure', 'culture', 'food', 'nature', 'romantic',

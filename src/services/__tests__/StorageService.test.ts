@@ -7,6 +7,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
   removeItem: jest.fn(),
+  multiSet: jest.fn(),
 }));
 
 jest.mock('expo-file-system/legacy', () => ({
@@ -542,6 +543,82 @@ describe('StorageService', () => {
         '/mock/documents/media/',
         { idempotent: true },
       );
+    });
+  });
+
+  // ─── MARKED COUNTRIES ("Where have you been?") ───
+
+  describe('Marked countries', () => {
+    const KEY = '@travelsphere_marked_countries';
+
+    it('loads an empty list on every install before 1.3.0 (key missing)', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+      expect(await StorageService.loadMarkedCountries()).toEqual([]);
+    });
+
+    it('loads an empty list on corrupted data instead of crashing', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue('not json{');
+      expect(await StorageService.loadMarkedCountries()).toEqual([]);
+    });
+
+    it('loads only valid codes, without duplicates', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(['IT', 'it', 'ZZ', 'JP']));
+      expect(await StorageService.loadMarkedCountries()).toEqual(['IT', 'JP']);
+    });
+
+    it('saveAll writes trips, itineraries and marked countries in one multiSet', async () => {
+      (AsyncStorage.multiSet as jest.Mock).mockResolvedValue(undefined);
+      await StorageService.saveAll([mockTrip], [mockItinerary], ['IT', 'FR']);
+      const pairs = (AsyncStorage.multiSet as jest.Mock).mock.calls[0][0];
+      expect(pairs).toEqual([
+        ['@travelsphere_trips', JSON.stringify([mockTrip])],
+        ['@travelsphere_itineraries', JSON.stringify([mockItinerary])],
+        [KEY, JSON.stringify(['IT', 'FR'])],
+      ]);
+    });
+
+    it('saveAll without the list leaves the marked countries untouched', async () => {
+      (AsyncStorage.multiSet as jest.Mock).mockResolvedValue(undefined);
+      await StorageService.saveAll([mockTrip], []);
+      const keys = (AsyncStorage.multiSet as jest.Mock).mock.calls[0][0].map((pair: string[]) => pair[0]);
+      expect(keys).not.toContain(KEY);
+    });
+
+    it('clearAll ("delete all data") also removes the marked countries', async () => {
+      (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
+      await StorageService.clearAll();
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(KEY);
+    });
+
+    it('the weekly auto-backup runs for someone who only marked countries', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue('0');
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+      (FileSystem.readDirectoryAsync as jest.Mock).mockResolvedValue([]);
+      (Crypto.digestStringAsync as jest.Mock).mockResolvedValue('hash-1');
+      (FileSystem.readAsStringAsync as jest.Mock).mockImplementation(() =>
+        Promise.resolve((FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0][1]));
+
+      expect(await StorageService.checkAndPerformAutoBackup([], [], ['JP'])).toBe(true);
+      const written = JSON.parse((FileSystem.writeAsStringAsync as jest.Mock).mock.calls[0][1]);
+      expect(written.data.markedCountries).toEqual(['JP']);
+      expect(written.schemaVersion).toBe(3);
+    });
+
+    it('the auto-backup still skips a completely empty app', async () => {
+      expect(await StorageService.checkAndPerformAutoBackup([], [], [])).toBe(false);
+      expect(FileSystem.writeAsStringAsync).not.toHaveBeenCalled();
+    });
+
+    it('migrateData does not touch the marked countries', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) =>
+        Promise.resolve(key === '@travelsphere_schema_version' ? '2' : null));
+      (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+      await StorageService.migrateData();
+      const written = (AsyncStorage.setItem as jest.Mock).mock.calls.map((c: string[]) => c[0]);
+      expect(written).not.toContain(KEY);
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith(KEY);
     });
   });
 });

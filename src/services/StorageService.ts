@@ -4,9 +4,13 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { Trip, Itinerary } from '../types';
+import { sanitizeCountryCodes } from '../utils/countries';
 
 const TRIPS_STORAGE_KEY = '@travelsphere_trips';
 const ITINERARIES_STORAGE_KEY = '@travelsphere_itineraries';
+// Countries ticked in "Where have you been?": a plain list of ISO alpha-2 codes.
+// Not trips: no pin, no date, no free-trip limit.
+const MARKED_COUNTRIES_KEY = '@travelsphere_marked_countries';
 const LAST_BACKUP_KEY = '@travelsphere_last_backup';
 const LAST_CLEANUP_KEY = '@travelsphere_last_cleanup';
 export const MEDIA_DIR = FileSystem.documentDirectory + 'media/';
@@ -199,6 +203,7 @@ export const StorageService = {
         try {
             await AsyncStorage.removeItem(TRIPS_STORAGE_KEY);
             await AsyncStorage.removeItem(ITINERARIES_STORAGE_KEY);
+            await AsyncStorage.removeItem(MARKED_COUNTRIES_KEY);
             // Also clear media and automatic backups (native only): backups hold
             // places and notes, and the user was promised everything is deleted.
             if (!isWeb) {
@@ -216,14 +221,19 @@ export const StorageService = {
     },
 
     /**
-     * Atomically save both trips and itineraries in a single multiSet call
+     * Atomically save trips, itineraries and (when given) the marked countries
+     * in a single multiSet call
      */
-    saveAll: async (trips: Trip[], itineraries: Itinerary[]): Promise<void> => {
+    saveAll: async (trips: Trip[], itineraries: Itinerary[], markedCountries?: string[]): Promise<void> => {
         try {
-            await AsyncStorage.multiSet([
+            const pairs: [string, string][] = [
                 [TRIPS_STORAGE_KEY, JSON.stringify(trips)],
                 [ITINERARIES_STORAGE_KEY, JSON.stringify(itineraries)],
-            ]);
+            ];
+            if (markedCountries) {
+                pairs.push([MARKED_COUNTRIES_KEY, JSON.stringify(sanitizeCountryCodes(markedCountries))]);
+            }
+            await AsyncStorage.multiSet(pairs);
         } catch (error) {
             console.error('Error saving all data:', error);
             throw error;
@@ -257,6 +267,40 @@ export const StorageService = {
             console.error('Error loading itineraries:', error);
             return [];
         }
+    },
+
+    /**
+     * Load the marked countries ("Where have you been?"). Missing key (every
+     * install before 1.3.0) or unreadable data → empty list.
+     */
+    loadMarkedCountries: async (): Promise<string[]> => {
+        try {
+            const jsonValue = await AsyncStorage.getItem(MARKED_COUNTRIES_KEY);
+            return jsonValue ? sanitizeCountryCodes(JSON.parse(jsonValue)) : [];
+        } catch (error) {
+            console.error('Error loading marked countries:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Build a backup file's content. The ONE place that decides its shape, used
+     * by the weekly auto-backup and by every export in Settings:
+     * { schemaVersion, checksum, createdAt, data: { trips, itineraries, markedCountries } }.
+     * The checksum covers the whole `data`, marked countries included. Versions
+     * before 1.3.0 ignore markedCountries and still import the trips.
+     */
+    buildBackup: async (trips: Trip[], itineraries: Itinerary[], markedCountries: string[] = []) => {
+        const data = { trips, itineraries, markedCountries: sanitizeCountryCodes(markedCountries) };
+        const checksum = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256, JSON.stringify(data)
+        );
+        return {
+            schemaVersion: CURRENT_SCHEMA_VERSION,
+            checksum,
+            createdAt: new Date().toISOString(),
+            data,
+        };
     },
 
     /**
@@ -402,8 +446,10 @@ export const StorageService = {
         console.log(`[Migration] Schema updated to v${CURRENT_SCHEMA_VERSION}`);
     },
 
-    checkAndPerformAutoBackup: async (trips: Trip[], itineraries: Itinerary[]): Promise<boolean> => {
-        if (isWeb || trips.length === 0) return false;
+    checkAndPerformAutoBackup: async (
+        trips: Trip[], itineraries: Itinerary[], markedCountries: string[] = []
+    ): Promise<boolean> => {
+        if (isWeb || (trips.length === 0 && markedCountries.length === 0)) return false;
         try {
             const lastBackup = await AsyncStorage.getItem(LAST_BACKUP_KEY);
             const lastBackupTime = lastBackup ? parseInt(lastBackup, 10) : 0;
@@ -413,17 +459,7 @@ export const StorageService = {
             if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(BACKUP_DIR, { intermediates: true });
 
             // Build backup with checksum
-            const backupData = { trips, itineraries };
-            const dataString = JSON.stringify(backupData);
-            const checksum = await Crypto.digestStringAsync(
-                Crypto.CryptoDigestAlgorithm.SHA256, dataString
-            );
-            const backup = {
-                schemaVersion: CURRENT_SCHEMA_VERSION,
-                checksum,
-                createdAt: new Date().toISOString(),
-                data: backupData,
-            };
+            const backup = await StorageService.buildBackup(trips, itineraries, markedCountries);
             const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
             await FileSystem.writeAsStringAsync(BACKUP_DIR + filename, JSON.stringify(backup, null, 2));
 

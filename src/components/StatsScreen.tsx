@@ -13,9 +13,13 @@ interface Props {
     visible: boolean;
     onClose: () => void;
     trips: Trip[];
+    /** Countries ticked in "Where have you been?": they count as countries, not trips. */
+    markedCountries?: string[];
 }
 
-const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
+const NO_MARKED: string[] = [];
+
+const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries = NO_MARKED }) => {
     const { t, settings, updateSettings } = useApp();
     const { height: screenHeight } = useWindowDimensions();
 
@@ -33,7 +37,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     };
 
     // Reused by both the share card and the country count below (single source).
-    const travelStats = useMemo(() => getTravelStats(trips), [trips]);
+    const travelStats = useMemo(() => getTravelStats(trips, markedCountries), [trips, markedCountries]);
     const noTrips = trips.length === 0;
 
     const handleShare = async () => {
@@ -66,7 +70,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
     const stats = useMemo(() => {
         const totalPhotos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'image').length, 0);
         const totalVideos = trips.reduce((s, tr) => s + tr.media.filter(m => m.type === 'video').length, 0);
-        const countries = getTravelStats(trips).countries;
+        const countries = travelStats.countries;
 
         // Dates describe trips already made: wishlist places are left out, like in
         // the trip and country counts.
@@ -91,7 +95,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips }) => {
         const favCount = trips.filter(tr => tr.isFavorite).length;
 
         return { totalPhotos, totalVideos, countries, monthCounts, maxMonth, firstDate, lastDate, favCount };
-    }, [trips]);
+    }, [trips, travelStats]);
 
     const rawMonths = t('months');
     const months = Array.isArray(rawMonths) ? rawMonths : [];

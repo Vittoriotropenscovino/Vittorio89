@@ -1,14 +1,8 @@
 import { useMemo } from 'react';
 import { Trip } from '../types';
+import { getVisitedCountries } from '../utils/visitedCountries';
 
-export function useFogOfWar(trips: Trip[]): string[] {
-  return useMemo(() => {
-    const codes = new Set<string>();
-    trips.forEach((trip) => {
-      if (trip.countryCode && !trip.isWishlist) {
-        codes.add(trip.countryCode);
-      }
-    });
-    return Array.from(codes);
-  }, [trips]);
+/** ISO codes of the countries lit on the globe: trips' countries ∪ marked countries. */
+export function useFogOfWar(trips: Trip[], markedCountries: readonly string[] = []): string[] {
+  return useMemo(() => getVisitedCountries(trips, markedCountries).codes, [trips, markedCountries]);
 }

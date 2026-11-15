@@ -45,6 +45,7 @@ const AppContent: React.FC = () => {
 
   const {
     trips, setTrips, itineraries, setItineraries, isLoading,
+    markedCountries, setMarkedCountries,
     saveTrip, deleteTrip, toggleFavorite,
     createItinerary, deleteItinerary, renameItinerary,
   } = useTrips(t);
@@ -57,7 +58,8 @@ const AppContent: React.FC = () => {
   } = useModals();
 
   const { authenticated, retry: retryAuth } = useAuth(settings.biometricEnabled, isSettingsLoaded, t);
-  const visitedCountries = useFogOfWar(trips);
+  // Lit countries = trips' countries ∪ marked countries (getVisitedCountries).
+  const visitedCountries = useFogOfWar(trips, markedCountries);
   const { isPremium, price, purchase, restore, canAddTrip, remainingFreeTrips, FREE_TRIP_LIMIT, setDevMode } = usePurchase();
 
   // Flythrough animation
@@ -85,10 +87,12 @@ const AppContent: React.FC = () => {
     // over-counted: "Roma, Lazio, Italia" and "Milan, Italy" looked like two
     // countries, while getTravelStats collapses both onto countryCode "IT".
     // Trips and countries both leave out wishlist places, like the share card.
-    const countries = getTravelStats(trips).countries;
-    const visitedTrips = getTravelStats(trips).trips;
+    // Countries also include the ones marked in "Where have you been?".
+    const travelStats = getTravelStats(trips, markedCountries);
+    const countries = travelStats.countries;
+    const visitedTrips = travelStats.trips;
     return { totalMedia, countries, visitedTrips };
-  }, [trips]);
+  }, [trips, markedCountries]);
 
   // Pulse animation for empty state
   useEffect(() => {
@@ -403,6 +407,7 @@ const AppContent: React.FC = () => {
       {/* Settings & screens */}
       <SettingsScreen visible={activeModal === 'settings'} onClose={() => closeModal()}
         trips={trips} itineraries={itineraries} onTripsUpdate={setTrips}
+        markedCountries={markedCountries} onMarkedCountriesUpdate={setMarkedCountries}
         onShowPrivacy={() => openModal('privacy')} onShowTerms={() => openModal('terms')}
         onShowHelpGuide={() => openModal('helpGuide')}
         onItinerariesReset={() => setItineraries([])}
@@ -429,7 +434,7 @@ const AppContent: React.FC = () => {
           }}
         />
       )}
-      {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => closeModal()} trips={trips} />}
+      {activeModal === 'stats' && <StatsScreen visible={activeModal === 'stats'} onClose={() => closeModal()} trips={trips} markedCountries={markedCountries} />}
       {activeModal === 'calendar' && <CalendarView visible={activeModal === 'calendar'} onClose={() => closeModal()}
         trips={trips} onTripSelect={(trip) => { selectTrip(trip); closeModal(); }} />}
       <ItineraryManager visible={activeModal === 'itineraryManager'} onClose={() => closeModal()}

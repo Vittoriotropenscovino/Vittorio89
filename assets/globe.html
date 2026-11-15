@@ -101,6 +101,11 @@ function processCountriesData(topo){
     }
   }catch(e){L('topo err:'+e.message);}
   _countryFeatures=geo.features||[];
+  // Natural Earth ships Kosovo without a numeric id, so it could never light up.
+  // Give it the user-assigned code the app uses (XK → '926', see _isoToNumeric).
+  _countryFeatures.forEach(function(ft){
+    if(ft&&!ft.id&&ft.properties&&ft.properties.name==='Kosovo')ft.id='926';
+  });
   go(geo);
 }
 

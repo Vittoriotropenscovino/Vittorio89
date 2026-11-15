@@ -11,14 +11,18 @@ const SAVE_DEBOUNCE_MS = 800;
 export function useTrips(t: TranslateFn) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
+  // Countries ticked in "Where have you been?" (ISO codes). Not trips.
+  const [markedCountries, setMarkedCountries] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tripsRef = useRef(trips);
   const itinerariesRef = useRef(itineraries);
+  const markedCountriesRef = useRef(markedCountries);
 
   // Keep refs in sync for the AppState listener
   tripsRef.current = trips;
   itinerariesRef.current = itineraries;
+  markedCountriesRef.current = markedCountries;
 
   const generateId = useCallback((): string => {
     return Crypto.randomUUID();
@@ -29,13 +33,17 @@ export function useTrips(t: TranslateFn) {
     (async () => {
       try {
         await StorageService.migrateData();
-        const [savedTrips, savedItineraries] = await Promise.all([
+        // Loaded together, so the first render already has the full picture
+        // (no flash of "0 countries" for someone who only marked countries).
+        const [savedTrips, savedItineraries, savedMarked] = await Promise.all([
           StorageService.loadTrips(),
           StorageService.loadItineraries(),
+          StorageService.loadMarkedCountries(),
         ]);
         setTrips(savedTrips);
         setItineraries(savedItineraries);
-        StorageService.checkAndPerformAutoBackup(savedTrips, savedItineraries).catch(() => {});
+        setMarkedCountries(savedMarked);
+        StorageService.checkAndPerformAutoBackup(savedTrips, savedItineraries, savedMarked).catch(() => {});
         StorageService.checkAndCleanOrphanedMedia().catch(() => {});
       } catch (error) {
         console.error('Error loading data:', error);
@@ -54,13 +62,13 @@ export function useTrips(t: TranslateFn) {
 
       saveTimeoutRef.current = setTimeout(async () => {
         try {
-          await StorageService.saveAll(trips, itineraries);
+          await StorageService.saveAll(trips, itineraries, markedCountries);
           console.log('[TravelSphere] Auto-save completed');
         } catch (error) {
           console.error('[TravelSphere] Auto-save failed, retrying...', error);
           setTimeout(async () => {
             try {
-              await StorageService.saveAll(trips, itineraries);
+              await StorageService.saveAll(trips, itineraries, markedCountries);
             } catch {
               Alert.alert(t('error') as string, t('saveFailedFinal') as string);
             }
@@ -74,7 +82,7 @@ export function useTrips(t: TranslateFn) {
         }
       };
     }
-  }, [trips, itineraries, isLoading, t]);
+  }, [trips, itineraries, markedCountries, isLoading, t]);
 
   // Flush pending save immediately when app goes to background
   useEffect(() => {
@@ -82,7 +90,7 @@ export function useTrips(t: TranslateFn) {
       if (state === 'background' && saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
-        StorageService.saveAll(tripsRef.current, itinerariesRef.current).catch(console.error);
+        StorageService.saveAll(tripsRef.current, itinerariesRef.current, markedCountriesRef.current).catch(console.error);
       }
     });
     return () => sub.remove();
@@ -160,6 +168,8 @@ export function useTrips(t: TranslateFn) {
     setTrips,
     itineraries,
     setItineraries,
+    markedCountries,
+    setMarkedCountries,
     isLoading,
     saveTrip,
     deleteTrip,

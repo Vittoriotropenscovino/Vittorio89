@@ -5,6 +5,7 @@ import Svg, {
 } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
 import { TravelStats } from '../utils/travelStats';
+import { worldPercentLabel } from '../utils/countries';
 import { useApp } from '../contexts/AppContext';
 
 export const PLAY_STORE_URL =
@@ -85,11 +86,10 @@ const ShareCard = forwardRef<View, ShareCardProps>(
         const title = t('cardTitle') as string;
         const traveler = name ? (t('cardTravelerTemplate') as string).replace('{name}', name) : '';
 
-        // % of the world (195 sovereign countries). Capped at 100 to survive bad
-        // data (countries > 195). >0 but rounds to 0 → "<1".
-        const worldPct = Math.min(100, Math.round((stats.countries / 195) * 100));
+        // % of the world: the same 197 countries as the "Where have you been?"
+        // list (src/utils/countries.ts). Capped at 100; >0 but rounds to 0 → "<1".
         const showPct = stats.trips > 0;
-        const pctText = worldPct === 0 ? '<1' : String(worldPct);
+        const pctText = worldPercentLabel(stats.countries);
         const pctParts = (t('cardWorldPct') as string).split('{pct}');
 
         return (

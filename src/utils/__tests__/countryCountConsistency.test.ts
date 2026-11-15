@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getTravelStats } from '../travelStats';
+import { getVisitedCountries } from '../visitedCountries';
 import { Trip } from '../../types';
 
 const readSource = (relPath: string) =>
@@ -30,10 +31,23 @@ const makeTrip = (over: Partial<Trip>): Trip => ({
 describe('country count stays consistent between the HUD and Statistics', () => {
     const appSource = readSource('App.tsx');
     const statsSource = readSource('src/components/StatsScreen.tsx');
+    const fogSource = readSource('src/hooks/useFogOfWar.ts');
+    const travelStatsSource = readSource('src/utils/travelStats.ts');
 
-    it('both screens take the number from getTravelStats', () => {
-        expect(appSource).toContain('getTravelStats(trips).countries');
-        expect(statsSource).toMatch(/getTravelStats\(trips\)/);
+    it('both screens take the number from getTravelStats, marked countries included', () => {
+        expect(appSource).toContain('getTravelStats(trips, markedCountries)');
+        expect(statsSource).toMatch(/getTravelStats\(trips, markedCountries\)/);
+        // The old one-argument call would silently leave the marked countries out.
+        expect(appSource).not.toMatch(/getTravelStats\(trips\)/);
+        expect(statsSource).not.toMatch(/getTravelStats\(trips\)/);
+    });
+
+    it('the globe, the stats and the card share one source: getVisitedCountries', () => {
+        expect(fogSource).toContain('getVisitedCountries(trips, markedCountries)');
+        expect(travelStatsSource).toContain('getVisitedCountries(trips, markedCountries)');
+        expect(appSource).toContain('useFogOfWar(trips, markedCountries)');
+        // useFogOfWar used to collect trip.countryCode by hand: it must not again.
+        expect(fogSource).not.toMatch(/countryCode/);
     });
 
     it('neither screen re-derives countries from locationName', () => {
@@ -49,7 +63,29 @@ describe('country count stays consistent between the HUD and Statistics', () => 
         // A filter here (e.g. dropping wishlist or media-less trips) would make
         // the two numbers diverge again even with a shared helper.
         // Note: the tag contains arrow functions, so this cannot stop at ">".
-        expect(appSource).toMatch(/<StatsScreen[\s\S]*?trips=\{trips\}/);
+        expect(appSource).toMatch(/<StatsScreen[\s\S]*?trips=\{trips\} markedCountries=\{markedCountries\}/);
+    });
+
+    it('Roma, Italia saved without a code + a trip with IT = 1 country, everywhere', () => {
+        const trips = [
+            makeTrip({ locationName: 'Roma, Italia' }),            // old trip, no countryCode
+            makeTrip({ locationName: 'Milano, Italia', countryCode: 'IT' }),
+        ];
+        expect(getTravelStats(trips).countries).toBe(1);           // HUD, Statistics, card
+        expect(getVisitedCountries(trips).codes).toEqual(['IT']);  // globe
+    });
+
+    it('HUD, Statistics and globe agree once countries are marked', () => {
+        const trips = [
+            makeTrip({ locationName: 'Paris, France', countryCode: 'FR' }),
+            makeTrip({ locationName: 'Lisbona, Portogallo' }),       // no code: PT by name
+            makeTrip({ locationName: 'Cairo, Egypt', countryCode: 'EG', isWishlist: true }),
+        ];
+        const marked = ['FR', 'JP', 'PT', 'AR'];
+        const stats = getTravelStats(trips, marked);
+        expect(stats.countries).toBe(4);                            // FR, PT, JP, AR
+        expect(stats.trips).toBe(2);                                // marked are not trips
+        expect(getVisitedCountries(trips, marked).codes.sort()).toEqual(['AR', 'FR', 'JP', 'PT']);
     });
 
     it('produces one number for a mixed set, whatever the caller', () => {

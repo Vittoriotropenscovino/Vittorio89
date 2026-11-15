@@ -12,14 +12,14 @@ import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
 import { Trip, Itinerary } from '../types';
 import StorageService from '../services/StorageService';
 import Constants from 'expo-constants';
-import { validateImportData } from '../utils/validateTrip';
+import { validateImportData, extractMarkedCountries } from '../utils/validateTrip';
+import { mergeCountryCodes } from '../utils/countries';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
     { code: 'it', flag: 'IT', labelKey: 'italian' },
@@ -38,6 +38,9 @@ interface Props {
     trips: Trip[];
     itineraries: Itinerary[];
     onTripsUpdate: (trips: Trip[]) => void;
+    /** Countries ticked in "Where have you been?": saved in backups, wiped by "delete all". */
+    markedCountries: string[];
+    onMarkedCountriesUpdate: (codes: string[]) => void;
     onShowPrivacy: () => void;
     onShowTerms: () => void;
     onShowHelpGuide: () => void;
@@ -54,7 +57,7 @@ const DEV_MODE_KEY = '@travelsphere_dev_mode';
 const DEV_TAP_TARGET = 7;
 
 const SettingsScreen: React.FC<Props> = ({
-    visible, onClose, trips, itineraries, onTripsUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
+    visible, onClose, trips, itineraries, onTripsUpdate, markedCountries, onMarkedCountriesUpdate, onShowPrivacy, onShowTerms, onShowHelpGuide, onItinerariesReset,
     isPremium, price, onPurchase, onRestore, onDevModeToggle, freeLimit = 3,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
@@ -137,12 +140,7 @@ const SettingsScreen: React.FC<Props> = ({
                     text: t('confirm') as string,
                     onPress: async () => {
                         try {
-                            const backupData = { trips, itineraries };
-                            const dataString = JSON.stringify(backupData);
-                            const checksum = await Crypto.digestStringAsync(
-                                Crypto.CryptoDigestAlgorithm.SHA256, dataString
-                            );
-                            const backup = { schemaVersion: 1, checksum, createdAt: new Date().toISOString(), data: backupData };
+                            const backup = await StorageService.buildBackup(trips, itineraries, markedCountries);
                             const data = JSON.stringify(backup, null, 2);
                             const fileUri = FileSystem.cacheDirectory + 'travelsphere_backup.json';
                             await FileSystem.writeAsStringAsync(fileUri, data);
@@ -176,8 +174,11 @@ const SettingsScreen: React.FC<Props> = ({
 
             const doImport = () => {
                 const importResult = validateImportData(data, trips);
+                // Marked countries are merged (union): nothing the user already
+                // ticked is lost. Old backups have none and import as before.
+                const marked = mergeCountryCodes(markedCountries, extractMarkedCountries(data));
 
-                if (importResult.trips.length === 0) {
+                if (importResult.trips.length === 0 && marked.added === 0) {
                     Alert.alert(t('error') as string, t('importNoValidTrips') as string);
                     return;
                 }
@@ -189,9 +190,12 @@ const SettingsScreen: React.FC<Props> = ({
                     return;
                 }
 
-                const message = (t('importValidTrips') as string)
+                let message = (t('importValidTrips') as string)
                     .replace('{valid}', String(importResult.trips.length))
                     .replace('{skipped}', String(importResult.skipped));
+                if (marked.added > 0) {
+                    message = (t('importMarkedCountries') as string).replace('{count}', String(marked.added)) + '\n' + message;
+                }
 
                 Alert.alert(
                     t('importData') as string,
@@ -201,7 +205,8 @@ const SettingsScreen: React.FC<Props> = ({
                         {
                             text: t('confirm') as string,
                             onPress: () => {
-                                onTripsUpdate([...trips, ...importResult.trips]);
+                                if (importResult.trips.length > 0) onTripsUpdate([...trips, ...importResult.trips]);
+                                if (marked.added > 0) onMarkedCountriesUpdate(marked.merged);
                                 if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                                 Alert.alert('', t('importSuccess') as string);
                             },
@@ -262,6 +267,7 @@ const SettingsScreen: React.FC<Props> = ({
                         // name go too (backups are removed by clearAll).
                         updateSettings({ homeLocation: undefined, travelerName: '' });
                         onTripsUpdate([]);
+                        onMarkedCountriesUpdate([]);
                         if (onItinerariesReset) onItinerariesReset();
                         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                     },
@@ -291,12 +297,7 @@ const SettingsScreen: React.FC<Props> = ({
 
     const handleCloudBackup = async () => {
         try {
-            const backupData = { trips, itineraries };
-            const dataString = JSON.stringify(backupData);
-            const checksum = await Crypto.digestStringAsync(
-                Crypto.CryptoDigestAlgorithm.SHA256, dataString
-            );
-            const backup = { schemaVersion: 1, checksum, createdAt: new Date().toISOString(), data: backupData };
+            const backup = await StorageService.buildBackup(trips, itineraries, markedCountries);
             const backupDir = FileSystem.documentDirectory + 'backups/';
             const dirInfo = await FileSystem.getInfoAsync(backupDir);
             if (!dirInfo.exists) await FileSystem.makeDirectoryAsync(backupDir, { intermediates: true });
@@ -319,17 +320,7 @@ const SettingsScreen: React.FC<Props> = ({
                     text: t('confirm') as string,
                     onPress: async () => {
                         try {
-                            const backupData = { trips, itineraries };
-                            const dataString = JSON.stringify(backupData);
-                            const checksum = await Crypto.digestStringAsync(
-                                Crypto.CryptoDigestAlgorithm.SHA256, dataString
-                            );
-                            const backup = {
-                                schemaVersion: 1,
-                                checksum,
-                                createdAt: new Date().toISOString(),
-                                data: backupData,
-                            };
+                            const backup = await StorageService.buildBackup(trips, itineraries, markedCountries);
                             const content = JSON.stringify(backup, null, 2);
 
                             if (Platform.OS === 'web') {
