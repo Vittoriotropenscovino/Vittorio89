@@ -1,13 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, ActivityIndicator, Alert, TextInput } from 'react-native';
-import * as Sharing from 'expo-sharing';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, ActivityIndicator, TextInput } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { getTravelStats } from '../utils/travelStats';
-import { requestReviewIfAppropriate } from '../utils/reviewPrompt';
-import ShareCardCapture, { ShareCardCaptureHandle } from './ShareCardCapture';
+import ShareCardCapture from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
+import { useShareGlobe } from '../hooks/useShareGlobe';
 
 interface Props {
     visible: boolean;
@@ -23,8 +22,8 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
     const { t, settings, updateSettings } = useApp();
     const { height: screenHeight } = useWindowDimensions();
 
-    const captureHostRef = useRef<ShareCardCaptureHandle>(null);
-    const [sharing, setSharing] = useState(false);
+    // Capture + share sheet + review prompt: shared with the main-screen entry points.
+    const { captureHostRef, sharing, share } = useShareGlobe();
     // Optional free-text traveler name (persisted in AppSettings). Local state
     // drives the card live; we persist on end-editing and before sharing.
     const [name, setName] = useState(settings.travelerName ?? '');
@@ -40,31 +39,9 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
     const travelStats = useMemo(() => getTravelStats(trips, markedCountries), [trips, markedCountries]);
     const noTrips = trips.length === 0;
 
-    const handleShare = async () => {
+    const handleShare = () => {
         if (sharing || noTrips) return;
-        try {
-            setSharing(true);
-            persistName();
-            const uri = await captureHostRef.current?.capture();
-            if (!uri) throw new Error('capture returned no uri');
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(uri, {
-                    mimeType: 'image/png',
-                    dialogTitle: t('shareGlobe') as string,
-                    UTI: 'public.png',
-                });
-                // Happy moment: the user just showed off their globe. The share sheet is
-                // closed when shareAsync resolves, so the review dialog doesn't overlap it.
-                requestReviewIfAppropriate().catch(() => {});
-            } else {
-                Alert.alert(t('error') as string, t('shareFailed') as string);
-            }
-        } catch (e) {
-            console.warn('[Share] globe share failed', e);
-            Alert.alert(t('error') as string, t('shareFailed') as string);
-        } finally {
-            setSharing(false);
-        }
+        share(persistName);
     };
 
     const stats = useMemo(() => {

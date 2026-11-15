@@ -31,13 +31,25 @@ import ItineraryManager from './src/components/ItineraryManager';
 import HelpGuide from './src/components/HelpGuide';
 import PaywallScreen from './src/components/PaywallScreen';
 import PinSelector from './src/components/PinSelector';
+import CountryPickerScreen from './src/components/CountryPickerScreen';
+import CountriesResultPanel from './src/components/CountriesResultPanel';
+import ShareCardCapture from './src/components/ShareCardCapture';
+import { useShareGlobe } from './src/hooks/useShareGlobe';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
 import { clusterTrips } from './src/utils/clusterTrips';
 import { getTravelStats } from './src/utils/travelStats';
+import { getVisitedCountries } from './src/utils/visitedCountries';
+import { globeTargetFor } from './src/utils/countryPicker';
+import { countryName } from './src/utils/countries';
+
+// Development builds for the emulator only (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): the
+// screen may rotate, so new screens can be tested in portrait too. Store builds
+// and the APKs for the phone stay locked in landscape.
+const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
 
 const AppContent: React.FC = () => {
-  const { t, settings, updateSettings, isSettingsLoaded } = useApp();
+  const { t, language, settings, updateSettings, isSettingsLoaded } = useApp();
   // API 36 enforces edge-to-edge with no opt-out: the absolutely-positioned
   // overlays below would otherwise sit under the system bars / camera cutout,
   // which in landscape means the left or right edge, not just top/bottom.
@@ -70,6 +82,17 @@ const AppContent: React.FC = () => {
   const [pinSelectorVisible, setPinSelectorVisible] = useState(false);
   const [pinSelectorTrips, setPinSelectorTrips] = useState<Trip[]>([]);
 
+  // "Where have you been?": 'firstRun' right after onboarding + privacy consent,
+  // 'normal' from the button on the main screen, null = closed.
+  const [countryPicker, setCountryPicker] = useState<null | 'firstRun' | 'normal'>(null);
+  const [countriesResultVisible, setCountriesResultVisible] = useState(false);
+  // "Add a trip here" from a marked country: the form starts with its name.
+  const [prefillCountry, setPrefillCountry] = useState<{ code: string; name: string } | null>(null);
+  const { captureHostRef, sharing, share } = useShareGlobe();
+
+  // Countries that come from trips: on and locked in the picker ("from your diary").
+  const diaryCountries = useMemo(() => getVisitedCountries(trips).codes, [trips]);
+
   // Pulse animation
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -91,7 +114,7 @@ const AppContent: React.FC = () => {
     const travelStats = getTravelStats(trips, markedCountries);
     const countries = travelStats.countries;
     const visitedTrips = travelStats.trips;
-    return { totalMedia, countries, visitedTrips };
+    return { totalMedia, countries, visitedTrips, travelStats };
   }, [trips, markedCountries]);
 
   // Pulse animation for empty state
@@ -122,7 +145,11 @@ const AppContent: React.FC = () => {
 
   // Lock orientation + fullscreen immersive mode
   useEffect(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    if (FREE_ROTATION) {
+      ScreenOrientation.unlockAsync().catch(() => {});
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+    }
     hideNavigationBar();
   }, [hideNavigationBar]);
 
@@ -194,7 +221,61 @@ const AppContent: React.FC = () => {
 
   const handleGDPRAccept = useCallback(() => {
     updateSettings({ hasAcceptedGDPR: true });
-  }, [updateSettings]);
+    // First run only: right after the consent, if there is nothing yet. Users who
+    // accepted in an older version never pass here again, so nobody who updates
+    // gets a forced screen; they find it on the main screen button.
+    if (trips.length === 0 && markedCountries.length === 0) {
+      setCountryPicker('firstRun');
+    }
+  }, [updateSettings, trips.length, markedCountries.length]);
+
+  const handleCountriesConfirm = useCallback((nextMarked: string[]) => {
+    const added = nextMarked.filter((code) => !markedCountries.includes(code));
+    setMarkedCountries(nextMarked);
+    setCountryPicker(null);
+    const visited = getVisitedCountries(trips, nextMarked);
+    // Turn the globe towards what was just ticked (or everything lit).
+    const target = globeTargetFor(added.length > 0 ? added : visited.codes);
+    if (target) setAutoFlyTarget(target);
+    setCountriesResultVisible(visited.count > 0);
+  }, [markedCountries, setMarkedCountries, trips]);
+
+  const handleShareGlobe = useCallback(() => {
+    share();
+  }, [share]);
+
+  // Tap on a country on the globe: a country marked from the list (not from a
+  // trip) offers "Add a trip here", with the usual free-limit rules.
+  const handleCountryClick = useCallback((code: string) => {
+    if (!markedCountries.includes(code) || diaryCountries.includes(code)) return;
+    const name = countryName(code, language);
+    Alert.alert(name, t('wbMarkedCountryMsg') as string, [
+      { text: t('cancel') as string, style: 'cancel' },
+      {
+        text: t('wbAddTripHere') as string,
+        onPress: () => {
+          const nonWishlistTrips = trips.filter((tr) => !tr.isWishlist).length;
+          if (canAddTrip(nonWishlistTrips)) {
+            setPrefillCountry({ code, name });
+            openModal('form');
+          } else {
+            openModal('paywall');
+          }
+        },
+      },
+    ]);
+  }, [markedCountries, diaryCountries, language, t, trips, canAddTrip, openModal]);
+
+  // The prefilled country belongs to one form only.
+  useEffect(() => {
+    if (activeModal !== 'form') setPrefillCountry(null);
+  }, [activeModal]);
+
+  // The result panel floats over the globe: as soon as anything else opens on
+  // top (a form, settings, a trip, the menu) it is done and goes away.
+  useEffect(() => {
+    if (activeModal !== 'none' || selectedTrip || sidebarOpen) setCountriesResultVisible(false);
+  }, [activeModal, selectedTrip, sidebarOpen]);
 
   const handleExitApp = useCallback(() => {
     Alert.alert(
@@ -281,6 +362,7 @@ const AppContent: React.FC = () => {
         itineraries={itineraries}
         showTravelLines={settings.showTravelLines !== false}
         visitedCountries={visitedCountries}
+        onCountryClick={handleCountryClick}
         flythroughStops={flythroughStops}
         selectedTripId={selectedTrip?.id || null}
       />
@@ -289,7 +371,7 @@ const AppContent: React.FC = () => {
       <View style={styles.uiOverlay} pointerEvents="box-none">
         <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)} accessibilityLabel="Menu" accessibilityRole="button">
+            <TouchableOpacity testID="Menu" style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)} accessibilityLabel="Menu" accessibilityRole="button">
               <Ionicons name="menu" size={28} color="#60A5FA" />
             </TouchableOpacity>
             <View>
@@ -332,6 +414,10 @@ const AppContent: React.FC = () => {
                   <Text style={styles.statValue}>{stats.totalMedia}</Text>
                   <Text style={styles.statLabel}>{t('media')}</Text>
                 </View>
+              </>
+            )}
+            {(trips.length > 0 || stats.countries > 0) && (
+              <>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
                   <Ionicons name="flag-outline" size={13} color="#00d4ff" />
@@ -343,8 +429,16 @@ const AppContent: React.FC = () => {
           </View>
         </View>
 
+        {/* "Where have you been?": always reachable from the main screen */}
+        <View style={[styles.mainActions, { bottom: 66 + insets.bottom, left: 20 + insets.left }]}>
+          <TouchableOpacity testID="wb-open" style={styles.whereBeenButton} onPress={() => setCountryPicker('normal')} accessibilityRole="button">
+            <Ionicons name="flag" size={16} color="#FBBF24" />
+            <Text style={styles.whereBeenText}>{t('wbTitle') as string}</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Welcome overlay */}
-        {trips.length === 0 && (
+        {trips.length === 0 && !countriesResultVisible && (
           <View style={[styles.welcomeOverlay, { bottom: 100 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
             <View style={styles.welcomeCard}>
               <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
@@ -368,7 +462,7 @@ const AppContent: React.FC = () => {
             <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
           </TouchableOpacity>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
+            <TouchableOpacity testID="Add Trip" style={styles.addButton} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
               <Ionicons name="add" size={28} color="#fff" />
               <Text style={styles.addButtonText}>{t('addTrip')}</Text>
             </TouchableOpacity>
@@ -388,11 +482,25 @@ const AppContent: React.FC = () => {
         </View>
       </View>
 
+      <CountriesResultPanel
+        visible={countriesResultVisible}
+        count={stats.countries}
+        hasTrips={stats.visitedTrips > 0}
+        sharing={sharing}
+        onShare={handleShareGlobe}
+        onAddTrip={() => { setCountriesResultVisible(false); handleAddTrip(); }}
+        onClose={() => setCountriesResultVisible(false)}
+      />
+      {/* Off-screen card for sharing from the result panel (pure RN, never the globe) */}
+      {countriesResultVisible && (
+        <ShareCardCapture ref={captureHostRef} stats={stats.travelStats} travelerName={settings.travelerName} />
+      )}
+
       {/* Save confirmation toast */}
       <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={hideSaveToast} />
 
       {/* Layer 2: Modals */}
-      <TripForm visible={activeModal === 'form'} onClose={closeForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} />
+      <TripForm visible={activeModal === 'form'} onClose={closeForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} prefillCountry={prefillCountry} />
       <MemoryViewer trip={selectedTrip} visible={!!selectedTrip}
         onClose={() => selectTrip(null)} onDelete={handleDeleteTrip} onEdit={startEditTrip} />
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
@@ -466,6 +574,15 @@ const AppContent: React.FC = () => {
             setTimeout(() => setFlythroughStops(null), 500);
           }
         }} />
+      <CountryPickerScreen
+        visible={countryPicker !== null}
+        firstRun={countryPicker === 'firstRun'}
+        trips={trips}
+        markedCountries={markedCountries}
+        diaryCountries={diaryCountries}
+        onConfirm={handleCountriesConfirm}
+        onClose={() => setCountryPicker(null)}
+      />
       <PinSelector
         visible={pinSelectorVisible}
         trips={pinSelectorTrips}
@@ -565,6 +682,14 @@ const styles = StyleSheet.create({
     ...Platform.select({ android: { elevation: 12 } }),
   },
   addButtonText: { color: '#fff', fontWeight: '600' },
+  mainActions: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  whereBeenButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(5,5,20,0.75)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.55)',
+    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8,
+    ...Platform.select({ android: { elevation: 12 } }),
+  },
+  whereBeenText: { color: '#FBBF24', fontSize: 13, fontWeight: '700' },
   freeTripsIndicator: { color: '#F59E0B', fontSize: 11, fontWeight: '600', marginTop: 4 },
 });
 

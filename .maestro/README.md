@@ -104,3 +104,20 @@ chiave. È una modifica al codice dell'app, quindi non è stata fatta.
   lo screenshot, ma il giudizio sull'anteprima è tuo.
 - **Rotazione schermo / edge-to-edge**: il controllo dei bordi sotto notch e barra
   di navigazione va fatto a occhio, ruotando il telefono su entrambi i lati.
+
+---
+
+## Aggiornamento 15/11/2026 (1.3.0)
+
+- Maestro sul PC di sviluppo: `C:\Users\vitto\tools\maestro-2.12.1\maestro\bin\maestro`
+  (serve `JAVA_HOME` = il Java di Android Studio). Sempre `--device emulator-5554`.
+- Gli screenshot finiscono in `~/.maestro/tests/<data>/<flusso>/takeScreenshot/`.
+- **06-dove-sei-stato**: segna 5 paesi rari, controlla il pannello, poi li toglie.
+  Verticale solo con l'APK di prova a rotazione libera
+  (`node android/costruisci-apk.mjs emulatore`):
+  ```
+  maestro test -e ORIENTATION=PORTRAIT .maestro/06-dove-sei-stato.yaml
+  ```
+- 02 e 03: `hint:` non esiste più in Maestro 2.x, sostituito da `text:`.
+- 04 e 05 hanno bisogno di almeno un viaggio con foto: su un telefono o emulatore
+  vuoto il 05 si ferma (il tasto indietro chiude l'app).

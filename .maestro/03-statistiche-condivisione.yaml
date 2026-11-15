@@ -20,7 +20,7 @@ appId: com.travelsphere.app
 
 # Il campo nome e' opzionale: comparira' sulla card come "I viaggi di ..."
 - tapOn:
-    hint: "Il tuo nome (opzionale)"
+    text: "Il tuo nome.*"
 - inputText: "Vittorio"
 - hideKeyboard
 - takeScreenshot: 03b-nome-inserito

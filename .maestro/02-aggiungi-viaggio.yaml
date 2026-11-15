@@ -15,7 +15,7 @@ appId: com.travelsphere.app
 
 # --- Ricerca localita' (richiede rete: usa Nominatim/Photon) ---
 - tapOn:
-    hint: "es. New York, Bali, Parigi..."
+    text: "es. New York, Bali, Parigi..."
 - inputText: "Lisbona"
 - hideKeyboard
 - takeScreenshot: 02a-ricerca-localita
@@ -29,7 +29,7 @@ appId: com.travelsphere.app
 
 # --- Titolo ---
 - tapOn:
-    below: "Titolo"
+    below: "Titolo.*"
 - inputText: "Test automatico Maestro"
 - hideKeyboard
 

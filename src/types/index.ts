@@ -76,6 +76,8 @@ export interface EarthGlobeProps {
     itineraries?: Itinerary[];
     showTravelLines?: boolean;
     visitedCountries?: string[];
+    /** A country on the globe was tapped (ISO alpha-2). */
+    onCountryClick?: (code: string) => void;
     flythroughStops?: { lat: number; lng: number }[] | null;
     selectedTripId?: string | null;
 }
@@ -86,6 +88,8 @@ export interface TripFormProps {
     onClose: () => void;
     onSave: (trip: Omit<Trip, 'id' | 'createdAt'>) => void;
     editTrip?: Trip | null;
+    /** New trip started from a marked country on the globe: the search field starts with its name. */
+    prefillCountry?: { code: string; name: string } | null;
 }
 
 // Memory Viewer Props

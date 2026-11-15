@@ -20,7 +20,7 @@ import NetInfo from '@react-native-community/netinfo';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
-const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ visible, onClose, onSave, editTrip, itineraries }) => {
+const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ visible, onClose, onSave, editTrip, itineraries, prefillCountry }) => {
     const { t, language, settings } = useApp();
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
@@ -81,6 +81,14 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
             }
         }
     }, [editTrip, visible]);
+
+    // "Add a trip here" from a marked country: the country is already written,
+    // the user only adds the city in front of it and searches.
+    useEffect(() => {
+        if (visible && !editTrip && prefillCountry) {
+            setLocationQuery(prefillCountry.name);
+        }
+    }, [visible, editTrip, prefillCountry]);
 
     useEffect(() => {
         if (!editTrip && foundLocation && settings.homeLocation) {

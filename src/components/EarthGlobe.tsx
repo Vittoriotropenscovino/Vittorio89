@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { EarthGlobeProps, Trip, ClusteredPin } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { shapelessCountryPoints } from '../utils/countryPicker';
 
 // Globe HTML and vendor libraries loaded from asset files
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -94,13 +95,15 @@ const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'abou
 
 const READY_TIMEOUT_MS = 15000;
 
-function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops, selectedTripId }: EarthGlobeProps) {
+function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops, selectedTripId }: EarthGlobeProps) {
   const { t } = useApp();
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
   const pendingPins = useRef<ClusteredPin[] | null>(null);
   const clusteredPinsRef = useRef<ClusteredPin[]>(clusteredPins);
   const tripsRef = useRef<Trip[]>(trips);
+  const onCountryClickRef = useRef(onCountryClick);
+  onCountryClickRef.current = onCountryClick;
   const [globeHtml, setGlobeHtml] = useState<string | null>(globeHtmlCache);
   const [globeReady, setGlobeReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -209,7 +212,7 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
   // Fog of War - update visited countries
   useEffect(() => {
     if (isReady.current && visitedCountries) {
-      sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries });
+      sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries, points: shapelessCountryPoints(visitedCountries) });
     }
   }, [visitedCountries, sendToWebView]);
 
@@ -253,9 +256,11 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, targetCoordinates, homeL
           }
           sendToWebView({ type: 'updateTravelLines', show: showTravelLines !== false });
           if (visitedCountries) {
-            sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries });
+            sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries, points: shapelessCountryPoints(visitedCountries) });
           }
           pendingPins.current = null;
+        } else if (data.type === 'countryClick' && typeof data.code === 'string') {
+          onCountryClickRef.current?.(data.code);
         } else if (data.type === 'pinClick') {
           if (Platform.OS !== 'web') {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});

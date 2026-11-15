@@ -1,0 +1,99 @@
+# "Dove sei stato?": apre la schermata dal pulsante sulla schermata principale,
+# segna 5 paesi, conferma, controlla il pannello del risultato, poi RIMETTE
+# TUTTO COM'ERA (toglie gli stessi 5 paesi), perche' i flussi girano sui dati veri.
+#
+# Paesi scelti apposta tra quelli che quasi nessuno ha gia' segnato:
+# Tuvalu, Nauru, Kiribati, Palau, Bhutan. Se uno era gia' segnato, il tocco lo
+# toglie e la pulizia finale lo rimette: controlla gli screenshot.
+#
+# Orientamento: orizzontale se non si dice niente. Per il verticale (solo APK di
+# prova con la rotazione libera, EXPO_PUBLIC_ROTAZIONE_LIBERA=1):
+#   maestro test -e ORIENTATION=PORTRAIT .maestro/06-dove-sei-stato.yaml
+# Gli screenshot finiscono in ~/.maestro/tests/<data>/06-dove-sei-stato/takeScreenshot/
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- tapOn:
+    id: "wb-open"
+    waitToSettleTimeoutMs: 1500
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "wb-counter"
+- takeScreenshot: 06a-dove-sei-stato-${output.orient}
+
+# Ricerca senza badare ad accenti e maiuscole, poi un tocco sul paese
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "tuvalu", CODICE: "TV" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "NAURU", CODICE: "NR" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "kiribati", CODICE: "KI" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "palau", CODICE: "PW" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "bhutan", CODICE: "BT" }
+- assertVisible:
+    id: "wb-counter"
+- takeScreenshot: 06b-cinque-paesi-segnati-${output.orient}
+
+- tapOn:
+    id: "wb-confirm"
+    waitToSettleTimeoutMs: 1500
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "wb-result"
+- assertVisible:
+    id: "wb-result-share"
+- assertVisible:
+    id: "wb-result-add"
+- takeScreenshot: 06c-pannello-risultato-${output.orient}
+- tapOn:
+    id: "wb-result-close"
+    waitToSettleTimeoutMs: 1500
+- assertNotVisible:
+    id: "wb-result"
+
+# Pulizia: toglie gli stessi 5 paesi e conferma
+- tapOn:
+    id: "wb-open"
+    waitToSettleTimeoutMs: 1500
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "tuvalu", CODICE: "TV" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "nauru", CODICE: "NR" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "kiribati", CODICE: "KI" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "palau", CODICE: "PW" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "bhutan", CODICE: "BT" }
+- tapOn:
+    id: "wb-confirm"
+    waitToSettleTimeoutMs: 1500
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "wb-result-close"
+    waitToSettleTimeoutMs: 1500
+    optional: true
+- takeScreenshot: 06d-dopo-pulizia-${output.orient}
+- setOrientation: LANDSCAPE_LEFT

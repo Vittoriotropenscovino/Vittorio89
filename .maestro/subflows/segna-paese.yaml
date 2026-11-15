@@ -1,0 +1,12 @@
+# Cerca un paese per nome nella schermata "Dove sei stato?" e lo tocca
+# (segna se era spento, toglie se era acceso). Usato da 06-dove-sei-stato.
+# Parametri: NOME (testo da cercare, al massimo 12 lettere), CODICE (ISO a due lettere).
+appId: com.travelsphere.app
+---
+- tapOn:
+    id: "wb-search"
+- eraseText: 12
+- inputText: ${NOME}
+- hideKeyboard
+- tapOn:
+    id: "wb-row-${CODICE}"
