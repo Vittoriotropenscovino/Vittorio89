@@ -54,32 +54,33 @@ const CountriesResultPanel: React.FC<Props> = ({ visible, count, hasTrips, shari
             pointerEvents="box-none"
             style={[
                 styles.host,
-                // Above the "Add trip" row (bottom-right), never covering it.
+                // Landscape: in the left column, between the title and the "Where have you
+                // been?" button, so it never covers the globe (which keeps turning).
                 landscape
-                    ? { right: 20 + insets.right, bottom: 96 + insets.bottom, width: Math.min(400, width * 0.45) }
+                    ? { left: 20 + insets.left, bottom: 112 + insets.bottom, width: Math.min(280, Math.round(width * 0.29)) }
                     // Portrait: also above the "Where have you been?" button (bottom-left).
                     : { left: 16 + insets.left, right: 16 + insets.right, bottom: 116 + insets.bottom },
                 { opacity: enter, transform: [{ translateY }] },
             ]}
         >
-            <View style={styles.card}>
+            <View style={[styles.card, landscape && styles.cardCompact]}>
                 <View style={styles.topRow}>
-                    <Animated.Text style={[styles.bigNumber, { transform: [{ scale: pop }] }]}>{count}</Animated.Text>
+                    <Animated.Text style={[styles.bigNumber, landscape && styles.bigNumberCompact, { transform: [{ scale: pop }] }]}>{count}</Animated.Text>
                     <View style={styles.titles}>
-                        <Text style={styles.title}>{title}</Text>
+                        <Text style={[styles.title, landscape && styles.titleCompact]}>{title}</Text>
                         <Text style={styles.pct}>{pct}</Text>
                     </View>
                     <TouchableOpacity testID="wb-result-close" onPress={onClose} style={styles.closeBtn} accessibilityRole="button">
                         <Text style={styles.closeText}>{t('close') as string}</Text>
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity testID="wb-result-share" style={styles.primaryBtn} onPress={onShare} disabled={sharing} accessibilityRole="button">
+                <TouchableOpacity testID="wb-result-share" style={[styles.primaryBtn, landscape && styles.btnCompact]} onPress={onShare} disabled={sharing} accessibilityRole="button">
                     {sharing ? <ActivityIndicator color={INK} /> : <Ionicons name="share-social" size={18} color={INK} />}
-                    <Text style={styles.primaryText}>{t('shareGlobe') as string}</Text>
+                    <Text style={[styles.primaryText, landscape && styles.btnTextCompact]}>{t('shareGlobe') as string}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity testID="wb-result-add" style={styles.secondaryBtn} onPress={onAddTrip} accessibilityRole="button">
+                <TouchableOpacity testID="wb-result-add" style={[styles.secondaryBtn, landscape && styles.btnCompact]} onPress={onAddTrip} accessibilityRole="button">
                     <Ionicons name="add" size={18} color="#E5E7EB" />
-                    <Text style={styles.secondaryText}>{t(hasTrips ? 'wbAddTrip' : 'wbAddFirstTrip') as string}</Text>
+                    <Text style={[styles.secondaryText, landscape && styles.btnTextCompact]}>{t(hasTrips ? 'wbAddTrip' : 'wbAddFirstTrip') as string}</Text>
                 </TouchableOpacity>
             </View>
         </Animated.View>
@@ -109,6 +110,12 @@ const styles = StyleSheet.create({
         borderRadius: 14, paddingVertical: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
     },
     secondaryText: { color: '#E5E7EB', fontSize: 15, fontWeight: '600' },
+    // Landscape phones have little height: same card, tighter.
+    cardCompact: { padding: 12, gap: 8 },
+    bigNumberCompact: { fontSize: 34, minWidth: 34 },
+    titleCompact: { fontSize: 15 },
+    btnCompact: { paddingVertical: 9 },
+    btnTextCompact: { fontSize: 14 },
 });
 
 export default CountriesResultPanel;

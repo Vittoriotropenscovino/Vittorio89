@@ -83,7 +83,20 @@ describe('globeTargetFor', () => {
         expect(target.longitude).toBeLessThan(14);
     });
 
-    it('countries on opposite sides cancel out: the last one wins', () => {
+    it('stops on the biggest group, not on the average or the last one', () => {
+        // Checkpoint 2: Austria, Belarus, Croatia, France + Bhutan + Palau must show Europe.
+        const target = globeTargetFor(['AT', 'BY', 'HR', 'FR', 'BT', 'PW'])!;
+        expect(target.latitude).toBeGreaterThan(42);
+        expect(target.latitude).toBeLessThan(54);
+        expect(target.longitude).toBeGreaterThan(2);
+        expect(target.longitude).toBeLessThan(25);
+        // Even when the far-away ones were ticked last.
+        const again = globeTargetFor(['IT', 'BR', 'AT', 'BY', 'HR', 'FR', 'BT', 'PW'])!;
+        expect(again.longitude).toBeGreaterThan(2);
+        expect(again.longitude).toBeLessThan(25);
+    });
+
+    it('two lone countries on opposite sides: the most recent one wins', () => {
         const target = globeTargetFor(['EC', 'ID'])!; // Ecuador and Indonesia, ~180° apart
         expect(target).toEqual({ latitude: COUNTRY_POINTS.ID[0], longitude: COUNTRY_POINTS.ID[1] });
     });

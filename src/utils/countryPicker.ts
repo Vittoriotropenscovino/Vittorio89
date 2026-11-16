@@ -112,25 +112,36 @@ export const countryCounterText = (t: Translate, count: number): string =>
         .replace('{count}', String(count))
         .replace('{pct}', worldPercentLabel(count));
 
+/** Countries closer than this belong to the same group on the globe. */
+export const GLOBE_GROUP_KM = 2500;
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+const distanceKm = (a: readonly [number, number], b: readonly [number, number]) => {
+    const dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
 /**
- * Where to turn the globe so the lit countries are in view: the spherical mean
- * of their points. Countries spread all around the world cancel out, so then
- * the last one in the list (the most recently marked) is used instead.
+ * Where to turn the globe so the lit countries are in view: the biggest group
+ * of them. Each country counts its neighbours within GLOBE_GROUP_KM; the one
+ * with the most wins (on a tie, the later in the list, i.e. the most recently
+ * marked) and the globe turns to the centre of that group. So Austria, Belarus,
+ * Croatia, France + Bhutan + Palau shows Europe, never the empty ocean between.
  */
 export const globeTargetFor = (codes: readonly string[]): { latitude: number; longitude: number } | null => {
     const points = codes.map((c) => COUNTRY_POINTS[c]).filter(Boolean);
     if (points.length === 0) return null;
-    let x = 0, y = 0, z = 0;
-    for (const [lat, lng] of points) {
-        const la = (lat * Math.PI) / 180, lo = (lng * Math.PI) / 180;
-        x += Math.cos(la) * Math.cos(lo);
-        y += Math.cos(la) * Math.sin(lo);
-        z += Math.sin(la);
+    let group: (readonly [number, number])[] = [];
+    for (const p of points) {
+        const near = points.filter((q) => distanceKm(p, q) <= GLOBE_GROUP_KM);
+        if (near.length >= group.length) group = near;
     }
-    const len = Math.sqrt(x * x + y * y + z * z) / points.length;
-    if (len < 0.35) {
-        const [lat, lng] = points[points.length - 1];
-        return { latitude: lat, longitude: lng };
+    let x = 0, y = 0, z = 0;
+    for (const [lat, lng] of group) {
+        x += Math.cos(toRad(lat)) * Math.cos(toRad(lng));
+        y += Math.cos(toRad(lat)) * Math.sin(toRad(lng));
+        z += Math.sin(toRad(lat));
     }
     const round = (n: number) => Math.round(n * 100) / 100;
     return {

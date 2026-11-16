@@ -230,15 +230,14 @@ const AppContent: React.FC = () => {
   }, [updateSettings, trips.length, markedCountries.length]);
 
   const handleCountriesConfirm = useCallback((nextMarked: string[]) => {
-    const added = nextMarked.filter((code) => !markedCountries.includes(code));
     setMarkedCountries(nextMarked);
     setCountryPicker(null);
     const visited = getVisitedCountries(trips, nextMarked);
-    // Turn the globe towards what was just ticked (or everything lit).
-    const target = globeTargetFor(added.length > 0 ? added : visited.codes);
+    // Turn the globe towards the biggest group of lit countries.
+    const target = globeTargetFor(visited.codes);
     if (target) setAutoFlyTarget(target);
     setCountriesResultVisible(visited.count > 0);
-  }, [markedCountries, setMarkedCountries, trips]);
+  }, [setMarkedCountries, trips]);
 
   const handleShareGlobe = useCallback(() => {
     share();

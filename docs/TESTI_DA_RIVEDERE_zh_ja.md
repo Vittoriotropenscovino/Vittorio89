@@ -21,7 +21,7 @@ Accanto c'è l'italiano per capire il senso. Il file si aggiorna a ogni passo.
 | `wbCounterMany` | {count} paesi · {pct}% del mondo | {count} 个国家 · 世界的 {pct}% | {count}か国・世界の{pct}% |
 | `wbFromDiary` | dal diario | 来自日记 | 日記から |
 | `wbConfirm` | Conferma | 确认 | 決定 |
-| `wbSkip` | Salta | 跳过 | スキップ |
+| `wbSkip` | Salta per ora | 暂时跳过 | 今はスキップ |
 | `wbNoResults` | Nessun paese trovato | 没有找到国家 | 国が見つかりません |
 | `continentEurope` | Europa | 欧洲 | ヨーロッパ |
 | `continentAsia` | Asia | 亚洲 | アジア |

@@ -2,7 +2,7 @@
   "expo": {
     "name": "TravelSphere",
     "slug": "travelsphere",
-    "version": "1.2.2",
+    "version": "1.3.0",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -41,7 +41,7 @@
     },
     "android": {
       "package": "com.travelsphere.app",
-      "versionCode": 31,
+      "versionCode": 32,
       "targetSdkVersion": 36,
       "compileSdkVersion": 36,
       "adaptiveIcon": {

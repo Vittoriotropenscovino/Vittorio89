@@ -149,15 +149,15 @@ function go(countries){
       // COUNTRY BORDERS - visited countries glow
       .polygonsData(f)
       .polygonCapColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.12)';
+        if(isCountryVisited(d))return 'rgba(251,191,36,0.85)';
         return 'rgba(0,0,0,0)';
       })
       .polygonSideColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,220,255,0.3)';
+        if(isCountryVisited(d))return 'rgba(251,191,36,0.6)';
         return 'rgba(0,200,255,0.05)';
       })
       .polygonStrokeColor(function(d){
-        if(isCountryVisited(d))return 'rgba(0,230,255,0.8)';
+        if(isCountryVisited(d))return 'rgba(255,214,102,1)';
         return 'rgba(0,220,255,0.25)';
       })
       .polygonAltitude(0.009)
@@ -172,7 +172,7 @@ function go(countries){
       .pointLat('lat').pointLng('lng')
       .pointColor(function(d){
         if(d.isHome)return '#FFD700';
-        if(d.isCountryDot)return 'rgba(0,230,255,0.95)';
+        if(d.isCountryDot)return 'rgba(251,191,36,1)';
         if(d.isWishlist)return '#EC4899';
         return '#EF4444';
       })
@@ -446,13 +446,13 @@ function renderPins(){
     }
   }catch(e){}
 
-  // Visited small states without a shape on the map: a glowing cyan dot.
+  // Visited small states without a shape on the map: a glowing gold dot.
   for(var vi=0;vi<_visitedCountries.length;vi++){
     var vc=String(_visitedCountries[vi]||'').toUpperCase();
     var vp=_countryPoints[vc];
     if(!vp||_featureIds[_isoToNumeric[vc]||''])continue;
     dp.push({lat:vp[0],lng:vp[1],countryCode:vc,isCountryDot:true,clusterCount:1});
-    dr.push({lat:vp[0],lng:vp[1],ringColor:'0,230,255'});
+    dr.push({lat:vp[0],lng:vp[1],ringColor:'251,191,36'});
   }
 
   if(_home){

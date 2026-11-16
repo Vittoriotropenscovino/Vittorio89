@@ -43,23 +43,31 @@ const CountryCell = memo(function CountryCell({ row, onToggle, diaryLabel }: {
     row: CountryRow; onToggle: (code: string) => void; diaryLabel: string;
 }) {
     const on = row.state !== 'off';
-    const pop = useRef(new Animated.Value(1)).current;
+    // The row itself never changes size: only a gold flash over it and the check
+    // popping in. (Scaling the whole row left rows looking narrower when several
+    // were tapped quickly.)
+    const flash = useRef(new Animated.Value(0)).current;
     const check = useRef(new Animated.Value(on ? 1 : 0)).current;
     const wasOn = useRef(on);
 
     useEffect(() => {
         if (wasOn.current === on) return;
         wasOn.current = on;
-        Animated.timing(check, { toValue: on ? 1 : 0, duration: 160, useNativeDriver: true }).start();
+        check.stopAnimation();
         if (on) {
-            pop.setValue(0.96);
-            Animated.spring(pop, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start();
+            check.setValue(0);
+            Animated.spring(check, { toValue: 1, friction: 4, tension: 180, useNativeDriver: true }).start();
+            flash.stopAnimation();
+            flash.setValue(0.45);
+            Animated.timing(flash, { toValue: 0, duration: 450, useNativeDriver: true }).start();
+        } else {
+            Animated.timing(check, { toValue: 0, duration: 140, useNativeDriver: true }).start();
         }
-    }, [on, pop, check]);
+    }, [on, flash, check]);
 
-    const checkScale = check.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
+    const checkScale = check.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
     return (
-        <Animated.View style={[styles.cellWrap, { transform: [{ scale: pop }] }]}>
+        <View style={styles.cellWrap}>
             <Pressable
                 testID={`wb-row-${row.code}`}
                 onPress={() => onToggle(row.code)}
@@ -80,12 +88,13 @@ const CountryCell = memo(function CountryCell({ row, onToggle, diaryLabel }: {
                     {row.state === 'diary' && <Text style={styles.diaryLabel}>{diaryLabel}</Text>}
                 </View>
                 <View style={[styles.checkRing, on && styles.checkRingOn]}>
-                    <Animated.View style={{ opacity: check, transform: [{ scale: checkScale }] }}>
+                    <Animated.View style={{ opacity: on ? 1 : check, transform: [{ scale: checkScale }] }}>
                         <Ionicons name={row.state === 'diary' ? 'book' : 'checkmark'} size={14} color={INK} />
                     </Animated.View>
                 </View>
+                <Animated.View pointerEvents="none" style={[styles.flash, { opacity: flash }]} />
             </Pressable>
-        </Animated.View>
+        </View>
     );
 });
 
@@ -289,6 +298,7 @@ const styles = StyleSheet.create({
     cellName: { color: '#E5E7EB', fontSize: 15 },
     cellNameOn: { color: '#FFF7E0', fontWeight: '700' },
     diaryLabel: { color: CORAL, fontSize: 11, fontWeight: '700', marginTop: 1 },
+    flash: { ...StyleSheet.absoluteFillObject, borderRadius: 12, backgroundColor: GOLD },
     checkRing: {
         width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
         alignItems: 'center', justifyContent: 'center',

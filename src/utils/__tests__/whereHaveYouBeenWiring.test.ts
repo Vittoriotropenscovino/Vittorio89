@@ -42,6 +42,34 @@ describe('when "Where have you been?" opens', () => {
     });
 });
 
+describe('checkpoint 2 fixes', () => {
+    const panel = read('src/components/CountriesResultPanel.tsx');
+    const picker = read('src/components/CountryPickerScreen.tsx');
+
+    it('the globe turns to the group of all lit countries', () => {
+        expect(app).toContain('globeTargetFor(visited.codes)');
+    });
+
+    it('in landscape the result panel sits in the left column, off the globe', () => {
+        expect(panel).toContain('? { left: 20 + insets.left, bottom: 112 + insets.bottom');
+    });
+
+    it('visited countries are gold on the globe, the same gold as the list', () => {
+        expect(globe).toContain("if(isCountryVisited(d))return 'rgba(251,191,36,0.85)'");
+        expect(globe).toContain("if(d.isCountryDot)return 'rgba(251,191,36,1)'");
+        expect(picker).toContain("const GOLD = '#FBBF24'"); // #FBBF24 = rgb(251,191,36)
+    });
+
+    it('a row never changes size when ticked (no scale on the row)', () => {
+        expect(picker).toContain('<View style={styles.cellWrap}>');
+        expect(picker).not.toMatch(/cellWrap, { transform/);
+    });
+
+    it('first run says \"Skip for now\", from the main screen it says \"Close\"', () => {
+        expect(picker).toContain("t(firstRun ? 'wbSkip' : 'close')");
+    });
+});
+
 describe('rotation is free only in emulator test builds', () => {
     it('stays locked in landscape unless EXPO_PUBLIC_ROTAZIONE_LIBERA=1', () => {
         expect(app).toContain("process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1'");
