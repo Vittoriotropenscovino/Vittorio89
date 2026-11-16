@@ -1,0 +1,55 @@
+# "Condividi il tuo globo" dalla schermata principale: apre la finestra con
+# l'anteprima della card, scrive un nome, condivide (si apre il foglio di
+# condivisione di Android con il PNG) e torna indietro.
+# Serve almeno un paese (un viaggio o un paese segnato), altrimenti il pulsante
+# non c'e'. Il nome scritto resta salvato come in Statistiche.
+#
+#   maestro test .maestro/07-condividi-dal-globo.yaml
+#   maestro test -e ORIENTATION=PORTRAIT .maestro/07-condividi-dal-globo.yaml   (solo APK di prova)
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- tapOn:
+    id: "share-open"
+    waitToSettleTimeoutMs: 1500
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "share-sheet"
+- assertVisible:
+    id: "share-confirm"
+- takeScreenshot: 07a-finestra-condivisione-${output.orient}
+
+- tapOn:
+    id: "share-name"
+- eraseText: 30
+- inputText: "Maestro"
+- hideKeyboard
+- takeScreenshot: 07b-nome-${output.orient}
+
+- tapOn:
+    id: "share-confirm"
+# La cattura del PNG passa per un render fuori schermo: lasciale tempo.
+- waitForAnimationToEnd:
+    timeout: 15000
+# CONTROLLA A OCCHIO: il foglio di condivisione deve avere l'anteprima della card.
+- takeScreenshot: 07c-foglio-condivisione-${output.orient}
+- back
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Pulizia: toglie il nome di prova
+- tapOn:
+    id: "share-name"
+    optional: true
+- eraseText: 30
+- hideKeyboard
+- tapOn:
+    id: "share-close"
+    optional: true
+- setOrientation: LANDSCAPE_LEFT

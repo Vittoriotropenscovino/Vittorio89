@@ -37,10 +37,11 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
 
     // Reused by both the share card and the country count below (single source).
     const travelStats = useMemo(() => getTravelStats(trips, markedCountries), [trips, markedCountries]);
-    const noTrips = trips.length === 0;
+    // Sharing needs at least one country (a trip or one ticked in "Where have you been?").
+    const noCountries = travelStats.countries === 0;
 
     const handleShare = () => {
-        if (sharing || noTrips) return;
+        if (sharing || noCountries) return;
         share(persistName);
     };
 
@@ -124,9 +125,9 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
 
                             {/* Share your globe */}
                             <TouchableOpacity
-                                style={[styles.shareBtn, (sharing || noTrips) && styles.shareBtnDisabled]}
+                                style={[styles.shareBtn, (sharing || noCountries) && styles.shareBtnDisabled]}
                                 onPress={handleShare}
-                                disabled={sharing || noTrips}
+                                disabled={sharing || noCountries}
                                 activeOpacity={0.85}
                             >
                                 {sharing ? (
@@ -136,7 +137,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
                                 )}
                                 <Text style={styles.shareBtnText}>{t('shareGlobe')}</Text>
                             </TouchableOpacity>
-                            {noTrips && (
+                            {noCountries && (
                                 <Text style={styles.shareHint}>{t('shareGlobeHint')}</Text>
                             )}
 

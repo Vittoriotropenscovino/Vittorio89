@@ -94,9 +94,10 @@ describe('globe: taps and small states', () => {
 });
 
 describe('sharing is one shared piece of code', () => {
-    it('Statistics and the main screen both use useShareGlobe', () => {
+    it('Statistics and the share sheet (main screen, result panel) both use useShareGlobe', () => {
         expect(read('src/components/StatsScreen.tsx')).toContain('useShareGlobe()');
-        expect(app).toContain('useShareGlobe()');
+        expect(read('src/components/ShareGlobeSheet.tsx')).toContain('useShareGlobe()');
+        expect(app).toContain('<ShareGlobeSheet');
     });
 
     it('the review prompt after sharing is still there, untouched', () => {
@@ -106,7 +107,7 @@ describe('sharing is one shared piece of code', () => {
     });
 
     it('the card is captured from ShareCard, never from the globe WebView', () => {
-        expect(app).toMatch(/<ShareCardCapture ref=\{captureHostRef\}/);
+        expect(read('src/components/ShareGlobeSheet.tsx')).toMatch(/<ShareCardCapture ref=\{captureHostRef\}/);
         expect(read('src/hooks/useShareGlobe.ts')).not.toMatch(/import[^\n]*(WebView|EarthGlobe)/);
         expect(read('src/hooks/useShareGlobe.ts')).not.toMatch(/captureRef|captureScreen/);
     });

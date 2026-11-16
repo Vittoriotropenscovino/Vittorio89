@@ -8,8 +8,9 @@ import { TravelStats } from '../utils/travelStats';
 import { worldPercentLabel } from '../utils/countries';
 import { useApp } from '../contexts/AppContext';
 
-export const PLAY_STORE_URL =
-    'https://play.google.com/store/apps/details?id=com.travelsphere.app';
+import { PLAY_STORE_URL, shareCardUrl } from '../utils/shareLink';
+
+export { PLAY_STORE_URL };
 
 // 9:16 story format. The card is designed in a 1080-wide coordinate space and
 // scaled by `u = width / BASE_W`, so the SAME component renders crisp both in a
@@ -66,10 +67,12 @@ interface ShareCardProps {
     travelerName?: string;
     /** Rendered width in px. Height is derived (9:16). Default fits most phones. */
     width?: number;
+    /** utm_campaign of the QR link: "card" for the normal card. */
+    campaign?: string;
 }
 
 const ShareCard = forwardRef<View, ShareCardProps>(
-    ({ stats, travelerName, width = 360 }, ref) => {
+    ({ stats, travelerName, width = 360, campaign = 'card' }, ref) => {
         const { t } = useApp();
         const W = width;
         const H = Math.round(width * ASPECT);
@@ -88,7 +91,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
         // % of the world: the same 197 countries as the "Where have you been?"
         // list (src/utils/countries.ts). Capped at 100; >0 but rounds to 0 → "<1".
-        const showPct = stats.trips > 0;
+        // With trips: countries · continents · trips, and "% of the world" below.
+        // Without trips (only countries ticked in "Where have you been?"): never
+        // "0 trips" — the row becomes countries · continents · % of the world.
+        const noTrips = stats.trips === 0;
+        const showPct = !noTrips && stats.countries > 0;
         const pctText = worldPercentLabel(stats.countries);
         const pctParts = (t('cardWorldPct') as string).split('{pct}');
 
@@ -207,7 +214,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
                             <Stat value={stats.continents} label={t('cardContinents') as string} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                            <Stat value={stats.trips} label={t('cardTrips') as string} u={u} />
+                            {noTrips ? (
+                                <Stat value={`${pctText}%`} label={t('cardWorldShort') as string} u={u} />
+                            ) : (
+                                <Stat value={stats.trips} label={t('cardTrips') as string} u={u} />
+                            )}
                         </View>
 
                         {showPct ? (
@@ -251,7 +262,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                             </View>
                             <View style={[styles.qrBox, { borderRadius: 18 * u, padding: 16 * u }]}>
                                 <QRCode
-                                    value={PLAY_STORE_URL}
+                                    value={shareCardUrl(campaign)}
                                     size={qrSize}
                                     color="#08080d"
                                     backgroundColor="#ffffff"
@@ -268,7 +279,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
 ShareCard.displayName = 'ShareCard';
 
-const Stat: React.FC<{ value: number; label: string; u: number }> = ({ value, label, u }) => (
+const Stat: React.FC<{ value: number | string; label: string; u: number }> = ({ value, label, u }) => (
     <View style={styles.stat}>
         {/* adjustsFontSizeToFit shrinks 3+ digit numbers / long labels so the row never overflows */}
         <Text

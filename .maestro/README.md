@@ -121,3 +121,8 @@ chiave. È una modifica al codice dell'app, quindi non è stata fatta.
 - 02 e 03: `hint:` non esiste più in Maestro 2.x, sostituito da `text:`.
 - 04 e 05 hanno bisogno di almeno un viaggio con foto: su un telefono o emulatore
   vuoto il 05 si ferma (il tasto indietro chiude l'app).
+- **07-condividi-dal-globo**: pulsante "Condividi il tuo globo" sulla schermata
+  principale → finestra con anteprima e nome → foglio di condivisione. Serve
+  almeno un paese. Anche questo accetta `-e ORIENTATION=PORTRAIT`.
+- 02: si ferma ancora (16/11) perché tocca il pulsante di ricerca a coordinate
+  fisse; da riscrivere con riferimenti veri al passo 5.

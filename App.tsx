@@ -33,8 +33,8 @@ import PaywallScreen from './src/components/PaywallScreen';
 import PinSelector from './src/components/PinSelector';
 import CountryPickerScreen from './src/components/CountryPickerScreen';
 import CountriesResultPanel from './src/components/CountriesResultPanel';
-import ShareCardCapture from './src/components/ShareCardCapture';
-import { useShareGlobe } from './src/hooks/useShareGlobe';
+import ShareGlobeSheet from './src/components/ShareGlobeSheet';
+import CardPreviewDev from './src/components/CardPreviewDev';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
 import { clusterTrips } from './src/utils/clusterTrips';
@@ -88,7 +88,10 @@ const AppContent: React.FC = () => {
   const [countriesResultVisible, setCountriesResultVisible] = useState(false);
   // "Add a trip here" from a marked country: the form starts with its name.
   const [prefillCountry, setPrefillCountry] = useState<{ code: string; name: string } | null>(null);
-  const { captureHostRef, sharing, share } = useShareGlobe();
+  // "Share your globe" sheet (preview + optional name + share), from the main
+  // screen button and from the result panel.
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [cardPreviewDev, setCardPreviewDev] = useState(false);
 
   // Countries that come from trips: on and locked in the picker ("from your diary").
   const diaryCountries = useMemo(() => getVisitedCountries(trips).codes, [trips]);
@@ -240,8 +243,9 @@ const AppContent: React.FC = () => {
   }, [setMarkedCountries, trips]);
 
   const handleShareGlobe = useCallback(() => {
-    share();
-  }, [share]);
+    setCountriesResultVisible(false);
+    setShareSheetVisible(true);
+  }, []);
 
   // Tap on a country on the globe: a country marked from the list (not from a
   // trip) offers "Add a trip here", with the usual free-limit rules.
@@ -395,6 +399,12 @@ const AppContent: React.FC = () => {
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>{`v${Constants.expoConfig?.version ?? '1.1.0'}`}</Text>
           </View>
+          {/* Emulator test build only: full-size card samples for the checkpoint PNGs */}
+          {FREE_ROTATION && (
+            <TouchableOpacity testID="card-dev-open" style={styles.topButton} onPress={() => setCardPreviewDev(true)}>
+              <Text style={styles.statusText}>Card</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Bottom-left stats */}
@@ -434,6 +444,13 @@ const AppContent: React.FC = () => {
             <Ionicons name="flag" size={16} color="#FBBF24" />
             <Text style={styles.whereBeenText}>{t('wbTitle') as string}</Text>
           </TouchableOpacity>
+          {/* Sharing at the centre: available as soon as there is one country */}
+          {stats.countries > 0 && (
+            <TouchableOpacity testID="share-open" style={[styles.whereBeenButton, styles.shareButton]} onPress={handleShareGlobe} accessibilityRole="button">
+              <Ionicons name="share-social" size={16} color="#1C1300" />
+              <Text style={[styles.whereBeenText, styles.shareButtonText]}>{t('shareGlobe') as string}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Welcome overlay */}
@@ -485,15 +502,17 @@ const AppContent: React.FC = () => {
         visible={countriesResultVisible}
         count={stats.countries}
         hasTrips={stats.visitedTrips > 0}
-        sharing={sharing}
+        sharing={false}
         onShare={handleShareGlobe}
         onAddTrip={() => { setCountriesResultVisible(false); handleAddTrip(); }}
         onClose={() => setCountriesResultVisible(false)}
       />
-      {/* Off-screen card for sharing from the result panel (pure RN, never the globe) */}
-      {countriesResultVisible && (
-        <ShareCardCapture ref={captureHostRef} stats={stats.travelStats} travelerName={settings.travelerName} />
-      )}
+      {FREE_ROTATION && <CardPreviewDev visible={cardPreviewDev} onClose={() => setCardPreviewDev(false)} />}
+      <ShareGlobeSheet
+        visible={shareSheetVisible}
+        stats={stats.travelStats}
+        onClose={() => setShareSheetVisible(false)}
+      />
 
       {/* Save confirmation toast */}
       <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={hideSaveToast} />
@@ -689,6 +708,8 @@ const styles = StyleSheet.create({
     ...Platform.select({ android: { elevation: 12 } }),
   },
   whereBeenText: { color: '#FBBF24', fontSize: 13, fontWeight: '700' },
+  shareButton: { backgroundColor: '#FBBF24', borderColor: '#FBBF24' },
+  shareButtonText: { color: '#1C1300' },
   freeTripsIndicator: { color: '#F59E0B', fontSize: 11, fontWeight: '600', marginTop: 4 },
 });
 

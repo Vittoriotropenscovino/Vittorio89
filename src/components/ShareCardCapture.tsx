@@ -12,6 +12,8 @@ export interface ShareCardCaptureHandle {
 interface Props {
     stats: TravelStats;
     travelerName?: string;
+    /** utm_campaign of the QR link ("card", or "recap2026" for the year recap). */
+    campaign?: string;
     /**
      * On-screen render width (points). Default 360 → on a 3x device the native
      * buffer is already 1080px, so the capture is pixel-perfect with no upscale.
@@ -46,7 +48,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   3) then snapshot the card's own ref (full opacity).
  */
 const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
-    ({ stats, travelerName, renderWidth = 360 }, ref) => {
+    ({ stats, travelerName, renderWidth = 360, campaign }, ref) => {
         const cardRef = useRef<View>(null);
         const laidOut = useRef(false);
 
@@ -89,6 +91,7 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
                     stats={stats}
                     travelerName={travelerName}
                     width={renderWidth}
+                    campaign={campaign}
                 />
             </View>
         );

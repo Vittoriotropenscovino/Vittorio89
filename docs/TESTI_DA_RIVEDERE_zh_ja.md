@@ -37,6 +37,13 @@ Accanto c'è l'italiano per capire il senso. Il file si aggiorna a ogni passo.
 | `wbAddTripHere` | Aggiungi un viaggio qui | 在这里添加旅行 | ここに旅行を追加 |
 | `wbMarkedCountryMsg` | Hai segnato questo paese dall'elenco. Vuoi aggiungere un viaggio qui? | 你在列表中标记了这个国家。要在这里添加旅行吗？ | この国はリストでチェックしました。ここに旅行を追加しますか？ |
 
+## Passo 3 · Condivisione e card
+
+| Chiave | Italiano | Cinese (zh) | Giapponese (ja) |
+|---|---|---|---|
+| `cardWorldShort` | del mondo | 世界占比 | 世界のうち |
+| `shareGlobeHint` | Segna un paese o aggiungi un viaggio per condividere | 标记一个国家或添加一次旅行即可分享 | シェアするには国をチェックするか旅行を追加 |
+
 ## Note di rilascio 1.3.0 (Play Store)
 
 Testo intero come apparirà nello store (italiano di riferimento sotto).
