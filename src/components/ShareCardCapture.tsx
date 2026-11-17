@@ -2,7 +2,6 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import ShareCard from './ShareCard';
-import { CountryMapStyle } from './CountryMap';
 import { TravelStats } from '../utils/travelStats';
 import { YearRecap } from '../utils/yearRecap';
 
@@ -20,8 +19,6 @@ interface Props {
     recap?: YearRecap | null;
     /** ISO codes of every visited country (gold on the card map). */
     visitedCodes?: readonly string[];
-    /** Map style of the card (tests and the checkpoint preview only). */
-    mapStyle?: CountryMapStyle;
     /**
      * On-screen render width (points). Default 360 → on a 3x device the native
      * buffer is already 1080px, so the capture is pixel-perfect with no upscale.
@@ -56,7 +53,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   3) then snapshot the card's own ref (full opacity).
  */
 const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
-    ({ stats, travelerName, renderWidth = 360, campaign, recap = null, visitedCodes, mapStyle }, ref) => {
+    ({ stats, travelerName, renderWidth = 360, campaign, recap = null, visitedCodes }, ref) => {
         const cardRef = useRef<View>(null);
         const laidOut = useRef(false);
 
@@ -102,7 +99,6 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
                     campaign={campaign}
                     recap={recap}
                     visitedCodes={visitedCodes}
-                    mapStyle={mapStyle}
                 />
             </View>
         );

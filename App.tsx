@@ -546,6 +546,8 @@ const AppContent: React.FC = () => {
       <CountriesResultPanel
         visible={countriesResultVisible}
         count={stats.countries}
+        continents={stats.travelStats.continents}
+        codes={visitedCountries}
         hasTrips={stats.visitedTrips > 0}
         sharing={false}
         onShare={handleShareGlobe}

@@ -50,8 +50,17 @@ describe('checkpoint 2 fixes', () => {
         expect(app).toContain('globeTargetFor(visited.codes)');
     });
 
-    it('in landscape the result panel sits in the left column, off the globe', () => {
-        expect(panel).toContain('? { left: 20 + insets.left, bottom: 112 + insets.bottom');
+    // 17/11: the small panel became a full page (point A of step 5): the same
+    // country map as the share card, big, with the numbers and the two buttons.
+    it('the result is a full page with the real country map, numbers and the two buttons', () => {
+        expect(panel).toMatch(/<Modal\s+visible\s+transparent/);
+        expect(panel).toMatch(/<CountryMap\s+gold=\{codes\}/);
+        for (const id of ['wb-result', 'wb-result-count', 'wb-result-share', 'wb-result-add', 'wb-result-close', 'wb-result-map']) {
+            expect(panel).toContain(`testID="${id}"`);
+        }
+        expect(panel).not.toMatch(/WebView|EarthGlobe/);
+        expect(app).toContain('codes={visitedCountries}');
+        expect(app).toContain('continents={stats.travelStats.continents}');
     });
 
     it('visited countries are gold on the globe, the same gold as the list', () => {

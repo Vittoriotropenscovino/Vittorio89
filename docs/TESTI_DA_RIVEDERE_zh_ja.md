@@ -67,6 +67,7 @@ Accanto c'è l'italiano per capire il senso. Il file si aggiorna a ogni passo.
 | `cardContinentOne` | Continente | 大洲 | 大陸 |
 | `cardMapHiddenOne` | +1 paese dall'altra parte del globo | 地球另一侧还有 1 个国家 | 地球の反対側にもう1か国 |
 | `cardMapHiddenMany` | +{count} paesi dall'altra parte del globo | 地球另一侧还有 {count} 个国家 | 地球の反対側にあと{count}か国 |
+| `helpGlobeText` (Guida, solo il colore: ora oro) | … I paesi visitati si illuminano in oro. | … 已访问的国家以金色高亮显示。 | … 訪問済みの国は金色に光ります。 |
 
 In cinese e giapponese il singolare è uguale al plurale (国家 / 国): va bene così.
 

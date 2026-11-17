@@ -8,9 +8,9 @@ import { TravelStats } from '../utils/travelStats';
 import { YearRecap } from '../utils/yearRecap';
 import { worldPercentLabel } from '../utils/countries';
 import { useApp } from '../contexts/AppContext';
-import CountryMap, { CountryMapStyle } from './CountryMap';
+import CountryMap from './CountryMap';
 
-import { PLAY_STORE_URL, shareCardUrl } from '../utils/shareLink';
+import { ANDROID_ONLY, PLAY_STORE_URL, shareCardUrl } from '../utils/shareLink';
 
 export { PLAY_STORE_URL };
 
@@ -22,9 +22,6 @@ const ASPECT = 16 / 9;
 
 // Vertical centre of the background glow: behind the country map.
 const GLOW_CY = 1180;
-
-/** Map style of the card, until the choice of the checkpoint (flat world map or globe). */
-export const CARD_MAP_STYLE: CountryMapStyle = 'globe';
 
 // Deterministic decorative star field, kept in the side margins / empty bands so
 // stars never sit behind the title or the stat numbers.
@@ -57,12 +54,10 @@ interface ShareCardProps {
     recap?: YearRecap | null;
     /** ISO codes of every visited country: they are gold on the card map. */
     visitedCodes?: readonly string[];
-    /** Flat world map or globe (default CARD_MAP_STYLE). */
-    mapStyle?: CountryMapStyle;
 }
 
 const ShareCard = forwardRef<View, ShareCardProps>(
-    ({ stats, travelerName, width = 360, campaign = 'card', recap = null, visitedCodes = [], mapStyle = CARD_MAP_STYLE }, ref) => {
+    ({ stats, travelerName, width = 360, campaign = 'card', recap = null, visitedCodes = [] }, ref) => {
         const { t } = useApp();
         const W = width;
         const H = Math.round(width * ASPECT);
@@ -180,11 +175,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
                         {recap ? (
                             <View style={[styles.statsRow, { gap: 10 * u }]}>
-                                <Stat value={recap.trips} label={label(recap.trips, 'cardTrips', 'cardTripOne')} u={u} gold />
-                                <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
                                 <Stat value={recap.countries} label={label(recap.countries, 'cardCountries', 'cardCountryOne')} u={u} gold />
                                 <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
                                 <Stat value={recap.continents} label={label(recap.continents, 'cardContinents', 'cardContinentOne')} u={u} gold />
+                                <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
+                                <Stat value={recap.trips} label={label(recap.trips, 'cardTrips', 'cardTripOne')} u={u} gold />
                             </View>
                         ) : (
                         <View style={[styles.statsRow, { gap: 10 * u }]}>
@@ -225,7 +220,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
                     {/* The user's countries (gold), filling the space under the numbers */}
                     <View style={[styles.mapBox, { marginVertical: 28 * u }]}>
-                        <CountryMap variant={mapStyle} gold={mapGold} dim={mapDim} u={u} hiddenLabel={hiddenLabel} testID="card-map" />
+                        <CountryMap gold={mapGold} dim={mapDim} hiddenFontSize={38 * u} hiddenLabel={hiddenLabel} testID="card-map" />
                     </View>
 
                     {/* Challenge + footer (claim + QR to Play Store) */}
@@ -247,7 +242,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                                     adjustsFontSizeToFit
                                     minimumFontScale={0.6}
                                 >
-                                    {t('cardClaim')}
+                                    {ANDROID_ONLY ? `${t('cardClaim')} · ${t('cardAndroidOnly')}` : t('cardClaim')}
                                 </Text>
                                 <Text style={[styles.scan, { fontSize: 24 * u, marginTop: 14 * u }]} numberOfLines={1}>
                                     {t('cardScan')}

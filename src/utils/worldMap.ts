@@ -5,10 +5,10 @@ import { COUNTRY_POINTS } from './countryCoordinates';
  * The map of the share cards: the user's REAL countries, drawn as plain SVG
  * paths (react-native-svg). No WebView and never a capture of the 3D globe.
  *
- * Two styles to choose from (checkpoint): a flat world map (Natural Earth
- * projection) or a globe (orthographic projection) turned towards the largest
- * group of visited countries. Everything here is pure math, so it is tested
- * with jest and costs a few milliseconds.
+ * A globe (orthographic projection) turned towards the largest group of
+ * visited countries (chosen at the checkpoint of 17/11/2026 over a flat world
+ * map). Everything here is pure math, so it is tested with jest and costs a
+ * few milliseconds.
  *
  * Paths are merged by colour (all the other countries in one path, the visited
  * ones in another...), so the card draws a handful of SVG elements, not 176.
@@ -53,10 +53,10 @@ export interface WorldMapDrawing {
     arcs: string[];
     /** The plane, on the longest arc (or landing on the only country). */
     plane: MapPlane | null;
-    /** Globe only: visited countries left on the hidden side. */
+    /** Visited countries left on the hidden side of the globe. */
     hidden: string[];
-    /** Globe only: centre and radius of the sphere. */
-    globe?: { cx: number; cy: number; r: number };
+    /** Centre and radius of the sphere. */
+    globe: { cx: number; cy: number; r: number };
 }
 
 export interface WorldMapInput {
@@ -126,11 +126,11 @@ const draw = (
 
 // ───────────────────────── Travel arcs + plane ─────────────────────────
 
-const MAX_ARCS = 6;
+const MAX_ARCS = 4;
 
 /**
  * Real travel arcs, no decoration: from the "hub" (the gold country closest to
- * the middle of the group) to the farthest gold countries, at most 6, curved
+ * the middle of the group) to the farthest gold countries, at most 4, curved
  * upwards. The plane flies on the longest one, two thirds of the way. With a
  * single country, a short arc comes in from the upper left and the plane lands.
  */
@@ -187,56 +187,6 @@ const anchorsOf = (codes: readonly string[], project: (lng: number, lat: number)
         if (xy) out.push(xy);
     }
     return out;
-};
-
-// ───────────────────────── Flat world map ─────────────────────────
-
-/** Natural Earth I projection (same formula as d3-geo), radians in, unit plane out. */
-export const naturalEarth = (lng: number, lat: number): Point => {
-    const l = lng * RAD; const p = lat * RAD;
-    const p2 = p * p; const p4 = p2 * p2;
-    return [
-        l * (0.8707 - 0.131979 * p2 + p4 * (-0.013791 + p4 * (0.003971 * p2 - 0.001529 * p4))),
-        p * (1.007226 + p2 * (0.015085 + p4 * (-0.044475 + 0.028874 * p2 - 0.005916 * p4))),
-    ];
-};
-
-const FLAT_W = 1000;
-const LAT_TOP = 84;     // north of Greenland/Canada
-const LAT_BOTTOM = -57; // south of Tierra del Fuego (Antarctica is not drawn)
-
-export const flatWorldMap = (input: WorldMapInput): WorldMapDrawing => {
-    const xMax = naturalEarth(180, 0)[0];
-    const yTop = naturalEarth(0, LAT_TOP)[1];
-    const yBottom = naturalEarth(0, LAT_BOTTOM)[1];
-    const k = FLAT_W / (2 * xMax);
-    const height = Math.round((yTop - yBottom) * k);
-    const project = (lng: number, lat: number): Point => {
-        const [x, y] = naturalEarth(lng, lat);
-        return [(x + xMax) * k, (yTop - y) * k];
-    };
-    // Rings that cross the 180° meridian (eastern Russia, Fiji) would draw a
-    // line across the whole map: they are drawn twice, once shifted east and
-    // once west, and the map clips what falls outside its edges.
-    const projectRing = (ring: number[]): Point[][] => {
-        let crosses = false;
-        for (let i = 0; i < ring.length && !crosses; i += 2) {
-            const k = (i + 2) % ring.length;
-            if (Math.abs(ring[k] - ring[i]) > 180) crosses = true;
-        }
-        const copy = (shift: (lng: number) => number): Point[] => {
-            const pts: Point[] = [];
-            for (let i = 0; i < ring.length; i += 2) pts.push(project(shift(ring[i]), ring[i + 1]));
-            return pts;
-        };
-        if (!crosses) return [copy((lng) => lng)];
-        return [copy((lng) => (lng < 0 ? lng + 360 : lng)), copy((lng) => (lng > 0 ? lng - 360 : lng))];
-    };
-    const anchors = anchorsOf(input.gold, project);
-    const focus: Point = anchors.length
-        ? [anchors.reduce((s, p) => s + p[0], 0) / anchors.length, anchors.reduce((s, p) => s + p[1], 0) / anchors.length]
-        : [FLAT_W / 2, height / 2];
-    return { width: FLAT_W, height, hidden: [], ...travelArcs(anchors, focus), ...draw(input, project, projectRing) };
 };
 
 // ───────────────────────── Globe ─────────────────────────

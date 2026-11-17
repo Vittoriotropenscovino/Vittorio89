@@ -1,5 +1,6 @@
 # "Dove sei stato?": apre la schermata dal pulsante sulla schermata principale,
-# segna 5 paesi, conferma, controlla il pannello del risultato, poi RIMETTE
+# segna 5 paesi, conferma, controlla la pagina del risultato (globo con i paesi in oro,
+# numeri, due pulsanti), poi RIMETTE
 # TUTTO COM'ERA (toglie gli stessi 5 paesi), perche' i flussi girano sui dati veri.
 #
 # Paesi scelti apposta tra quelli che quasi nessuno ha gia' segnato:
@@ -54,6 +55,10 @@ appId: com.travelsphere.app
     timeout: 3000
 - assertVisible:
     id: "wb-result"
+- assertVisible:
+    id: "wb-result-map"
+- assertVisible:
+    id: "wb-result-count"
 - assertVisible:
     id: "wb-result-share"
 - assertVisible:

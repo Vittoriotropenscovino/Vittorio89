@@ -3,7 +3,6 @@ import { Image, Modal, Pressable, StatusBar, StyleSheet, Text, View, useWindowDi
 import * as FileSystem from 'expo-file-system/legacy';
 import ShareCard from './ShareCard';
 import ShareCardCapture, { ShareCardCaptureHandle } from './ShareCardCapture';
-import { CountryMapStyle } from './CountryMap';
 import { TravelStats } from '../utils/travelStats';
 import { YearRecap, recapCampaign } from '../utils/yearRecap';
 import { worldPercentLabel } from '../utils/countries';
@@ -12,10 +11,9 @@ import { useApp } from '../contexts/AppContext';
 // ONLY in the emulator test build (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): shows the
 // share card full width with sample numbers, to take the checkpoint PNGs.
 // A tap moves to the next sample. Never reachable in store or phone builds.
-//   - "Mappa" switches flat world map / globe;
 //   - "Cattura" runs the REAL capture (ShareCardCapture, 1080×1920), times it,
 //     shows the captured PNG instead of the live card and keeps a copy in the
-//     app cache (card-prova-<style>-<lang>-<n>-<ms>ms.png) for the checks.
+//     app cache (card-prova-<lang>-<n>-<ms>ms.png) for the checks.
 export interface CardSample {
     label: string;
     stats: TravelStats;
@@ -66,7 +64,6 @@ const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?
     const { language } = useApp();
     const { width, height } = useWindowDimensions();
     const [index, setIndex] = useState(0);
-    const [mapStyle, setMapStyle] = useState<CountryMapStyle>('globe');
     // Capture test: the host is mounted only while capturing, like the share sheet.
     const [capturing, setCapturing] = useState(false);
     const [captured, setCaptured] = useState<{ uri: string; ms: number; ms2: number; size: string } | null>(null);
@@ -90,9 +87,9 @@ const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?
                 const ms2 = Date.now() - t2;
                 const size = await new Promise<string>((resolve) =>
                     Image.getSize(uri, (w, h) => resolve(`${w}×${h}`), () => resolve('?')));
-                const copy = `${FileSystem.cacheDirectory}card-prova-${mapStyle}-${language}-${n + 1}-${ms}ms-${ms2}ms.png`;
+                const copy = `${FileSystem.cacheDirectory}card-prova-${language}-${n + 1}-${ms}ms-${ms2}ms.png`;
                 await FileSystem.copyAsync({ from: uri, to: copy });
-                console.log(`[card-prova] ${mapStyle} ${language} ${n + 1} ${ms}ms ${ms2}ms ${size} ${copy}`);
+                console.log(`[card-prova] ${language} ${n + 1} ${ms}ms ${ms2}ms ${size} ${copy}`);
                 if (alive) setCaptured({ uri: copy, ms, ms2, size });
             } catch (e) {
                 console.log('[card-prova] errore', e);
@@ -119,17 +116,14 @@ const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?
                 {captured?.uri ? (
                     <Image testID="card-dev-captured" source={{ uri: captured.uri }} style={{ width: cardWidth, height: Math.round(cardWidth * (16 / 9)) }} />
                 ) : (
-                    <ShareCard stats={sample.stats} travelerName={sample.travelerName} width={cardWidth} campaign={sample.campaign} recap={sample.recap} visitedCodes={sample.codes} mapStyle={mapStyle} />
+                    <ShareCard stats={sample.stats} travelerName={sample.travelerName} width={cardWidth} campaign={sample.campaign} recap={sample.recap} visitedCodes={sample.codes} />
                 )}
                 <View style={styles.info}>
-                    <Text style={styles.infoText} testID="card-dev-label">{`${n + 1}/${samples.length} · ${sample.label} · ${mapStyle === 'globe' ? 'globo' : 'planisfero'}`}</Text>
+                    <Text style={styles.infoText} testID="card-dev-label">{`${n + 1}/${samples.length} · ${sample.label}`}</Text>
                     {captured ? (
                         <Text style={styles.infoText} testID="card-dev-result">{`disegno+cattura ${captured.ms} ms · solo cattura ${captured.ms2} ms · ${captured.size}`}</Text>
                     ) : null}
                     <View style={styles.buttons}>
-                        <Pressable testID="card-dev-style" style={styles.button} onPress={() => { setCaptured(null); setMapStyle((s) => (s === 'globe' ? 'flat' : 'globe')); }}>
-                            <Text style={styles.buttonText}>Mappa</Text>
-                        </Pressable>
                         <Pressable testID="card-dev-capture" style={styles.button} onPress={startCapture}>
                             <Text style={styles.buttonText}>{capturing ? 'Cattura…' : 'Cattura'}</Text>
                         </Pressable>
@@ -144,7 +138,6 @@ const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?
                     campaign={sample.campaign}
                     recap={sample.recap}
                     visitedCodes={sample.codes}
-                    mapStyle={mapStyle}
                 />
             ) : null}
         </Modal>
