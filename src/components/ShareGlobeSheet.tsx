@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { TravelStats } from '../utils/travelStats';
+import { YearRecap } from '../utils/yearRecap';
 import { useShareGlobe } from '../hooks/useShareGlobe';
 import ShareCard from './ShareCard';
 import ShareCardCapture from './ShareCardCapture';
@@ -19,6 +20,8 @@ interface Props {
     onClose: () => void;
     /** utm_campaign of the QR link; "card" unless said otherwise (year recap). */
     campaign?: string;
+    /** Year recap: the same sheet shows the "My {year} in travel" card. */
+    recap?: YearRecap | null;
 }
 
 /**
@@ -26,13 +29,16 @@ interface Props {
  * preview of the card, the optional name (same setting as in Statistics) and
  * the share button. The PNG comes from ShareCard (pure RN), never the globe.
  */
-const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 'card' }) => {
+const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 'card', recap = null }) => {
     const { t, settings, updateSettings } = useApp();
     const { width, height } = useWindowDimensions();
     const landscape = width > height;
     const { captureHostRef, sharing, share } = useShareGlobe();
     const [name, setName] = useState(settings.travelerName ?? '');
     const trimmedName = name.trim();
+    const shareLabel = recap
+        ? (t('recapShareTitle') as string).split('{year}').join(String(recap.year))
+        : (t('shareGlobe') as string);
 
     useEffect(() => {
         if (visible) setName(settings.travelerName ?? '');
@@ -50,7 +56,7 @@ const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 
 
     const controls = (
         <View style={[styles.controls, landscape && styles.controlsSide]}>
-            <Text style={styles.title}>{t('shareGlobe') as string}</Text>
+            <Text style={styles.title}>{shareLabel}</Text>
             <TextInput
                 testID="share-name"
                 style={styles.nameInput}
@@ -73,7 +79,7 @@ const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 
                 accessibilityRole="button"
             >
                 {sharing ? <ActivityIndicator color={INK} /> : <Ionicons name="share-social" size={18} color={INK} />}
-                <Text style={styles.primaryText}>{t('shareGlobe') as string}</Text>
+                <Text style={styles.primaryText}>{shareLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity testID="share-close" style={styles.secondaryBtn} onPress={() => { persistName(); onClose(); }} accessibilityRole="button">
                 <Text style={styles.secondaryText}>{t('close') as string}</Text>
@@ -87,13 +93,13 @@ const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 
                 <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']} testID="share-sheet">
                     <View style={[styles.body, landscape && styles.bodyLandscape]}>
                         <View style={styles.preview}>
-                            <ShareCard stats={stats} travelerName={trimmedName} width={previewWidth} campaign={campaign} />
+                            <ShareCard stats={stats} travelerName={trimmedName} width={previewWidth} campaign={campaign} recap={recap} />
                         </View>
                         {controls}
                     </View>
                     {/* Off-screen full-size card used for the PNG */}
                     {visible && (
-                        <ShareCardCapture ref={captureHostRef} stats={stats} travelerName={trimmedName} campaign={campaign} />
+                        <ShareCardCapture ref={captureHostRef} stats={stats} travelerName={trimmedName} campaign={campaign} recap={recap} />
                     )}
                 </SafeAreaView>
             </SafeAreaProvider>

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import ShareCard from './ShareCard';
 import { TravelStats } from '../utils/travelStats';
+import { YearRecap, recapCampaign } from '../utils/yearRecap';
+import { worldPercentLabel } from '../utils/countries';
 
 // ONLY in the emulator test build (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): shows the
 // share card full width with sample numbers, to take the checkpoint PNGs.
@@ -11,12 +13,35 @@ export interface CardSample {
     stats: TravelStats;
     travelerName?: string;
     campaign?: string;
+    recap?: YearRecap;
 }
+
+const sampleRecap = (r: Omit<YearRecap, 'totalPct'>): YearRecap => ({ ...r, totalPct: worldPercentLabel(r.totalCountries) });
 
 export const CARD_SAMPLES: CardSample[] = [
     { label: '0 viaggi (solo paesi segnati)', stats: { countries: 12, continents: 3, trips: 0 } },
     { label: '1 viaggio', stats: { countries: 1, continents: 1, trips: 1 }, travelerName: 'Vittorio' },
     { label: 'molti viaggi', stats: { countries: 23, continents: 5, trips: 47 }, travelerName: 'Vittorio' },
+    {
+        label: 'riepilogo: molti viaggi, 3 paesi nuovi',
+        stats: { countries: 23, continents: 5, trips: 47 },
+        travelerName: 'Vittorio',
+        campaign: recapCampaign(2026),
+        recap: sampleRecap({ year: 2026, trips: 9, countries: 5, newCountries: 3, continents: 2, totalCountries: 23 }),
+    },
+    {
+        label: 'riepilogo: 1 viaggio, 1 paese nuovo',
+        stats: { countries: 4, continents: 2, trips: 5 },
+        campaign: recapCampaign(2026),
+        recap: sampleRecap({ year: 2026, trips: 1, countries: 1, newCountries: 1, continents: 1, totalCountries: 4 }),
+    },
+    {
+        label: 'riepilogo: nessun paese nuovo',
+        stats: { countries: 8, continents: 2, trips: 14 },
+        travelerName: 'Vittorio',
+        campaign: recapCampaign(2026),
+        recap: sampleRecap({ year: 2026, trips: 2, countries: 1, newCountries: 0, continents: 1, totalCountries: 8 }),
+    },
 ];
 
 const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?: CardSample[] }> = ({
@@ -30,7 +55,7 @@ const CardPreviewDev: React.FC<{ visible: boolean; onClose: () => void; samples?
         <Modal visible={visible} statusBarTranslucent onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
             <StatusBar hidden />
             <Pressable testID="card-dev" style={styles.root} onPress={() => setIndex((i) => i + 1)} onLongPress={onClose}>
-                <ShareCard stats={sample.stats} travelerName={sample.travelerName} width={cardWidth} campaign={sample.campaign} />
+                <ShareCard stats={sample.stats} travelerName={sample.travelerName} width={cardWidth} campaign={sample.campaign} recap={sample.recap} />
                 <View style={styles.info}>
                     <Text style={styles.infoText} testID="card-dev-label">{`${index % samples.length + 1}/${samples.length} · ${sample.label}`}</Text>
                 </View>

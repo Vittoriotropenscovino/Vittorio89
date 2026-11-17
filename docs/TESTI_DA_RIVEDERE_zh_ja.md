@@ -44,6 +44,20 @@ Accanto c'è l'italiano per capire il senso. Il file si aggiorna a ogni passo.
 | `cardWorldShort` | del mondo | 世界占比 | 世界のうち |
 | `shareGlobeHint` | Segna un paese o aggiungi un viaggio per condividere | 标记一个国家或添加一次旅行即可分享 | シェアするには国をチェックするか旅行を追加 |
 
+## Passo 4 · Riepilogo dell'anno
+
+| Chiave | Italiano | Cinese (zh) | Giapponese (ja) |
+|---|---|---|---|
+| `recapTitle` | Il mio {year} in viaggio | 我的 {year} 年旅行 | 私の {year} 年の旅 |
+| `recapNewOne` | ✨ 1 paese nuovo | ✨ 1 个新国家 | ✨ 新しい国 1 か国 |
+| `recapNewMany` | ✨ {count} paesi nuovi | ✨ {count} 个新国家 | ✨ 新しい国 {count} か国 |
+| `recapTotalOne` | In totale: 1 paese · {pct}% del mondo | 总计：1 个国家 · 世界的 {pct}% | 合計：1 か国 · 世界の {pct}% |
+| `recapTotalMany` | In totale: {count} paesi · {pct}% del mondo | 总计：{count} 个国家 · 世界的 {pct}% | 合計：{count} か国 · 世界の {pct}% |
+| `recapNoticeReady` | Il tuo {year} in viaggio è pronto | 你的 {year} 年旅行回顾已准备好 | あなたの {year} 年の旅のまとめができました |
+| `recapNoticeOpen` | Guarda e condividi | 查看并分享 | 見てシェア |
+| `recapNoticeEmpty` | Aggiungi i viaggi del {year} per il tuo riepilogo | 添加你 {year} 年的旅行，生成年度回顾 | {year} 年の旅行を追加してまとめを作ろう |
+| `recapShareTitle` | Condividi il tuo {year} | 分享你的 {year} 年 | {year} 年をシェア |
+
 ## Note di rilascio 1.3.0 (Play Store)
 
 Testo intero come apparirà nello store (italiano di riferimento sotto).

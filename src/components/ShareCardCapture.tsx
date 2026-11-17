@@ -3,6 +3,7 @@ import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import ShareCard from './ShareCard';
 import { TravelStats } from '../utils/travelStats';
+import { YearRecap } from '../utils/yearRecap';
 
 export interface ShareCardCaptureHandle {
     /** Render → PNG. Resolves with a file:// uri of a 1080×1920 temp file. */
@@ -14,6 +15,8 @@ interface Props {
     travelerName?: string;
     /** utm_campaign of the QR link ("card", or "recap2026" for the year recap). */
     campaign?: string;
+    /** Year recap variant of the card. */
+    recap?: YearRecap | null;
     /**
      * On-screen render width (points). Default 360 → on a 3x device the native
      * buffer is already 1080px, so the capture is pixel-perfect with no upscale.
@@ -48,7 +51,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *   3) then snapshot the card's own ref (full opacity).
  */
 const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
-    ({ stats, travelerName, renderWidth = 360, campaign }, ref) => {
+    ({ stats, travelerName, renderWidth = 360, campaign, recap = null }, ref) => {
         const cardRef = useRef<View>(null);
         const laidOut = useRef(false);
 
@@ -92,6 +95,7 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
                     travelerName={travelerName}
                     width={renderWidth}
                     campaign={campaign}
+                    recap={recap}
                 />
             </View>
         );

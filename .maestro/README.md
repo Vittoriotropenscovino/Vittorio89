@@ -126,3 +126,7 @@ chiave. È una modifica al codice dell'app, quindi non è stata fatta.
   almeno un paese. Anche questo accetta `-e ORIENTATION=PORTRAIT`.
 - 02: si ferma ancora (16/11) perché tocca il pulsante di ricerca a coordinate
   fisse; da riscrivere con riferimenti veri al passo 5.
+- **08-riepilogo-anno**: riepilogo dell'anno con la data simulata (pulsante in
+  alto a destra, solo negli APK `emulatore` e `prova`; pressione lunga = azzera
+  gli avvisi chiusi). Controlla: niente avviso a giugno, avviso a dicembre,
+  "Chiudi" vale per tutto quell'anno, l'anno dopo torna. Accetta `-e ORIENTATION=PORTRAIT`.

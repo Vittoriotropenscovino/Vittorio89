@@ -5,6 +5,7 @@ import Svg, {
 } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
 import { TravelStats } from '../utils/travelStats';
+import { YearRecap } from '../utils/yearRecap';
 import { worldPercentLabel } from '../utils/countries';
 import { useApp } from '../contexts/AppContext';
 
@@ -69,10 +70,12 @@ interface ShareCardProps {
     width?: number;
     /** utm_campaign of the QR link: "card" for the normal card. */
     campaign?: string;
+    /** Year recap variant ("My {year} in travel"): same 9:16 card, gold accent. */
+    recap?: YearRecap | null;
 }
 
 const ShareCard = forwardRef<View, ShareCardProps>(
-    ({ stats, travelerName, width = 360, campaign = 'card' }, ref) => {
+    ({ stats, travelerName, width = 360, campaign = 'card', recap = null }, ref) => {
         const { t } = useApp();
         const W = width;
         const H = Math.round(width * ASPECT);
@@ -85,8 +88,19 @@ const ShareCard = forwardRef<View, ShareCardProps>(
         // Localized copy (falls back to key if missing). The card follows the app language.
         const badgesRaw = t('cardBadges');
         const badges = Array.isArray(badgesRaw) ? badgesRaw : [];
-        const badge = badges[badgeIndex(stats.countries)] || '';
-        const title = t('cardTitle') as string;
+        const fill = (key: string, vars: Record<string, string | number>) =>
+            Object.keys(vars).reduce((acc, k) => acc.split(`{${k}}`).join(String(vars[k])), t(key) as string);
+        // Year recap: the badge tells the NEW countries of the year (hidden when none).
+        const badge = recap
+            ? (recap.newCountries === 0 ? ''
+                : recap.newCountries === 1 ? (t('recapNewOne') as string)
+                    : fill('recapNewMany', { count: recap.newCountries }))
+            : badges[badgeIndex(stats.countries)] || '';
+        const title = recap ? fill('recapTitle', { year: recap.year }) : (t('cardTitle') as string);
+        const recapTotal = recap
+            ? fill(recap.totalCountries === 1 ? 'recapTotalOne' : 'recapTotalMany', { count: recap.totalCountries, pct: recap.totalPct })
+            : '';
+        const gold = recap ? styles.goldText : null;
         const traveler = name ? (t('cardTravelerTemplate') as string).replace('{name}', name) : '';
 
         // % of the world: the same 197 countries as the "Where have you been?"
@@ -198,17 +212,28 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
                     {/* Stats panel (translucent dark = readability over the globe) */}
                     <View style={[styles.panel, { borderRadius: 40 * u, paddingVertical: 40 * u, paddingHorizontal: 36 * u, gap: 20 * u }]}>
-                        <View style={[styles.badge, { borderRadius: 999, paddingVertical: 12 * u, paddingHorizontal: 28 * u, maxWidth: panelInner }]}>
-                            <Text
-                                style={[styles.badgeText, { fontSize: 34 * u }]}
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
-                                minimumFontScale={0.6}
-                            >
-                                {badge}
-                            </Text>
-                        </View>
+                        {badge ? (
+                            <View style={[styles.badge, recap && styles.badgeGold, { borderRadius: 999, paddingVertical: 12 * u, paddingHorizontal: 28 * u, maxWidth: panelInner }]}>
+                                <Text
+                                    style={[styles.badgeText, gold, { fontSize: 34 * u }]}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.6}
+                                >
+                                    {badge}
+                                </Text>
+                            </View>
+                        ) : null}
 
+                        {recap ? (
+                            <View style={[styles.statsRow, { gap: 10 * u }]}>
+                                <Stat value={recap.trips} label={t('cardTrips') as string} u={u} gold />
+                                <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
+                                <Stat value={recap.countries} label={t('cardCountries') as string} u={u} gold />
+                                <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
+                                <Stat value={recap.continents} label={t('cardContinents') as string} u={u} gold />
+                            </View>
+                        ) : (
                         <View style={[styles.statsRow, { gap: 10 * u }]}>
                             <Stat value={stats.countries} label={t('cardCountries') as string} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
@@ -220,8 +245,18 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                                 <Stat value={stats.trips} label={t('cardTrips') as string} u={u} />
                             )}
                         </View>
+                        )}
 
-                        {showPct ? (
+                        {recap ? (
+                            <Text
+                                style={[styles.pctLine, { fontSize: 36 * u }]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.6}
+                            >
+                                {recapTotal}
+                            </Text>
+                        ) : showPct ? (
                             <Text
                                 style={[styles.pctLine, { fontSize: 40 * u }]}
                                 numberOfLines={1}
@@ -279,11 +314,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
 ShareCard.displayName = 'ShareCard';
 
-const Stat: React.FC<{ value: number | string; label: string; u: number }> = ({ value, label, u }) => (
+const Stat: React.FC<{ value: number | string; label: string; u: number; gold?: boolean }> = ({ value, label, u, gold = false }) => (
     <View style={styles.stat}>
         {/* adjustsFontSizeToFit shrinks 3+ digit numbers / long labels so the row never overflows */}
         <Text
-            style={[styles.statValue, { fontSize: 120 * u }]}
+            style={[styles.statValue, gold && styles.goldText, { fontSize: 120 * u }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.5}
@@ -319,6 +354,9 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: 'rgba(0,212,255,0.45)',
     },
     badgeText: { color: '#7FE8FF', fontWeight: '800', textAlign: 'center' },
+    // Year recap: warm gold accent, like "visited" in the new screens.
+    badgeGold: { backgroundColor: 'rgba(251,191,36,0.14)', borderColor: 'rgba(251,191,36,0.55)' },
+    goldText: { color: '#FBBF24' },
     statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     stat: { alignItems: 'center', flexShrink: 1 },
     statValue: { color: '#00d4ff', fontWeight: '900' },

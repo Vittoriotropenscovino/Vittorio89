@@ -1,0 +1,84 @@
+# Riepilogo dell'anno ("Il mio {anno} in viaggio"). Solo APK di prova
+# (emulatore o "TravelSphere Prova"): usa il pulsante della data simulata in
+# alto a destra, che nelle versioni del negozio non c'e'.
+#
+# 1) 15/06/2027: nessun avviso
+# 2) 15/12/2026: avviso del 2026; se ci sono viaggi del 2026 apre la card e la
+#    finestra di condivisione, altrimenti mostra l'invito ad aggiungere un viaggio
+# 3) "Chiudi": l'avviso sparisce anche il 10/01/2027 (stesso anno di riepilogo)
+# 4) 15/12/2027: l'avviso torna (anno nuovo)
+#
+#   maestro test .maestro/08-riepilogo-anno.yaml
+#   maestro test -e ORIENTATION=PORTRAIT .maestro/08-riepilogo-anno.yaml   (solo APK emulatore)
+#
+# All'inizio una pressione lunga sul pulsante della data azzera gli avvisi chiusi,
+# cosi' il flusso si puo' ripetere.
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Data reale → 15/12/2026 → 10/1/2027 → 15/6/2027 → 15/12/2027 → reale
+- assertVisible:
+    id: "date-dev"
+# Pressione lunga: azzera gli avvisi chiusi e torna alla data reale
+- longPressOn:
+    id: "date-dev"
+- assertVisible: "Data reale"
+# 15/06/2027: nessun avviso
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- assertVisible: "15/6/2027"
+- assertNotVisible:
+    id: "recap-notice"
+
+# 15/12/2026: c'e' l'avviso del 2026 (se non e' gia' stato chiuso)
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- assertVisible: "15/12/2026"
+- assertVisible:
+    id: "recap-notice"
+- takeScreenshot: 08a-avviso-${output.orient}
+
+# Con viaggi del 2026: card del riepilogo e condivisione
+- runFlow:
+    when:
+      visible:
+        id: "recap-open"
+    commands:
+      - tapOn: { id: "recap-open", waitToSettleTimeoutMs: 1500 }
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - assertVisible:
+          id: "share-sheet"
+      - takeScreenshot: 08b-card-riepilogo-${output.orient}
+      - tapOn: { id: "share-close" }
+      - waitForAnimationToEnd:
+          timeout: 2000
+
+# "Chiudi": sparisce, anche a gennaio dello stesso riepilogo
+- tapOn: { id: "recap-dismiss" }
+- assertNotVisible:
+    id: "recap-notice"
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- assertVisible: "10/1/2027"
+- assertNotVisible:
+    id: "recap-notice"
+
+# Dicembre dell'anno dopo: torna
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- assertVisible: "15/12/2027"
+- assertVisible:
+    id: "recap-notice"
+- takeScreenshot: 08c-avviso-anno-dopo-${output.orient}
+
+# Torna alla data reale
+- tapOn: { id: "date-dev", waitToSettleTimeoutMs: 800 }
+- assertVisible: "Data reale"
+- setOrientation: LANDSCAPE_LEFT

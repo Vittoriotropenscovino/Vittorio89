@@ -35,6 +35,7 @@ import CountryPickerScreen from './src/components/CountryPickerScreen';
 import CountriesResultPanel from './src/components/CountriesResultPanel';
 import ShareGlobeSheet from './src/components/ShareGlobeSheet';
 import CardPreviewDev from './src/components/CardPreviewDev';
+import RecapNotice from './src/components/RecapNotice';
 import { useTrips, useModals, useAuth, useFogOfWar, usePurchase } from './src/hooks';
 import { Trip } from './src/types';
 import { clusterTrips } from './src/utils/clusterTrips';
@@ -42,11 +43,17 @@ import { getTravelStats } from './src/utils/travelStats';
 import { getVisitedCountries } from './src/utils/visitedCountries';
 import { globeTargetFor } from './src/utils/countryPicker';
 import { countryName } from './src/utils/countries';
+import { dismissRecapYear, getYearRecap, recapCampaign, recapNoticeYear } from './src/utils/yearRecap';
 
 // Development builds for the emulator only (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): the
 // screen may rotate, so new screens can be tested in portrait too. Store builds
 // and the APKs for the phone stay locked in landscape.
 const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
+// Test tools (emulator build and the side-by-side "TravelSphere Prova" APK only,
+// never the store build): a button that simulates the phone date, so the year
+// recap can be tried before December.
+const TEST_TOOLS = FREE_ROTATION || process.env.EXPO_PUBLIC_STRUMENTI_PROVA === '1';
+const TEST_DATES: (null | [number, number, number])[] = [null, [15, 12, 2026], [10, 1, 2027], [15, 6, 2027], [15, 12, 2027]];
 
 const AppContent: React.FC = () => {
   const { t, language, settings, updateSettings, isSettingsLoaded } = useApp();
@@ -92,6 +99,16 @@ const AppContent: React.FC = () => {
   // screen button and from the result panel.
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [cardPreviewDev, setCardPreviewDev] = useState(false);
+  // Year recap ("My {year} in travel"): notice 1 Dec – 31 Jan, closed per year.
+  const [recapSheetVisible, setRecapSheetVisible] = useState(false);
+  const [testDateIndex, setTestDateIndex] = useState(0);
+  const testDate = TEST_TOOLS ? TEST_DATES[testDateIndex % TEST_DATES.length] : null;
+  const now = testDate ? new Date(testDate[2], testDate[1] - 1, testDate[0], 12) : new Date();
+  const noticeYear = recapNoticeYear(now, settings.recapDismissedYears);
+  const yearRecap = useMemo(
+    () => (noticeYear === null ? null : getYearRecap(trips, markedCountries, noticeYear)),
+    [noticeYear, trips, markedCountries]
+  );
 
   // Countries that come from trips: on and locked in the picker ("from your diary").
   const diaryCountries = useMemo(() => getVisitedCountries(trips).codes, [trips]);
@@ -246,6 +263,11 @@ const AppContent: React.FC = () => {
     setCountriesResultVisible(false);
     setShareSheetVisible(true);
   }, []);
+
+  const handleDismissRecap = useCallback(() => {
+    if (noticeYear === null) return;
+    updateSettings({ recapDismissedYears: dismissRecapYear(settings.recapDismissedYears, noticeYear) });
+  }, [noticeYear, settings.recapDismissedYears, updateSettings]);
 
   // Tap on a country on the globe: a country marked from the list (not from a
   // trip) offers "Add a trip here", with the usual free-limit rules.
@@ -405,6 +427,18 @@ const AppContent: React.FC = () => {
               <Text style={styles.statusText}>Card</Text>
             </TouchableOpacity>
           )}
+          {/* Test builds only: simulated phone date for the year recap */}
+          {TEST_TOOLS && (
+            <TouchableOpacity
+              testID="date-dev"
+              style={styles.statusIndicatorInline}
+              onPress={() => setTestDateIndex((i) => i + 1)}
+              // Long press: the closed notices come back (to try the recap again)
+              onLongPress={() => { updateSettings({ recapDismissedYears: [] }); setTestDateIndex(0); }}
+            >
+              <Text style={styles.statusText}>{testDate ? `${testDate[0]}/${testDate[1]}/${testDate[2]}` : 'Data reale'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Bottom-left stats */}
@@ -466,6 +500,17 @@ const AppContent: React.FC = () => {
           </View>
         )}
 
+        {/* Year recap notice (1 Dec – 31 Jan, until closed for that year) */}
+        {yearRecap && !countriesResultVisible && !recapSheetVisible && !shareSheetVisible && (
+          <RecapNotice
+            key={yearRecap.year}
+            recap={yearRecap}
+            onOpen={() => setRecapSheetVisible(true)}
+            onAddTrip={handleAddTrip}
+            onDismiss={handleDismissRecap}
+          />
+        )}
+
         {/* Add buttons */}
         <View style={[styles.addButtonContainer, { bottom: 28 + insets.bottom, right: 20 + insets.right }]}>
           <TouchableOpacity
@@ -513,6 +558,16 @@ const AppContent: React.FC = () => {
         stats={stats.travelStats}
         onClose={() => setShareSheetVisible(false)}
       />
+      {/* Same sheet, recap card: QR campaign recap{year} */}
+      {yearRecap && (
+        <ShareGlobeSheet
+          visible={recapSheetVisible}
+          stats={stats.travelStats}
+          recap={yearRecap}
+          campaign={recapCampaign(yearRecap.year)}
+          onClose={() => setRecapSheetVisible(false)}
+        />
+      )}
 
       {/* Save confirmation toast */}
       <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={hideSaveToast} />

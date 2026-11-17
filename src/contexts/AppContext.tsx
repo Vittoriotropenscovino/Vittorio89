@@ -14,6 +14,8 @@ export interface AppSettings {
   showTravelLines?: boolean;
   /** Optional free-text traveler name shown on the share card. Default ''. */
   travelerName?: string;
+  /** Years whose recap notice was closed (e.g. [2026]): it comes back the next December. */
+  recapDismissedYears?: number[];
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
