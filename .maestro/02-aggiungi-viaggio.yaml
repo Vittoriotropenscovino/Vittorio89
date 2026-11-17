@@ -1,66 +1,88 @@
-# Percorso critico: creare un viaggio dall'inizio alla fine.
-# Copre geocodifica, il calendario nuovo e il salvataggio.
+# Percorso critico: creare un viaggio dall'inizio alla fine, poi cancellarlo.
+# Copre la ricerca del luogo, il calendario della data (7 colonne, Conferma
+# visibile anche in orizzontale) e il salvataggio con «Aggiungi Pin».
 #
-# ATTENZIONE: crea un viaggio VERO nei tuoi dati. Alla fine c'e' la sezione
-# per cancellarlo: lasciala attiva se non vuoi accumulare viaggi di test.
+# Riscritto il 17/11/2026: niente piu' tocchi a coordinate fisse, solo testID
+# e testi. Il campo data si attiva solo DOPO aver trovato il luogo: prima e'
+# spento apposta (per questo il vecchio flusso si fermava sul «15»).
+#
+# ATTENZIONE: crea un viaggio VERO nei dati e alla fine lo cancella.
+# Richiede rete (ricerca del luogo).
 appId: com.travelsphere.app
 ---
 - launchApp
-- waitForAnimationToEnd:
-    timeout: 15000
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 40000
 
 - tapOn:
     id: "Add Trip"
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 3000
 
-# --- Ricerca localita' (richiede rete: usa Nominatim/Photon) ---
+# --- Luogo: Invio sulla tastiera fa partire la ricerca ---
 - tapOn:
-    text: "es. New York, Bali, Parigi..."
+    id: "trip-location-input"
 - inputText: "Lisbona"
-- hideKeyboard
-- takeScreenshot: 02a-ricerca-localita
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Lisbona, .*"
+    timeout: 20000
+- takeScreenshot: 02a-luogo-trovato-${output.orient}
 
-# Il bottone di ricerca e' l'icona lente accanto al campo.
+# --- Titolo (proposto uguale al luogo: lo sostituiamo) ---
 - tapOn:
-    point: "92%,30%"
-- waitForAnimationToEnd:
-    timeout: 12000
-- takeScreenshot: 02b-localita-trovata
-
-# --- Titolo ---
-- tapOn:
-    below: "Titolo.*"
+    id: "trip-title"
+- eraseText: 30
 - inputText: "Test automatico Maestro"
+# la tastiera e' aperta qui: hideKeyboard la chiude senza chiudere il modulo
 - hideKeyboard
 
-# --- Data: apre il calendario nuovo ---
-- tapOn: "Seleziona data"
-- waitForAnimationToEnd
-- takeScreenshot: 02c-calendario
-# Sceglie il giorno 15 del mese corrente
-- tapOn: "15"
-- tapOn: "Conferma"
-- waitForAnimationToEnd
-
-- takeScreenshot: 02d-form-compilato
-
-# --- Salva ---
-- scrollUntilVisible:
-    element: "Salva"
-    direction: DOWN
-- tapOn: "Salva"
+# --- Data: calendario, giorno 15 del mese corrente, Conferma ---
+- tapOn:
+    id: "trip-date"
 - waitForAnimationToEnd:
-    timeout: 10000
-- takeScreenshot: 02e-viaggio-salvato
+    timeout: 2000
+- assertVisible:
+    id: "trip-date-confirm"
+- takeScreenshot: 02b-calendario-${output.orient}
+- tapOn: "^15$"
+- tapOn:
+    id: "trip-date-confirm"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: ".*-15$"
+- takeScreenshot: 02c-modulo-compilato-${output.orient}
 
-# --- Pulizia: rimuove il viaggio di test ---
-# Commenta questo blocco se vuoi ispezionare il risultato a mano.
+# --- Salva («Aggiungi Pin») ---
+- scrollUntilVisible:
+    element:
+      id: "trip-save"
+    direction: DOWN
+- tapOn:
+    id: "trip-save"
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 15000
+- takeScreenshot: 02d-viaggio-salvato-${output.orient}
+
+# --- Pulizia: apre il viaggio dal menu e lo cancella ---
 - tapOn:
     id: "Menu"
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 2000
 - tapOn: "Test automatico Maestro"
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn:
-    point: "88%,12%"     # icona cestino nell'header del viewer
+    id: "trip-delete"
 - tapOn: "Elimina"
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible: "Test automatico Maestro"
+- takeScreenshot: 02e-dopo-pulizia-${output.orient}
+- setOrientation: LANDSCAPE_LEFT

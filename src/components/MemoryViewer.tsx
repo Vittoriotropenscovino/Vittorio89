@@ -157,7 +157,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                                 </TouchableOpacity>
                             )}
                             {onDelete && (
-                                <TouchableOpacity onPress={handleDelete} style={[styles.actionBtn, styles.deleteBtn]}>
+                                <TouchableOpacity testID="trip-delete" onPress={handleDelete} style={[styles.actionBtn, styles.deleteBtn]}>
                                     <Ionicons name="trash-outline" size={20} color="#EF4444" />
                                 </TouchableOpacity>
                             )}

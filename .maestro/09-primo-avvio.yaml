@@ -1,0 +1,84 @@
+# Primo avvio di un utente nuovo: lingua, introduzione, privacy, poi
+# «Dove sei stato?» si apre da solo; segna 5 paesi, conferma, la pagina del
+# risultato mostra il globo con i paesi in oro, «Condividi il tuo globo» apre
+# la card e il foglio di condivisione di Android.
+#
+# ⚠️ CANCELLA TUTTI I DATI DELL'APP (clearState): SOLO SULL'EMULATORE.
+# Mai sul telefono vero: perderesti viaggi e foto.
+#   maestro --device emulator-5554 test .maestro/09-primo-avvio.yaml
+appId: com.travelsphere.app
+---
+- launchApp:
+    clearState: true
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+
+# Lingua (prima schermata), introduzione, privacy
+- extendedWaitUntil:
+    visible: "Italiano"
+    timeout: 40000
+- tapOn: "Italiano"
+- tapOn: "Salta"
+- tapOn: "Ho capito, Continua"
+
+# «Dove sei stato?» si apre da solo al primo avvio
+- extendedWaitUntil:
+    visible:
+      id: "wb-screen"
+    timeout: 20000
+- takeScreenshot: 09a-dove-sei-stato-primo-avvio-${output.orient}
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "italia", CODICE: "IT" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "francia", CODICE: "FR" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "spagna", CODICE: "ES" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "giappone", CODICE: "JP" }
+- runFlow:
+    file: subflows/segna-paese.yaml
+    env: { NOME: "brasile", CODICE: "BR" }
+- tapOn:
+    id: "wb-confirm"
+    waitToSettleTimeoutMs: 1500
+
+# Pagina del risultato: globo con i 5 paesi, numeri, due pulsanti
+- extendedWaitUntil:
+    visible:
+      id: "wb-result"
+    timeout: 10000
+- assertVisible:
+    id: "wb-result-map"
+- assertVisible: "Hai visitato 5 paesi"
+- takeScreenshot: 09b-risultato-${output.orient}
+
+# Condividi: la finestra con la card, poi il foglio di Android con il PNG
+- tapOn:
+    id: "wb-result-share"
+- extendedWaitUntil:
+    visible:
+      id: "share-confirm"
+    timeout: 10000
+- takeScreenshot: 09c-card-${output.orient}
+- tapOn:
+    id: "share-confirm"
+- waitForAnimationToEnd:
+    timeout: 15000
+# CONTROLLA A OCCHIO: il foglio di condivisione deve avere l'anteprima della card.
+- takeScreenshot: 09d-foglio-condivisione-VERIFICA-${output.orient}
+- back
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "share-close"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 10000
+- assertVisible: "5"
+- setOrientation: LANDSCAPE_LEFT

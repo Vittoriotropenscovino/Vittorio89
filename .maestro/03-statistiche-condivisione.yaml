@@ -1,21 +1,27 @@
 # Statistiche + "Condividi il tuo globo".
-# E' il flusso che verifica il pezzo piu' fragile: la cattura PNG della ShareCard
-# (react-native-view-shot). Se il PNG esce vuoto, si vede qui.
+# Apre Statistiche dalla barra dei numeri in basso a sinistra (punto B della
+# 1.3.0: un tocco sulla barra apre Statistiche), poi verifica il pezzo piu'
+# fragile: la cattura PNG della ShareCard (react-native-view-shot).
 #
-# Richiede almeno 1 viaggio salvato, altrimenti il bottone e' disabilitato.
+# Richiede almeno 1 paese (un viaggio o un paese segnato), altrimenti il
+# pulsante e' spento. Non crea e non cancella viaggi.
 appId: com.travelsphere.app
 ---
 - launchApp
-- waitForAnimationToEnd:
-    timeout: 15000
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 40000
 
+# La barra dice "Statistiche" ed e' un pulsante
+- assertVisible: "Statistiche"
 - tapOn:
-    id: "Menu"
-- waitForAnimationToEnd
-- tapOn: "Statistiche"
-- waitForAnimationToEnd
-- takeScreenshot: 03a-statistiche
-
+    id: "stats-bar"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: 03a-statistiche-${output.orient}
 - assertVisible: "Condividi il tuo globo"
 
 # Il campo nome e' opzionale: comparira' sulla card come "I viaggi di ..."
@@ -23,7 +29,7 @@ appId: com.travelsphere.app
     text: "Il tuo nome.*"
 - inputText: "Vittorio"
 - hideKeyboard
-- takeScreenshot: 03b-nome-inserito
+- takeScreenshot: 03b-nome-inserito-${output.orient}
 
 - tapOn: "Condividi il tuo globo"
 # La cattura del PNG passa per un render off-screen: lasciale tempo.
@@ -32,7 +38,14 @@ appId: com.travelsphere.app
 
 # Se arriva qui, lo share sheet di Android e' aperto con l'immagine.
 # CONTROLLA QUESTO SCREENSHOT A OCCHIO: l'anteprima non deve essere vuota o tagliata.
-- takeScreenshot: 03c-share-sheet-VERIFICA-ANTEPRIMA
+- takeScreenshot: 03c-share-sheet-VERIFICA-ANTEPRIMA-${output.orient}
 
 - back
-- waitForAnimationToEnd
+- waitForAnimationToEnd:
+    timeout: 3000
+- back
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: "stats-bar"
+- setOrientation: LANDSCAPE_LEFT

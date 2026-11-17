@@ -528,11 +528,11 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             <View style={styles.section}>
                                 <Text style={styles.label}>{t('whereWere')}</Text>
                                 <View style={styles.searchRow}>
-                                    <TextInput style={styles.input} placeholder={t('searchPlaceholder') as string}
+                                    <TextInput testID="trip-location-input" style={styles.input} placeholder={t('searchPlaceholder') as string}
                                         placeholderTextColor="#6B7280" value={locationQuery}
                                         onChangeText={setLocationQuery} onSubmitEditing={handleGeocode}
                                         returnKeyType="search" autoCorrect={false} />
-                                    <TouchableOpacity style={styles.searchBtn} onPress={handleGeocode} disabled={isSearching}>
+                                    <TouchableOpacity testID="trip-location-search" style={styles.searchBtn} onPress={handleGeocode} disabled={isSearching}>
                                         {isSearching ? <ActivityIndicator color="#fff" size="small" /> :
                                             <Ionicons name="search" size={22} color="#fff" />}
                                     </TouchableOpacity>
@@ -549,7 +549,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             <View style={[styles.detailsSection, !foundLocation && styles.disabled]}>
                                 <View style={styles.section}>
                                     <Text style={styles.label}>{t('tripTitle')}</Text>
-                                    <TextInput style={styles.input} placeholder={t('titlePlaceholder') as string}
+                                    <TextInput testID="trip-title" style={styles.input} placeholder={t('titlePlaceholder') as string}
                                         placeholderTextColor="#6B7280" value={title} onChangeText={setTitle}
                                         editable={!!foundLocation} />
                                 </View>
@@ -557,7 +557,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                 {/* Date Picker */}
                                 <View style={styles.section}>
                                     <Text style={styles.label}>{t('date')}</Text>
-                                    <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}
+                                    <TouchableOpacity testID="trip-date" style={styles.dateButton} onPress={() => setShowDatePicker(true)}
                                         disabled={!foundLocation}>
                                         <Ionicons name="calendar-outline" size={18} color="#60A5FA" />
                                         <Text style={[styles.dateButtonText, !date && { color: '#6B7280' }]}>
@@ -707,6 +707,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                 </View>
 
                                 <TouchableOpacity
+                                    testID="trip-save"
                                     style={[styles.submitBtn, (!foundLocation || isSaving || isProcessingMedia) && styles.submitBtnDisabled]}
                                     onPress={handleSubmit} disabled={!foundLocation || isSaving || isProcessingMedia} activeOpacity={0.8}>
                                     {isSaving ? <ActivityIndicator color="#fff" size="small" /> : (
@@ -789,7 +790,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     <TouchableOpacity style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
                                         <Text style={styles.datePickerCancelText}>{t('cancel')}</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.datePickerConfirm} onPress={confirmDatePicker}>
+                                    <TouchableOpacity testID="trip-date-confirm" style={styles.datePickerConfirm} onPress={confirmDatePicker}>
                                         <Text style={styles.datePickerConfirmText}>{t('confirm')}</Text>
                                     </TouchableOpacity>
                                 </View>

@@ -72,10 +72,14 @@ adb logcat -s ReactNativeJS
 | File | Cosa verifica | Prerequisiti |
 |---|---|---|
 | `01-smoke.yaml` | Avvio, caricamento globo, UI presente | nessuno |
-| `02-aggiungi-viaggio.yaml` | Geocodifica, calendario, salvataggio | rete |
-| `03-statistiche-condivisione.yaml` | Statistiche e **cattura PNG ShareCard** | ≥1 viaggio |
+| `02-aggiungi-viaggio.yaml` | Ricerca del luogo, calendario della data (7 colonne, Conferma visibile), salvataggio «Aggiungi Pin», cancellazione. Solo testID e testi, niente coordinate | rete |
+| `03-statistiche-condivisione.yaml` | Statistiche aperte dalla **barra dei numeri** e **cattura PNG ShareCard** | ≥1 paese |
 | `04-foto-zoom.yaml` | Zoom/pan foto (Reanimated 3 su SDK 54) | viaggio con foto |
 | `05-screenshot-store.yaml` | Produce gli screenshot per il Play Store | vedi note nel file |
+| `06-dove-sei-stato.yaml` | «Dove sei stato?»: 5 paesi, pagina del risultato con il globo, poi tutto rimesso com'era | nessuno |
+| `07-condividi-dal-globo.yaml` | Condividi dalla schermata principale (card + foglio di Android) | ≥1 paese |
+| `08-riepilogo-anno.yaml` | Riepilogo dell'anno con la data simulata | APK di prova |
+| `09-primo-avvio.yaml` | Primo avvio da zero: lingua, introduzione, privacy, 5 paesi, risultato, condivisione. **Cancella i dati: solo emulatore** | emulatore |
 
 ---
 

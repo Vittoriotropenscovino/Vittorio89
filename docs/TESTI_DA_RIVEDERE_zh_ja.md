@@ -73,28 +73,34 @@ In cinese e giapponese il singolare è uguale al plurale (国家 / 国): va bene
 
 ## Note di rilascio 1.3.0 (Play Store)
 
-Testo intero come apparirà nello store (italiano di riferimento sotto).
+Versione finale (17/11): tutte le lingue sono in `NOTE_RILASCIO_1.3.0.md`. Italiano di riferimento sotto.
 
 **Italiano**
 
 ```
 Novità della 1.3.0
-- Nuovo «Dove sei stato?»: segna in pochi secondi i paesi che hai visitato, anche senza aggiungere un viaggio, e guarda il globo illuminarsi.
-- Conteggi di paesi e continenti più precisi: per qualcuno i numeri possono cambiare leggermente.
+- Nuovo «Dove sei stato?»: segna in pochi secondi i paesi visitati, anche senza aggiungere un viaggio.
+- Condividi il tuo globo: una card con i tuoi paesi in oro, da mandare a chi vuoi.
+- A dicembre e gennaio arriva il riepilogo del tuo anno in viaggio.
+- Calendario delle date corretto e conteggi più precisi.
 ```
 
 **Cinese (zh-CN)**
 
 ```
 1.3.0 新功能
-- 全新“你去过哪里？”：几秒钟就能标记去过的国家，无需添加旅行，看着你的地球仪亮起来。
-- 国家和大洲的统计更加准确：部分用户的数字可能会略有变化。
+- 全新“你去过哪里？”：几秒钟就能标记去过的国家，无需添加旅行。
+- 分享你的地球：一张用金色标出你去过的国家的卡片，随时发送。
+- 每年十二月和一月：你的年度旅行回顾。
+- 修正了日期日历，统计更加准确。
 ```
 
 **Giapponese (ja-JP)**
 
 ```
 1.3.0 の新機能
-- 新機能「どこに行ったことがある？」：旅行を追加しなくても、行った国を数秒でチェック。地球儀が光ります。
-- 国と大陸のカウントがより正確になりました。人によっては数字が少し変わる場合があります。
+- 新機能「どこに行ったことがある？」：旅行を追加しなくても、行った国を数秒でチェック。
+- あなたの地球をシェア：行った国が金色に光るカードをすぐに送れます。
+- 12月と1月は、1年間の旅のまとめが届きます。
+- 日付カレンダーを修正し、カウントがより正確になりました。
 ```
