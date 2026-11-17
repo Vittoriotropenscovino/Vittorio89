@@ -313,11 +313,12 @@ const styles = StyleSheet.create({
     goldText: { color: '#FBBF24' },
     statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     stat: { alignItems: 'center', flexShrink: 1 },
-    statValue: { color: '#00d4ff', fontWeight: '900' },
+    // Numbers in gold, like the visited countries everywhere in the app.
+    statValue: { color: '#FBBF24', fontWeight: '900' },
     statLabel: { color: '#C7CDD6', fontWeight: '600' },
     statSep: { color: '#3B4252', fontWeight: '300' },
     pctLine: { color: '#E5EEFF', fontWeight: '700', textAlign: 'center' },
-    pctNum: { color: '#00d4ff', fontWeight: '900' },
+    pctNum: { color: '#FBBF24', fontWeight: '900' },
     challenge: { color: '#FFFFFF', fontWeight: '800', textAlign: 'center' },
     footer: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

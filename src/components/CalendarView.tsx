@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
@@ -14,6 +15,13 @@ interface Props {
 
 const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }) => {
     const { t, language } = useApp();
+    // Landscape phones are short: the card never gets taller than the screen
+    // (it used to run off the bottom) and the day cells are lower, so the whole
+    // month fits; the trips of the month scroll inside the card.
+    const { width: winW, height: winH } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+    const landscape = winW > winH;
+    const maxCardHeight = winH - insets.top - insets.bottom - 24;
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
@@ -61,8 +69,8 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     return (
         <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <View style={[styles.card, styles.content]}>
-                        <View style={styles.header}>
+                <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, landscape && styles.contentCompact]}>
+                        <View style={[styles.header, landscape && styles.headerCompact]}>
                             <Ionicons name="calendar" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('calendarTitle')}</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -71,7 +79,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                         </View>
 
                         {/* Month navigation */}
-                        <View style={styles.monthNav}>
+                        <View style={[styles.monthNav, landscape && styles.monthNavCompact]}>
                             <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
                                 <Ionicons name="chevron-back" size={20} color="#60A5FA" />
                             </TouchableOpacity>
@@ -91,10 +99,10 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                         </View>
 
                         {/* Days grid */}
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
                             <View style={styles.daysGrid}>
                                 {days.map((day, i) => {
-                                    if (day === null) return <View key={`e${i}`} style={styles.dayCell} />;
+                                    if (day === null) return <View key={`e${i}`} style={[styles.dayCell, landscape && styles.dayCellCompact]} />;
                                     const dateKey = getDateKey(day);
                                     const tripsOnDay = tripsByDate[dateKey] || [];
                                     const hasTrips = tripsOnDay.length > 0;
@@ -105,6 +113,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                                             key={i}
                                             style={[
                                                 styles.dayCell,
+                                                landscape && styles.dayCellCompact,
                                                 today && styles.todayCell,
                                                 hasTrips && styles.tripDayCell,
                                             ]}
@@ -161,9 +170,14 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
 
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 500, width: '90%', maxHeight: '88%' },
+    card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 500, width: '90%' },
     content: { padding: 20, backgroundColor: 'rgba(15,15,20,0.85)' },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    contentCompact: { paddingVertical: 12 },
+    headerCompact: { marginBottom: 4 },
+    monthNavCompact: { marginBottom: 6 },
+    scroll: { flexGrow: 0, flexShrink: 1 },
+    dayCellCompact: { aspectRatio: 2 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
     monthNav: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, marginBottom: 16 },

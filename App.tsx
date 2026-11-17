@@ -33,6 +33,7 @@ import PaywallScreen from './src/components/PaywallScreen';
 import PinSelector from './src/components/PinSelector';
 import CountryPickerScreen from './src/components/CountryPickerScreen';
 import CountriesResultPanel from './src/components/CountriesResultPanel';
+import MarkedCountryDialog from './src/components/MarkedCountryDialog';
 import ShareGlobeSheet from './src/components/ShareGlobeSheet';
 import CardPreviewDev from './src/components/CardPreviewDev';
 import RecapNotice from './src/components/RecapNotice';
@@ -93,6 +94,8 @@ const AppContent: React.FC = () => {
   // 'normal' from the button on the main screen, null = closed.
   const [countryPicker, setCountryPicker] = useState<null | 'firstRun' | 'normal'>(null);
   const [countriesResultVisible, setCountriesResultVisible] = useState(false);
+  // "Add a trip here" (tap on a country marked from the list): the app's own dialog.
+  const [markedDialog, setMarkedDialog] = useState<{ code: string; name: string } | null>(null);
   // "Add a trip here" from a marked country: the form starts with its name.
   const [prefillCountry, setPrefillCountry] = useState<{ code: string; name: string } | null>(null);
   // "Share your globe" sheet (preview + optional name + share), from the main
@@ -270,26 +273,23 @@ const AppContent: React.FC = () => {
   }, [noticeYear, settings.recapDismissedYears, updateSettings]);
 
   // Tap on a country on the globe: a country marked from the list (not from a
-  // trip) offers "Add a trip here", with the usual free-limit rules.
+  // trip) offers "Add a trip here" (MarkedCountryDialog), with the usual
+  // free-limit rules.
   const handleCountryClick = useCallback((code: string) => {
     if (!markedCountries.includes(code) || diaryCountries.includes(code)) return;
-    const name = countryName(code, language);
-    Alert.alert(name, t('wbMarkedCountryMsg') as string, [
-      { text: t('cancel') as string, style: 'cancel' },
-      {
-        text: t('wbAddTripHere') as string,
-        onPress: () => {
-          const nonWishlistTrips = trips.filter((tr) => !tr.isWishlist).length;
-          if (canAddTrip(nonWishlistTrips)) {
-            setPrefillCountry({ code, name });
-            openModal('form');
-          } else {
-            openModal('paywall');
-          }
-        },
-      },
-    ]);
-  }, [markedCountries, diaryCountries, language, t, trips, canAddTrip, openModal]);
+    setMarkedDialog({ code, name: countryName(code, language) });
+  }, [markedCountries, diaryCountries, language]);
+
+  const handleMarkedAddTrip = useCallback(({ code, name }: { code: string; name: string }) => {
+    setMarkedDialog(null);
+    const nonWishlistTrips = trips.filter((tr) => !tr.isWishlist).length;
+    if (canAddTrip(nonWishlistTrips)) {
+      setPrefillCountry({ code, name });
+      openModal('form');
+    } else {
+      openModal('paywall');
+    }
+  }, [trips, canAddTrip, openModal]);
 
   // The prefilled country belongs to one form only.
   useEffect(() => {
@@ -441,39 +441,46 @@ const AppContent: React.FC = () => {
           )}
         </View>
 
-        {/* Bottom-left stats */}
-        <View style={[styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }]}>
+        {/* Bottom-left numbers: ONE bar, always the same three numbers, a tap opens
+            Statistics (written on the bar, like every button). Kept apart from the
+            "Where have you been?" / "Share" buttons above it. */}
+        <TouchableOpacity
+          testID="stats-bar"
+          style={[styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }]}
+          onPress={() => openModalWithHaptic('stats')}
+          accessibilityRole="button"
+          accessibilityLabel={t('statistics') as string}
+          activeOpacity={0.7}
+        >
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Ionicons name="airplane" size={13} color="#00d4ff" />
               <Text style={styles.statValue}>{stats.visitedTrips}</Text>
               <Text style={styles.statLabel}>{stats.visitedTrips === 1 ? t('trip_s') : t('trips_p')}</Text>
             </View>
-            {trips.length > 0 && (
-              <>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons name="images-outline" size={13} color="#00d4ff" />
-                  <Text style={styles.statValue}>{stats.totalMedia}</Text>
-                  <Text style={styles.statLabel}>{t('media')}</Text>
-                </View>
-              </>
-            )}
-            {(trips.length > 0 || stats.countries > 0) && (
-              <>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons name="flag-outline" size={13} color="#00d4ff" />
-                  <Text style={styles.statValue}>{stats.countries}</Text>
-                  <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
-                </View>
-              </>
-            )}
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="images-outline" size={13} color="#00d4ff" />
+              <Text style={styles.statValue}>{stats.totalMedia}</Text>
+              <Text style={styles.statLabel}>{t('media')}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="flag-outline" size={13} color="#00d4ff" />
+              <Text style={styles.statValue}>{stats.countries}</Text>
+              <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="stats-chart" size={13} color="#00d4ff" />
+              <Text style={styles.statsOpenText}>{t('statistics') as string}</Text>
+              <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* "Where have you been?": always reachable from the main screen */}
-        <View style={[styles.mainActions, { bottom: 66 + insets.bottom, left: 20 + insets.left }]}>
+        <View style={[styles.mainActions, { bottom: 76 + insets.bottom, left: 20 + insets.left }]}>
           <TouchableOpacity testID="wb-open" style={styles.whereBeenButton} onPress={() => setCountryPicker('normal')} accessibilityRole="button">
             <Ionicons name="flag" size={16} color="#FBBF24" />
             <Text style={styles.whereBeenText}>{t('wbTitle') as string}</Text>
@@ -554,6 +561,7 @@ const AppContent: React.FC = () => {
         onAddTrip={() => { setCountriesResultVisible(false); handleAddTrip(); }}
         onClose={() => setCountriesResultVisible(false)}
       />
+      <MarkedCountryDialog country={markedDialog} onAddTrip={handleMarkedAddTrip} onClose={() => setMarkedDialog(null)} />
       {FREE_ROTATION && <CardPreviewDev visible={cardPreviewDev} onClose={() => setCardPreviewDev(false)} />}
       <ShareGlobeSheet
         visible={shareSheetVisible}
@@ -718,7 +726,7 @@ const styles = StyleSheet.create({
   statsBar: {
     position: 'absolute', bottom: 20, left: 20, backgroundColor: 'rgba(5,5,20,0.7)',
     borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
     ...Platform.select({ android: { elevation: 12 } }),
   },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -726,6 +734,7 @@ const styles = StyleSheet.create({
   statValue: { color: '#F0F0F0', fontSize: 13, fontWeight: '700' },
   statLabel: { color: 'rgba(156,163,175,0.8)', fontSize: 11 },
   statDivider: { width: 1, height: 14, backgroundColor: 'rgba(0,212,255,0.2)' },
+  statsOpenText: { color: '#00d4ff', fontSize: 11, fontWeight: '700' },
   welcomeOverlay: { position: 'absolute', bottom: 100, right: 20, alignItems: 'flex-end' },
   welcomeCard: {
     backgroundColor: 'rgba(5,5,20,0.4)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',

@@ -840,7 +840,10 @@ const styles = StyleSheet.create({
     submitBtnDisabled: { backgroundColor: '#374151' },
     submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
     datePickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    datePickerCard: { backgroundColor: '#1a1a2e', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)', padding: 16, width: 296 },
+    // 7 cells of 36 + 2*1.5 = 273 must fit in width - 2*16 padding - 2*1 border: with
+    // 296 the 7th day wrapped and every date sat under the wrong weekday (test in
+    // datePickerGrid.test.ts).
+    datePickerCard: { backgroundColor: '#1a1a2e', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)', padding: 16, width: 310 },
     calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 },
     calendarMonthTitle: { flex: 1, color: '#F0F0F0', fontSize: 15, fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' },
     calendarWeekRow: { flexDirection: 'row', marginBottom: 4 },

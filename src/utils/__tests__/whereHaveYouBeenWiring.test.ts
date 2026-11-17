@@ -40,6 +40,27 @@ describe('when "Where have you been?" opens', () => {
         expect(click).toContain("openModal('paywall')");
         expect(click).toContain('diaryCountries.includes(code)');
     });
+
+    it('"Add a trip here" is the app\'s own dialog, not the system alert', () => {
+        const click = app.slice(app.indexOf('const handleCountryClick'), app.indexOf('// The prefilled country'));
+        expect(click).not.toContain('Alert.alert');
+        expect(click).toContain('setMarkedDialog({ code, name: countryName(code, language) })');
+        expect(app).toMatch(/<MarkedCountryDialog country=\{markedDialog\} onAddTrip=\{handleMarkedAddTrip\}/);
+        const dialog = read('src/components/MarkedCountryDialog.tsx');
+        for (const id of ['marked-country-dialog', 'marked-country-add', 'marked-country-cancel']) {
+            expect(dialog).toContain(`testID="${id}"`);
+        }
+        expect(dialog).toContain("t('wbAddTripHere')");
+        expect(dialog).toContain("t('cancel')");
+    });
+
+    it('the numbers at the bottom left are one bar that opens Statistics, always the same three numbers', () => {
+        const bar = app.slice(app.indexOf('testID="stats-bar"'), app.indexOf('"Where have you been?": always reachable'));
+        expect(bar).toContain("openModalWithHaptic('stats')");
+        expect(bar).toContain("t('statistics')");
+        expect(bar).not.toMatch(/trips\.length > 0 &&/);
+        expect((bar.match(/styles\.statValue/g) || []).length).toBe(3);
+    });
 });
 
 describe('checkpoint 2 fixes', () => {
