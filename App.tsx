@@ -556,6 +556,7 @@ const AppContent: React.FC = () => {
       <ShareGlobeSheet
         visible={shareSheetVisible}
         stats={stats.travelStats}
+        visitedCodes={visitedCountries}
         onClose={() => setShareSheetVisible(false)}
       />
       {/* Same sheet, recap card: QR campaign recap{year} */}
@@ -563,6 +564,7 @@ const AppContent: React.FC = () => {
         <ShareGlobeSheet
           visible={recapSheetVisible}
           stats={stats.travelStats}
+          visitedCodes={visitedCountries}
           recap={yearRecap}
           campaign={recapCampaign(yearRecap.year)}
           onClose={() => setRecapSheetVisible(false)}

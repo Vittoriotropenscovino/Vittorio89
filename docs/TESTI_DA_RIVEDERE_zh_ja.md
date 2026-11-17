@@ -58,6 +58,18 @@ Accanto c'è l'italiano per capire il senso. Il file si aggiorna a ogni passo.
 | `recapNoticeEmpty` | Aggiungi i viaggi del {year} per il tuo riepilogo | 添加你 {year} 年的旅行，生成年度回顾 | {year} 年の旅行を追加してまとめを作ろう |
 | `recapShareTitle` | Condividi il tuo {year} | 分享你的 {year} 年 | {year} 年をシェア |
 
+## Mappa dei paesi nelle card (singolari e «dall'altra parte del globo»)
+
+| Chiave | Italiano | Cinese (zh) | Giapponese (ja) |
+|---|---|---|---|
+| `cardTripOne` | Viaggio | 旅行 | 旅行 |
+| `cardCountryOne` | Paese | 国家 | 国 |
+| `cardContinentOne` | Continente | 大洲 | 大陸 |
+| `cardMapHiddenOne` | +1 paese dall'altra parte del globo | 地球另一侧还有 1 个国家 | 地球の反対側にもう1か国 |
+| `cardMapHiddenMany` | +{count} paesi dall'altra parte del globo | 地球另一侧还有 {count} 个国家 | 地球の反対側にあと{count}か国 |
+
+In cinese e giapponese il singolare è uguale al plurale (国家 / 国): va bene così.
+
 ## Note di rilascio 1.3.0 (Play Store)
 
 Testo intero come apparirà nello store (italiano di riferimento sotto).

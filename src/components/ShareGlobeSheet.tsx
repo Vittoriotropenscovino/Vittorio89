@@ -22,6 +22,8 @@ interface Props {
     campaign?: string;
     /** Year recap: the same sheet shows the "My {year} in travel" card. */
     recap?: YearRecap | null;
+    /** ISO codes of every visited country: gold on the card map. */
+    visitedCodes?: readonly string[];
 }
 
 /**
@@ -29,7 +31,7 @@ interface Props {
  * preview of the card, the optional name (same setting as in Statistics) and
  * the share button. The PNG comes from ShareCard (pure RN), never the globe.
  */
-const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 'card', recap = null }) => {
+const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 'card', recap = null, visitedCodes = [] }) => {
     const { t, settings, updateSettings } = useApp();
     const { width, height } = useWindowDimensions();
     const landscape = width > height;
@@ -93,13 +95,13 @@ const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 
                 <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']} testID="share-sheet">
                     <View style={[styles.body, landscape && styles.bodyLandscape]}>
                         <View style={styles.preview}>
-                            <ShareCard stats={stats} travelerName={trimmedName} width={previewWidth} campaign={campaign} recap={recap} />
+                            <ShareCard stats={stats} travelerName={trimmedName} width={previewWidth} campaign={campaign} recap={recap} visitedCodes={visitedCodes} />
                         </View>
                         {controls}
                     </View>
                     {/* Off-screen full-size card used for the PNG */}
                     {visible && (
-                        <ShareCardCapture ref={captureHostRef} stats={stats} travelerName={trimmedName} campaign={campaign} recap={recap} />
+                        <ShareCardCapture ref={captureHostRef} stats={stats} travelerName={trimmedName} campaign={campaign} recap={recap} visitedCodes={visitedCodes} />
                     )}
                 </SafeAreaView>
             </SafeAreaProvider>

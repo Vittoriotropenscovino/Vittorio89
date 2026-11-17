@@ -54,6 +54,10 @@ export interface YearRecap {
     newCountries: number;
     /** Distinct continents of the year's countries. */
     continents: number;
+    /** ISO codes of the year's countries: full gold on the card map. */
+    codes?: string[];
+    /** ISO codes of every visited country (all time): the others are muted gold on the map. */
+    allCodes?: string[];
     /** All-time visited countries (trips ∪ marked), the same number as everywhere else. */
     totalCountries: number;
     /** All-time % of the world, as written on the card ('<1' or a number). */
@@ -90,13 +94,16 @@ export const getYearRecap = (
     let newCountries = 0;
     yearKeys.forEach((key) => { if (!seenBefore.has(key)) newCountries += 1; });
 
-    const total = getVisitedCountries(trips, markedCountries).count;
+    const allVisited = getVisitedCountries(trips, markedCountries);
+    const total = allVisited.count;
     return {
         year,
         trips: ofYear.length,
         countries: yearVisited.count,
         newCountries,
         continents: continents.size,
+        codes: yearVisited.codes,
+        allCodes: allVisited.codes,
         totalCountries: total,
         totalPct: worldPercentLabel(total),
     };

@@ -1,13 +1,14 @@
 import React, { forwardRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, {
-    Defs, LinearGradient, RadialGradient, Stop, Rect, Circle, Ellipse, Path, G,
+    Defs, LinearGradient, RadialGradient, Stop, Rect, Circle,
 } from 'react-native-svg';
 import QRCode from 'react-native-qrcode-svg';
 import { TravelStats } from '../utils/travelStats';
 import { YearRecap } from '../utils/yearRecap';
 import { worldPercentLabel } from '../utils/countries';
 import { useApp } from '../contexts/AppContext';
+import CountryMap, { CountryMapStyle } from './CountryMap';
 
 import { PLAY_STORE_URL, shareCardUrl } from '../utils/shareLink';
 
@@ -19,7 +20,11 @@ export { PLAY_STORE_URL };
 const BASE_W = 1080;
 const ASPECT = 16 / 9;
 
-const GLOBE = { cx: 540, cy: 820, r: 430 };
+// Vertical centre of the background glow: behind the country map.
+const GLOW_CY = 1180;
+
+/** Map style of the card, until the choice of the checkpoint (flat world map or globe). */
+export const CARD_MAP_STYLE: CountryMapStyle = 'globe';
 
 // Deterministic decorative star field, kept in the side margins / empty bands so
 // stars never sit behind the title or the stat numbers.
@@ -31,28 +36,6 @@ const STARS: { x: number; y: number; r: number; o: number }[] = [
     { x: 150, y: 1250, r: 2, o: 0.5 }, { x: 915, y: 1300, r: 2, o: 0.4 },
     { x: 120, y: 760, r: 2, o: 0.45 }, { x: 955, y: 860, r: 2, o: 0.45 },
 ];
-
-// PURELY DECORATIVE brand pins — NOT real coordinates. Placed on the visible
-// upper/lower bands of the globe so they never overlap the central stat panel.
-// Style mirrors the app's trip pins (#EF4444 with a soft glow halo).
-const PINS: { x: number; y: number }[] = [
-    { x: 330, y: 660 }, { x: 700, y: 600 }, { x: 560, y: 470 },
-    { x: 770, y: 690 }, { x: 470, y: 1150 }, { x: 665, y: 1175 },
-];
-
-// One ambient travel arc between two of the pins, with a small plane along it.
-// Mirrors the app's red dashed arcs (rgba(239,68,68,...)).
-const ARC = { x0: 330, y0: 660, cx: 515, cy: 420, x1: 700, y1: 600 };
-// Quadratic-Bézier midpoint (t=0.5) and tangent → plane position + rotation.
-const PLANE_X = 0.25 * ARC.x0 + 0.5 * ARC.cx + 0.25 * ARC.x1;
-const PLANE_Y = 0.25 * ARC.y0 + 0.5 * ARC.cy + 0.25 * ARC.y1;
-const PLANE_ROT =
-    (Math.atan2(ARC.y1 - ARC.y0, ARC.x1 - ARC.x0) * 180) / Math.PI + 90;
-// Top-view plane silhouette (points up by default).
-const PLANE_PATH =
-    'M0,-9 C1,-9 1.8,-7 1.8,-4.5 L8,-0.5 L8,1 L1.8,-0.7 L1.8,4 L3.4,5.6 L3.4,6.6 ' +
-    'L0,5.4 L-3.4,6.6 L-3.4,5.6 L-1.8,4 L-1.8,-0.7 L-8,1 L-8,-0.5 L-1.8,-4.5 ' +
-    'C-1.8,-7 -1,-9 0,-9 Z';
 
 // Badge tier by number of distinct countries → index into t('cardBadges').
 const badgeIndex = (countries: number): number =>
@@ -72,10 +55,14 @@ interface ShareCardProps {
     campaign?: string;
     /** Year recap variant ("My {year} in travel"): same 9:16 card, gold accent. */
     recap?: YearRecap | null;
+    /** ISO codes of every visited country: they are gold on the card map. */
+    visitedCodes?: readonly string[];
+    /** Flat world map or globe (default CARD_MAP_STYLE). */
+    mapStyle?: CountryMapStyle;
 }
 
 const ShareCard = forwardRef<View, ShareCardProps>(
-    ({ stats, travelerName, width = 360, campaign = 'card', recap = null }, ref) => {
+    ({ stats, travelerName, width = 360, campaign = 'card', recap = null, visitedCodes = [], mapStyle = CARD_MAP_STYLE }, ref) => {
         const { t } = useApp();
         const W = width;
         const H = Math.round(width * ASPECT);
@@ -101,6 +88,13 @@ const ShareCard = forwardRef<View, ShareCardProps>(
             ? fill(recap.totalCountries === 1 ? 'recapTotalOne' : 'recapTotalMany', { count: recap.totalCountries, pct: recap.totalPct })
             : '';
         const gold = recap ? styles.goldText : null;
+        // Singular labels where the language has them: "1 Country", "1 Trip".
+        const label = (count: number, many: string, one: string) => t(count === 1 ? one : many) as string;
+        // Map: normal card = every visited country in gold; recap = the year's
+        // countries in gold, the ones of other years in a muted gold.
+        const mapGold = recap ? (recap.codes || []) : visitedCodes;
+        const mapDim = recap ? (recap.allCodes || []) : [];
+        const hiddenLabel = (count: number) => fill(count === 1 ? 'cardMapHiddenOne' : 'cardMapHiddenMany', { count });
         const traveler = name ? (t('cardTravelerTemplate') as string).replace('{name}', name) : '';
 
         // % of the world: the same 197 countries as the "Where have you been?"
@@ -119,7 +113,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                 collapsable={false}
                 style={[styles.card, { width: W, height: H }]}
             >
-                {/* Background: deep-space gradient + stylized wireframe globe (SVG, no WebView) */}
+                {/* Background: deep-space gradient + stars (SVG). The map is the user's real countries. */}
                 <Svg width={W} height={H} viewBox={`0 0 ${BASE_W} ${BASE_W * ASPECT}`} style={StyleSheet.absoluteFill}>
                     <Defs>
                         <LinearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
@@ -127,7 +121,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                             <Stop offset="0.5" stopColor="#0e1a2e" />
                             <Stop offset="1" stopColor="#08080d" />
                         </LinearGradient>
-                        <RadialGradient id="glow" cx="50%" cy={`${(GLOBE.cy / (BASE_W * ASPECT)) * 100}%`} r="55%">
+                        <RadialGradient id="glow" cx="50%" cy={`${(GLOW_CY / (BASE_W * ASPECT)) * 100}%`} r="50%">
                             <Stop offset="0" stopColor="#00d4ff" stopOpacity="0.2" />
                             <Stop offset="1" stopColor="#00d4ff" stopOpacity="0" />
                         </RadialGradient>
@@ -140,47 +134,6 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                         <Circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#ffffff" opacity={s.o} />
                     ))}
 
-                    {/* Wireframe sphere (slightly dimmed so the stat panel stays crisp) */}
-                    <G opacity={0.38}>
-                        <Circle cx={GLOBE.cx} cy={GLOBE.cy} r={GLOBE.r} stroke="#00d4ff" strokeWidth={2.5} fill="none" />
-                        {[-0.66, -0.33, 0, 0.33, 0.66].map((f, i) => (
-                            <Ellipse
-                                key={`lat${i}`}
-                                cx={GLOBE.cx}
-                                cy={GLOBE.cy + GLOBE.r * f}
-                                rx={GLOBE.r * Math.cos(Math.asin(f))}
-                                ry={GLOBE.r * 0.12}
-                                stroke="#00d4ff" strokeWidth={1.5} fill="none" opacity={0.55}
-                            />
-                        ))}
-                        {[1, 0.6, 0.25].map((rx, i) => (
-                            <Ellipse
-                                key={`lon${i}`}
-                                cx={GLOBE.cx} cy={GLOBE.cy} rx={GLOBE.r * rx} ry={GLOBE.r}
-                                stroke="#00d4ff" strokeWidth={1.5} fill="none" opacity={0.5}
-                            />
-                        ))}
-                        <Ellipse cx={GLOBE.cx} cy={GLOBE.cy} rx={GLOBE.r} ry={GLOBE.r} stroke="#60A5FA" strokeWidth={1.5} fill="none" opacity={0.3} />
-                    </G>
-
-                    {/* Ambient travel arc + plane (decorative, app-style red dashed) */}
-                    <Path
-                        d={`M${ARC.x0},${ARC.y0} Q${ARC.cx},${ARC.cy} ${ARC.x1},${ARC.y1}`}
-                        stroke="rgba(239,68,68,0.7)" strokeWidth={3} fill="none"
-                        strokeDasharray="12,9" strokeLinecap="round"
-                    />
-                    <G transform={`translate(${PLANE_X}, ${PLANE_Y}) rotate(${PLANE_ROT}) scale(2.3)`}>
-                        <Path d={PLANE_PATH} fill="#EAF6FF" opacity={0.92} />
-                    </G>
-
-                    {/* Decorative brand pins (#EF4444 + glow halo) */}
-                    {PINS.map((p, i) => (
-                        <G key={`pin${i}`}>
-                            <Circle cx={p.x} cy={p.y} r={20} fill="#EF4444" opacity={0.18} />
-                            <Circle cx={p.x} cy={p.y} r={9} fill="#EF4444" />
-                            <Circle cx={p.x - 2.5} cy={p.y - 2.5} r={2.5} fill="#FFE3E3" opacity={0.9} />
-                        </G>
-                    ))}
                 </Svg>
 
                 {/* Foreground content (RN text → reliable emoji + fonts) */}
@@ -210,7 +163,7 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                         ) : null}
                     </View>
 
-                    {/* Stats panel (translucent dark = readability over the globe) */}
+                    {/* Stats panel */}
                     <View style={[styles.panel, { borderRadius: 40 * u, paddingVertical: 40 * u, paddingHorizontal: 36 * u, gap: 20 * u }]}>
                         {badge ? (
                             <View style={[styles.badge, recap && styles.badgeGold, { borderRadius: 999, paddingVertical: 12 * u, paddingHorizontal: 28 * u, maxWidth: panelInner }]}>
@@ -227,22 +180,22 @@ const ShareCard = forwardRef<View, ShareCardProps>(
 
                         {recap ? (
                             <View style={[styles.statsRow, { gap: 10 * u }]}>
-                                <Stat value={recap.trips} label={t('cardTrips') as string} u={u} gold />
+                                <Stat value={recap.trips} label={label(recap.trips, 'cardTrips', 'cardTripOne')} u={u} gold />
                                 <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                                <Stat value={recap.countries} label={t('cardCountries') as string} u={u} gold />
+                                <Stat value={recap.countries} label={label(recap.countries, 'cardCountries', 'cardCountryOne')} u={u} gold />
                                 <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                                <Stat value={recap.continents} label={t('cardContinents') as string} u={u} gold />
+                                <Stat value={recap.continents} label={label(recap.continents, 'cardContinents', 'cardContinentOne')} u={u} gold />
                             </View>
                         ) : (
                         <View style={[styles.statsRow, { gap: 10 * u }]}>
-                            <Stat value={stats.countries} label={t('cardCountries') as string} u={u} />
+                            <Stat value={stats.countries} label={label(stats.countries, 'cardCountries', 'cardCountryOne')} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
-                            <Stat value={stats.continents} label={t('cardContinents') as string} u={u} />
+                            <Stat value={stats.continents} label={label(stats.continents, 'cardContinents', 'cardContinentOne')} u={u} />
                             <Text style={[styles.statSep, { fontSize: 84 * u }]}>·</Text>
                             {noTrips ? (
                                 <Stat value={`${pctText}%`} label={t('cardWorldShort') as string} u={u} />
                             ) : (
-                                <Stat value={stats.trips} label={t('cardTrips') as string} u={u} />
+                                <Stat value={stats.trips} label={label(stats.trips, 'cardTrips', 'cardTripOne')} u={u} />
                             )}
                         </View>
                         )}
@@ -268,6 +221,11 @@ const ShareCard = forwardRef<View, ShareCardProps>(
                                 {pctParts[1] ?? ''}
                             </Text>
                         ) : null}
+                    </View>
+
+                    {/* The user's countries (gold), filling the space under the numbers */}
+                    <View style={[styles.mapBox, { marginVertical: 28 * u }]}>
+                        <CountryMap variant={mapStyle} gold={mapGold} dim={mapDim} u={u} hiddenLabel={hiddenLabel} testID="card-map" />
                     </View>
 
                     {/* Challenge + footer (claim + QR to Play Store) */}
@@ -339,6 +297,7 @@ const Stat: React.FC<{ value: number | string; label: string; u: number; gold?: 
 const styles = StyleSheet.create({
     card: { overflow: 'hidden', backgroundColor: '#08080d' },
     content: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+    mapBox: { flex: 1, alignSelf: 'stretch' },
     brandRow: { flexDirection: 'row', alignItems: 'center' },
     brandDot: { backgroundColor: '#00d4ff' },
     brand: { color: '#00d4ff', fontWeight: '800' },

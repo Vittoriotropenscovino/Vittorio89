@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import ShareCard from './ShareCard';
+import { CountryMapStyle } from './CountryMap';
 import { TravelStats } from '../utils/travelStats';
 import { YearRecap } from '../utils/yearRecap';
 
@@ -17,6 +18,10 @@ interface Props {
     campaign?: string;
     /** Year recap variant of the card. */
     recap?: YearRecap | null;
+    /** ISO codes of every visited country (gold on the card map). */
+    visitedCodes?: readonly string[];
+    /** Map style of the card (tests and the checkpoint preview only). */
+    mapStyle?: CountryMapStyle;
     /**
      * On-screen render width (points). Default 360 → on a 3x device the native
      * buffer is already 1080px, so the capture is pixel-perfect with no upscale.
@@ -47,11 +52,11 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *
  * Capturing too early is THE classic failure (blank/cropped PNG). We guard it:
  *   1) wait until the card has reported a real layout (onLayout, width > 0),
- *   2) wait a few painted frames so the SVG globe + QR are committed,
+ *   2) wait a few painted frames so the SVG map + QR are committed,
  *   3) then snapshot the card's own ref (full opacity).
  */
 const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
-    ({ stats, travelerName, renderWidth = 360, campaign, recap = null }, ref) => {
+    ({ stats, travelerName, renderWidth = 360, campaign, recap = null, visitedCodes, mapStyle }, ref) => {
         const cardRef = useRef<View>(null);
         const laidOut = useRef(false);
 
@@ -71,7 +76,7 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
                         await delay(50);
                         waited += 50;
                     }
-                    // 2) let the SVG globe + QR paint a few frames, plus a margin
+                    // 2) let the SVG map + QR paint a few frames, plus a margin
                     await waitFrames(3);
                     await delay(60);
                     // 3) snapshot
@@ -96,6 +101,8 @@ const ShareCardCapture = forwardRef<ShareCardCaptureHandle, Props>(
                     width={renderWidth}
                     campaign={campaign}
                     recap={recap}
+                    visitedCodes={visitedCodes}
+                    mapStyle={mapStyle}
                 />
             </View>
         );

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowD
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { getTravelStats } from '../utils/travelStats';
+import { getVisitedCountries } from '../utils/visitedCountries';
 import ShareCardCapture from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 import { useShareGlobe } from '../hooks/useShareGlobe';
@@ -37,6 +38,8 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
 
     // Reused by both the share card and the country count below (single source).
     const travelStats = useMemo(() => getTravelStats(trips, markedCountries), [trips, markedCountries]);
+    // Gold countries on the card map.
+    const visitedCodes = useMemo(() => getVisitedCountries(trips, markedCountries).codes, [trips, markedCountries]);
     // Sharing needs at least one country (a trip or one ticked in "Where have you been?").
     const noCountries = travelStats.countries === 0;
 
@@ -189,7 +192,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
                 </View>
 
                 {/* Off-screen ShareCard host — rendered (capturable) but unseen */}
-                <ShareCardCapture ref={captureHostRef} stats={travelStats} travelerName={trimmedName} />
+                <ShareCardCapture ref={captureHostRef} stats={travelStats} travelerName={trimmedName} visitedCodes={visitedCodes} />
             </View>
         </Modal>
     );
