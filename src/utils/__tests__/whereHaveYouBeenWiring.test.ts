@@ -142,3 +142,26 @@ describe('sharing is one shared piece of code', () => {
         expect(read('src/hooks/useShareGlobe.ts')).not.toMatch(/captureRef|captureScreen/);
     });
 });
+
+describe('the globe at startup', () => {
+    const earth = read('src/components/EarthGlobe.tsx');
+
+    it('starts turned towards the biggest group of visited countries, like after confirm', () => {
+        const ready = earth.slice(earth.indexOf("if (data.type === 'ready')"), earth.indexOf("data.type === 'countryClick'"));
+        expect(ready).toContain('globeTargetFor(visitedCountries)');
+        expect(ready).toContain("type: 'setView'");
+        // no countries -> globeTargetFor returns null -> nothing is sent
+        expect(ready).toMatch(/if \(start\) \{/);
+        // a trip already selected wins over the startup view
+        expect(ready).toContain('!targetCoordinates');
+    });
+
+    it('the globe page jumps there at once, keeping its zoom', () => {
+        expect(globe).toContain("else if(d.type==='setView'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},0);");
+    });
+
+    it('the globe is mounted only after the saved data is loaded', () => {
+        expect(app.indexOf('if (!isSettingsLoaded || isLoading)')).toBeGreaterThan(-1);
+        expect(app.indexOf('if (!isSettingsLoaded || isLoading)')).toBeLessThan(app.indexOf('<EarthGlobe'));
+    });
+});

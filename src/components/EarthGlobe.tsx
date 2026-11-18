@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { EarthGlobeProps, Trip, ClusteredPin } from '../types';
 import { useApp } from '../contexts/AppContext';
-import { shapelessCountryPoints } from '../utils/countryPicker';
+import { shapelessCountryPoints, globeTargetFor } from '../utils/countryPicker';
 
 // Globe HTML and vendor libraries loaded from asset files
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -258,6 +258,14 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
           if (visitedCountries) {
             sendToWebView({ type: 'updateVisitedCountries', countries: visitedCountries, points: shapelessCountryPoints(visitedCountries) });
           }
+          // 1.3.0: at startup the globe already faces the biggest group of
+          // visited countries (same choice as after «Conferma»), instead of a
+          // random ocean. No countries: unchanged. The globe is mounted only
+          // after the saved data is loaded, so visitedCountries is final here.
+          const start = !targetCoordinates && visitedCountries ? globeTargetFor(visitedCountries) : null;
+          if (start) {
+            sendToWebView({ type: 'setView', lat: start.latitude, lng: start.longitude });
+          }
           pendingPins.current = null;
         } else if (data.type === 'countryClick' && typeof data.code === 'string') {
           onCountryClickRef.current?.(data.code);
@@ -283,7 +291,7 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
         console.warn('[TravelSphere] WebView message parse error:', e);
       }
     },
-    [clusteredPins, onPinClick, sendToWebView, homeLocation, showTravelLines, visitedCountries, pinData, itineraryData]
+    [clusteredPins, onPinClick, sendToWebView, homeLocation, showTravelLines, visitedCountries, targetCoordinates, pinData, itineraryData]
   );
 
   useEffect(() => {

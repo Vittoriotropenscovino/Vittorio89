@@ -394,6 +394,7 @@ function handleCmd(d){
     renderPins();
   }
   else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.8},1500);
+  else if(d.type==='setView'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},0);
   else if(d.type==='clearSelection'){_selectedPinId=null;renderPins();}
   else if(d.type==='flythrough')startFlythrough(d.stops);
   else if(d.type==='cleanup'){if(_scanAnimId)cancelAnimationFrame(_scanAnimId);if(globe){try{globe.scene().traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});}catch(ce){}}}
