@@ -12,6 +12,7 @@ import { MemoryViewerProps, MediaItem } from '../types';
 import { useApp } from '../contexts/AppContext';
 import PhotoFullscreen from './PhotoFullscreen';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
     const { t } = useApp();
@@ -19,6 +20,8 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
     const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
     const mainListRef = useRef<FlatList>(null);
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+    const portrait = SCREEN_HEIGHT > SCREEN_WIDTH;
 
     // Reset currentIndex when trip changes or viewer opens to prevent out-of-bounds
     useEffect(() => {
@@ -30,10 +33,11 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 
     if (!trip) return null;
 
-    // Main viewer dimensions - 90% of screen
-    const viewerWidth = SCREEN_WIDTH * 0.92;
-    const viewerHeight = SCREEN_HEIGHT * 0.68;
-    const thumbSize = 56;
+    // Main viewer (1.4.0, bigger photos): portrait = the whole width and most of
+    // the height; landscape = taller than before, the thumbnails take less room.
+    const viewerWidth = portrait ? SCREEN_WIDTH : SCREEN_WIDTH * 0.92;
+    const viewerHeight = portrait ? SCREEN_HEIGHT * 0.56 : SCREEN_HEIGHT * 0.6;
+    const thumbSize = portrait ? 88 : 72;
 
     const handleShare = async () => {
         try {
@@ -129,11 +133,38 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 
     const hasMedia = trip.media && trip.media.length > 0;
 
+    // Every button with its written label (1.4.0). In portrait they get their own
+    // row under the title; in landscape they stay next to it.
+    const actionButtons = (
+        <View style={[styles.headerActions, portrait && styles.headerActionsPortrait]}>
+            <TouchableOpacity onPress={handleShare} style={[styles.actionBtn, portrait && styles.actionBtnPortrait]} accessibilityRole="button">
+                <Ionicons name="share-outline" size={18} color="#00d4ff" />
+                <Text style={[styles.actionText, { color: '#00d4ff' }]}>{t('share') as string}</Text>
+            </TouchableOpacity>
+            {onEdit && (
+                <TouchableOpacity onPress={() => { onEdit(trip); onClose(); }} style={[styles.actionBtn, portrait && styles.actionBtnPortrait]} accessibilityRole="button">
+                    <Ionicons name="create-outline" size={18} color="#60A5FA" />
+                    <Text style={[styles.actionText, { color: '#60A5FA' }]}>{t('edit') as string}</Text>
+                </TouchableOpacity>
+            )}
+            {onDelete && (
+                <TouchableOpacity testID="trip-delete" onPress={handleDelete} style={[styles.actionBtn, styles.deleteBtn, portrait && styles.actionBtnPortrait]} accessibilityRole="button">
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                    <Text style={[styles.actionText, { color: '#EF4444' }]}>{t('delete') as string}</Text>
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity testID="trip-close" onPress={onClose} style={[styles.closeBtn, portrait && styles.actionBtnPortrait]} accessibilityRole="button">
+                <Ionicons name="close" size={18} color="#fff" />
+                <Text style={styles.actionText}>{t('close') as string}</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <BlurView intensity={25} tint="dark" style={styles.overlay}>
                 {/* Header */}
-                <View style={styles.headerBar}>
+                <View style={[styles.headerBar, { paddingTop: 12 + insets.top, paddingLeft: 20 + insets.left, paddingRight: 20 + insets.right }]}>
                     <View style={styles.tripInfoRow}>
                         <View style={styles.tripInfo}>
                             <Text style={styles.tripTitle} numberOfLines={1}>{trip.title}</Text>
@@ -148,26 +179,10 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                                 ) : null}
                             </View>
                         </View>
-                        <View style={styles.headerActions}>
-                            <TouchableOpacity onPress={handleShare} style={styles.actionBtn}>
-                                <Ionicons name="share-outline" size={20} color="#00d4ff" />
-                            </TouchableOpacity>
-                            {onEdit && (
-                                <TouchableOpacity onPress={() => { onEdit(trip); onClose(); }} style={styles.actionBtn}>
-                                    <Ionicons name="create-outline" size={20} color="#60A5FA" />
-                                </TouchableOpacity>
-                            )}
-                            {onDelete && (
-                                <TouchableOpacity testID="trip-delete" onPress={handleDelete} style={[styles.actionBtn, styles.deleteBtn]}>
-                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#fff" />
-                            </TouchableOpacity>
-                        </View>
+                        {!portrait && actionButtons}
                     </View>
-                    {trip.notes ? <Text style={styles.notesText} numberOfLines={1}>{trip.notes}</Text> : null}
+                    {portrait && actionButtons}
+                    {trip.notes ? <Text style={styles.notesText} numberOfLines={portrait ? 4 : 1}>{trip.notes}</Text> : null}
                 </View>
 
                 {/* Main Viewer */}
@@ -197,18 +212,17 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                             })}
                         />
                     ) : renderEmptyState()}
+                    {/* Counter, in the corner of the photo area */}
+                    {hasMedia && (
+                        <View style={styles.counterBadge}>
+                            <Text style={styles.counterText}>{currentIndex + 1} / {trip.media.length}</Text>
+                        </View>
+                    )}
                 </View>
-
-                {/* Counter */}
-                {hasMedia && (
-                    <View style={styles.counterBadge}>
-                        <Text style={styles.counterText}>{currentIndex + 1} / {trip.media.length}</Text>
-                    </View>
-                )}
 
                 {/* Thumbnail Strip */}
                 {hasMedia && trip.media.length > 1 && (
-                    <View style={styles.thumbStrip}>
+                    <View style={[styles.thumbStrip, { paddingBottom: 10 + insets.bottom }]}>
                         <FlatList
                             data={trip.media}
                             renderItem={renderThumbnail}
@@ -246,13 +260,18 @@ const styles = StyleSheet.create({
     metaText: { color: '#9CA3AF', fontSize: 13 },
     notesText: { color: '#6B7280', fontSize: 12, fontStyle: 'italic', marginTop: 4 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerActionsPortrait: { marginTop: 10, justifyContent: 'space-between' },
+    actionBtnPortrait: { flex: 1, justifyContent: 'center', paddingHorizontal: 4 },
+    actionText: { color: '#fff', fontSize: 12, fontWeight: '700' },
     actionBtn: {
-        backgroundColor: 'rgba(0,212,255,0.08)', padding: 8, borderRadius: 12,
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        backgroundColor: 'rgba(0,212,255,0.08)', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
         borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',
     },
     deleteBtn: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.15)' },
     closeBtn: {
-        backgroundColor: 'rgba(255,255,255,0.08)', padding: 8, borderRadius: 12,
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
     },
     viewerArea: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -262,7 +281,7 @@ const styles = StyleSheet.create({
     },
     media: { width: '100%', height: '100%' },
     counterBadge: {
-        position: 'absolute', top: 80, right: 24,
+        position: 'absolute', top: 10, right: 16,
         backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16,
         paddingHorizontal: 12, paddingVertical: 4,
         borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',

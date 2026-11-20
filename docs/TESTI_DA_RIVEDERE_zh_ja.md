@@ -115,3 +115,4 @@ Novità della 1.3.0
 | `showTravelLines` (testo cambiato) | Mostra rotte di viaggio | 显示旅行路线 | 旅のルートを表示 |
 | `travelLinesDesc` (testo cambiato) | Mostra sul globo le rotte dei tuoi viaggi | 在地球上显示你的旅行路线 | 地球に旅のルートを表示 |
 | `menu` | Menu | 菜单 | メニュー |
+| `edit` | Modifica | 编辑 | 編集 |

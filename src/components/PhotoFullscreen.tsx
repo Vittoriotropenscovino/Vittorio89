@@ -15,6 +15,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MediaItem } from '../types';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useApp } from '../contexts/AppContext';
 
 interface Props {
     visible: boolean;
@@ -144,6 +146,15 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
     const [showUI, setShowUI] = useState(true);
     const [isZoomed, setIsZoomed] = useState(false);
     const listRef = useRef<FlatList>(null);
+    const insets = useSafeAreaInsets();
+    const { t } = useApp();
+
+    // 1.4.0: turning the phone changes the page width; stay on the same photo
+    // (a horizontal photo fills the screen once the phone is turned).
+    useEffect(() => {
+        listRef.current?.scrollToOffset({ offset: currentIndex * SCREEN_WIDTH, animated: false });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [SCREEN_WIDTH]);
 
     const handleScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
         const offset = event.nativeEvent.contentOffset.x;
@@ -215,10 +226,11 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
 
                 {showUI && (
                     <>
-                        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-                            <Ionicons name="close" size={28} color="#fff" />
+                        <TouchableOpacity testID="photo-close" style={[styles.closeBtn, { top: 16 + insets.top, right: 16 + insets.right }]} onPress={onClose} accessibilityRole="button">
+                            <Ionicons name="close" size={22} color="#fff" />
+                            <Text style={styles.closeText}>{t('close') as string}</Text>
                         </TouchableOpacity>
-                        <View style={styles.counter}>
+                        <View style={[styles.counter, { bottom: 24 + insets.bottom }]}>
                             <Text style={styles.counterText}>{currentIndex + 1} / {media.length}</Text>
                         </View>
                     </>
@@ -231,9 +243,10 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000' },
     closeBtn: {
-        position: 'absolute', top: 50, right: 20,
-        backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8,
+        position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14,
     },
+    closeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     counter: {
         position: 'absolute', bottom: 40, alignSelf: 'center',
         backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16,

@@ -18,10 +18,10 @@ const LABEL_DEBT: Record<string, number> = {
     'src/components/CountryPickerScreen.tsx': 1, // PERMANENT: ✕ that clears the search
     'src/components/HelpGuide.tsx': 1,
     'src/components/ItineraryManager.tsx': 4,
-    'src/components/MemoryViewer.tsx': 6,
+    'src/components/MemoryViewer.tsx': 2, // PERMANENT: tap on the photo (opens it full screen), tap on a thumbnail
     'src/components/OnboardingScreen.tsx': 1,
     'src/components/PaywallScreen.tsx': 1,
-    'src/components/PhotoFullscreen.tsx': 2,
+    'src/components/PhotoFullscreen.tsx': 1, // PERMANENT: tap on a video shows/hides the buttons
     'src/components/PinSelector.tsx': 1,
     'src/components/PrivacyPolicy.tsx': 1,
     'src/components/SettingsScreen.tsx': 3,
