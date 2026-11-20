@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Trip, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
     visible: boolean;
@@ -78,7 +79,7 @@ const ItineraryManager: React.FC<Props> = ({
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>
@@ -186,7 +187,7 @@ const ItineraryManager: React.FC<Props> = ({
             </View>
 
             {/* Rename modal */}
-            <Modal visible={renameId !== null} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={handleCancelRename}>
+            <Modal supportedOrientations={ALL_ORIENTATIONS} visible={renameId !== null} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={handleCancelRename}>
                 <View style={styles.renameOverlay}>
                     <View style={styles.renameCard}>
                         <Text style={styles.renameTitle}>{t('renameItinerary')}</Text>

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface GDPRConsentProps {
     visible: boolean;
@@ -14,7 +15,7 @@ const GDPRConsent: React.FC<GDPRConsentProps> = ({ visible, onAccept, onShowPriv
     const { t } = useApp();
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={() => {/* GDPR consent is mandatory */}}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={() => {/* GDPR consent is mandatory */}}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.iconRow}>

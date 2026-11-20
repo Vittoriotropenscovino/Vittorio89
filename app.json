@@ -3,7 +3,7 @@
     "name": "TravelSphere",
     "slug": "travelsphere",
     "version": "1.3.0",
-    "orientation": "landscape",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "jsEngine": "hermes",
@@ -70,9 +70,10 @@
       [
         "expo-screen-orientation",
         {
-          "initialOrientation": "LANDSCAPE"
+          "initialOrientation": "DEFAULT"
         }
       ],
+      "./plugins/withOptionalFeatures",
       "expo-asset",
       "expo-font",
       [

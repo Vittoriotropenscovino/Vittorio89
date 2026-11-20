@@ -17,6 +17,7 @@ import { useApp } from '../contexts/AppContext';
 import { getDistanceKm } from '../utils/clusterTrips';
 import { MEDIA_DIR, generateThumbnail } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -507,7 +508,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     };
 
     return (
-        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
             <BlurView intensity={30} tint="dark" style={styles.overlay}>
                 <View style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer]}>
                         <View style={styles.header}>
@@ -725,7 +726,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
                 {/* Media Processing Overlay */}
                 {isProcessingMedia && (
-                    <Modal visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
+                    <Modal supportedOrientations={ALL_ORIENTATIONS} visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
                         <View style={styles.processingOverlay}>
                             <View style={styles.processingCard}>
                                 <ActivityIndicator color="#60A5FA" size="large" />
@@ -743,7 +744,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
                 {/* Custom Date Picker Modal */}
                 {showDatePicker && (
-                    <Modal visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
+                    <Modal supportedOrientations={ALL_ORIENTATIONS} visible transparent animationType="fade" statusBarTranslucent hardwareAccelerated>
                         <View style={styles.datePickerOverlay}>
                             <View style={styles.datePickerCard}>
                                 {/* Month navigation: ‹ › month, « » year */}

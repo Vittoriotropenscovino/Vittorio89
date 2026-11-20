@@ -100,12 +100,37 @@ describe('checkpoint 2 fixes', () => {
     });
 });
 
-describe('rotation is free only in emulator test builds', () => {
-    it('stays locked in landscape unless EXPO_PUBLIC_ROTAZIONE_LIBERA=1', () => {
+describe('1.4.0: portrait is the main mode, the phone rotates freely', () => {
+    it('no orientation lock is left in the app', () => {
+        expect(app).toContain('ScreenOrientation.unlockAsync()');
+        expect(app).not.toContain('OrientationLock.LANDSCAPE');
+        const cfg = JSON.parse(read('app.json')).expo;
+        expect(cfg.orientation).toBe('default');
+        const so = cfg.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-screen-orientation');
+        expect(so[1].initialOrientation).toBe('DEFAULT');
+    });
+
+    it('the emulator flag only adds the card preview, never in store builds', () => {
         expect(app).toContain("process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1'");
-        expect(app).toContain('ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)');
         const eas = JSON.parse(read('eas.json'));
         expect(JSON.stringify(eas)).not.toContain('ROTAZIONE_LIBERA');
+    });
+
+    it('screen and Wi-Fi hardware features are declared optional (Play Console warning)', () => {
+        const cfg = JSON.parse(read('app.json')).expo;
+        expect(cfg.plugins).toContain('./plugins/withOptionalFeatures');
+        const plugin = read('plugins/withOptionalFeatures.js');
+        for (const f of ['android.hardware.screen.portrait', 'android.hardware.screen.landscape', 'android.hardware.wifi']) expect(plugin).toContain(f);
+        expect(plugin).toContain("'android:required': 'false'");
+    });
+
+    it('every Modal declares both orientations (iPhone keeps a Modal in portrait otherwise)', () => {
+        const dir = 'src/components';
+        for (const f of fs.readdirSync(path.join(__dirname, '../../..', dir)).filter((n) => n.endsWith('.tsx'))) {
+            const src = read(`${dir}/${f}`);
+            const modals = src.match(/<Modal[^>]*>/g) || [];
+            for (const m of modals) expect({ f, m: m.includes('supportedOrientations') }).toEqual({ f, m: true });
+        }
     });
 });
 

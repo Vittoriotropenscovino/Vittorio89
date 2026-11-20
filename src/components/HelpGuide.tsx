@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowD
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { TranslationKey } from '../i18n/translations';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
     visible: boolean;
@@ -26,7 +27,7 @@ const HelpGuide: React.FC<Props> = ({ visible, onClose }) => {
     const cardHeight = Math.min(screenH * 0.85, screenW < screenH ? screenH * 0.8 : screenH * 0.9);
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, { height: cardHeight }]}>
                     <View style={styles.headerWrap}>

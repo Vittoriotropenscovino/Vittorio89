@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { TranslationKey } from '../i18n/translations';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
   visible: boolean;
@@ -69,7 +70,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+    <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.card, { maxHeight: '90%' }]}>
           {/* Close button */}

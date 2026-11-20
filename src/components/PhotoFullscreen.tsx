@@ -14,6 +14,7 @@ import Animated, {
     runOnJS,
 } from 'react-native-reanimated';
 import { MediaItem } from '../types';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
     visible: boolean;
@@ -188,7 +189,7 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
     };
 
     return (
-        <Modal visible={visible} animationType="fade" transparent={false} statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent={false} statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <GestureHandlerRootView style={styles.container}>
                 <StatusBar hidden={!showUI} />
                 <FlatList

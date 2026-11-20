@@ -8,6 +8,7 @@ import { getVisitedCountries } from '../utils/visitedCountries';
 import ShareCardCapture from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 import { useShareGlobe } from '../hooks/useShareGlobe';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
     visible: boolean;
@@ -82,7 +83,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
     const months = Array.isArray(rawMonths) ? rawMonths : [];
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>

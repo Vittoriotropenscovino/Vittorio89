@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
     visible: boolean;
@@ -67,7 +68,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
                 <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, landscape && styles.contentCompact]}>
                         <View style={[styles.header, landscape && styles.headerCompact]}>

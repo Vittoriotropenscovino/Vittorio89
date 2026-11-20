@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Trip, TAG_CONFIG } from '../types';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 interface Props {
   visible: boolean;
@@ -49,7 +50,7 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
         <View style={styles.container} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>

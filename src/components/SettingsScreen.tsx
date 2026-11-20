@@ -20,6 +20,7 @@ import StorageService from '../services/StorageService';
 import Constants from 'expo-constants';
 import { validateImportData, extractMarkedCountries } from '../utils/validateTrip';
 import { mergeCountryCodes } from '../utils/countries';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
     { code: 'it', flag: 'IT', labelKey: 'italian' },
@@ -410,7 +411,7 @@ const SettingsScreen: React.FC<Props> = ({
     );
 
     return (
-        <Modal visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <BlurView intensity={30} tint="dark" style={styles.overlay}>
                 <View style={[styles.card, styles.content]}>
                         <View style={styles.header}>

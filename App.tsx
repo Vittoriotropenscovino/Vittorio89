@@ -46,9 +46,8 @@ import { globeTargetFor } from './src/utils/countryPicker';
 import { countryName } from './src/utils/countries';
 import { dismissRecapYear, getYearRecap, recapCampaign, recapNoticeYear } from './src/utils/yearRecap';
 
-// Development builds for the emulator only (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): the
-// screen may rotate, so new screens can be tested in portrait too. Store builds
-// and the APKs for the phone stay locked in landscape.
+// Emulator test build (EXPO_PUBLIC_ROTAZIONE_LIBERA=1): adds the full-size card
+// preview. Since 1.4.0 every build rotates freely (portrait is the main mode).
 const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
 // Test tools (emulator build and the side-by-side "TravelSphere Prova" APK only,
 // never the store build): a button that simulates the phone date, so the year
@@ -166,13 +165,10 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Lock orientation + fullscreen immersive mode
+  // 1.4.0: portrait is the main mode and the phone rotates freely (turning it
+  // gives the landscape layout). No lock any more. Fullscreen immersive mode.
   useEffect(() => {
-    if (FREE_ROTATION) {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    } else {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-    }
+    ScreenOrientation.unlockAsync().catch(() => {});
     hideNavigationBar();
   }, [hideNavigationBar]);
 

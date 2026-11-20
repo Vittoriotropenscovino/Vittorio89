@@ -11,6 +11,7 @@ import { BlurView } from 'expo-blur';
 import { MemoryViewerProps, MediaItem } from '../types';
 import { useApp } from '../contexts/AppContext';
 import PhotoFullscreen from './PhotoFullscreen';
+import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 
 const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
     const { t } = useApp();
@@ -129,7 +130,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
     const hasMedia = trip.media && trip.media.length > 0;
 
     return (
-        <Modal visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <BlurView intensity={25} tint="dark" style={styles.overlay}>
                 {/* Header */}
                 <View style={styles.headerBar}>
