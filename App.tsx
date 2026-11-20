@@ -492,7 +492,8 @@ const AppContent: React.FC = () => {
         <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
           <View style={styles.header}>
             <TouchableOpacity testID="Menu" style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)} accessibilityLabel="Menu" accessibilityRole="button">
-              <Ionicons name="menu" size={28} color="#60A5FA" />
+              <Ionicons name="menu" size={24} color="#60A5FA" />
+              <Text style={styles.hamburgerText}>{t('menu') as string}</Text>
             </TouchableOpacity>
             <View>
               <Text style={[styles.logo, isPortrait && styles.logoPortrait]}>{t('appName')}</Text>
@@ -767,10 +768,11 @@ const styles = StyleSheet.create({
   headerContainer: { position: 'absolute', top: 0, left: 0, padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hamburgerButton: {
-    padding: 14, borderRadius: 14, backgroundColor: 'rgba(96,165,250,0.15)',
+    alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(96,165,250,0.15)',
     borderWidth: 1, borderColor: 'rgba(0,212,255,0.25)',
     ...Platform.select({ android: { elevation: 12 } }),
   },
+  hamburgerText: { color: '#60A5FA', fontSize: 10, fontWeight: '700', marginTop: 1 },
   logo: { fontWeight: '900', fontSize: 28, color: '#60A5FA', letterSpacing: 2 },
   logoSubtitle: { fontSize: 10, color: 'rgba(0,212,255,0.5)', letterSpacing: 3, textTransform: 'uppercase', marginTop: -2 },
   topRightButtons: {

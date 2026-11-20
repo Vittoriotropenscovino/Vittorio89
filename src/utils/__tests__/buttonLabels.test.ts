@@ -13,7 +13,7 @@ import path from 'path';
 // arrows ‹ ›, tapping a photo or a thumbnail, the dark backdrop that closes a
 // panel, the small ✕ that clears a search field.
 const LABEL_DEBT: Record<string, number> = {
-    'App.tsx': 1, // the ≡ Menu button (decided with the side menu, block C)
+    // App.tsx: 0 since block B/C (Routes, Itineraries, Menu written; Exit removed)
     'src/components/CalendarView.tsx': 3,
     'src/components/CountryPickerScreen.tsx': 1, // PERMANENT: ✕ that clears the search
     'src/components/HelpGuide.tsx': 1,
@@ -28,7 +28,7 @@ const LABEL_DEBT: Record<string, number> = {
     'src/components/StatsScreen.tsx': 1,
     'src/components/TermsOfService.tsx': 1,
     'src/components/TripForm.tsx': 7,
-    'src/components/TripSidebar.tsx': 5,
+    'src/components/TripSidebar.tsx': 2, // PERMANENT: the dark backdrop that closes the menu, the ✕ that clears the search
 };
 
 const ROOT = path.join(__dirname, '../../..');

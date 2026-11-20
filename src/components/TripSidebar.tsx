@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Trip, TripTag, TAG_CONFIG, HomeLocation } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCountryFlag } from '../utils/countryFlags';
 import { extractCountryFromLocationName } from '../utils/geocoding';
 
@@ -41,8 +42,10 @@ const TripSidebar: React.FC<Props> = ({
     onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, onOpenHelpGuide, onCastScreen, homeLocation,
 }) => {
     const { t } = useApp();
-    const { width: screenWidth } = useWindowDimensions();
-    const sidebarWidth = Math.min(screenWidth * 0.78, 420);
+    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+    // 1.4.0: wider in portrait (86%), as before in landscape
+    const sidebarWidth = Math.min(screenWidth * (screenHeight > screenWidth ? 0.86 : 0.78), 420);
     const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
@@ -131,8 +134,10 @@ const TripSidebar: React.FC<Props> = ({
                         <Text style={styles.tripLocation} numberOfLines={1}>{item.locationName.split(',')[0]}</Text>
                     </View>
                 </View>
-                <TouchableOpacity onPress={() => handleFavorite(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity style={styles.favBtn} onPress={() => handleFavorite(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button" accessibilityLabel={t('favorite') as string} accessibilityState={{ selected: !!item.isFavorite }}>
                     <Ionicons name={item.isFavorite ? 'heart' : 'heart-outline'} size={18} color={item.isFavorite ? '#F43F5E' : '#4B5563'} />
+                    {item.isFavorite && <Text style={styles.favText}>{t('favorite')}</Text>}
                 </TouchableOpacity>
             </View>
             <View style={styles.tripCardFooter}>
@@ -200,11 +205,12 @@ const TripSidebar: React.FC<Props> = ({
             </Animated.View>
             <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: slideAnim }], ...Platform.select({ android: { elevation: 101 } }) }]}>
                 <BlurView intensity={80} style={styles.sidebarBlur} tint="dark">
-                    <View style={styles.sidebarContent}>
+                    <View style={[styles.sidebarContent, { paddingTop: 16 + insets.top, paddingBottom: 16 + insets.bottom, paddingLeft: 16 + insets.left }]}>
                         <View style={styles.sidebarHeader}>
                             <Text style={styles.sidebarTitle}>{t('myTrips')}</Text>
-                            <TouchableOpacity style={styles.closeBtnSidebar} onPress={onClose}>
-                                <Ionicons name="close" size={22} color="#fff" />
+                            <TouchableOpacity testID="sidebar-close" style={styles.closeBtnSidebar} onPress={onClose} accessibilityRole="button">
+                                <Ionicons name="close" size={18} color="#fff" />
+                                <Text style={styles.closeText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
                         <View style={styles.quickActions}>
@@ -276,6 +282,7 @@ const TripSidebar: React.FC<Props> = ({
                                     style={[styles.tagFilterChip, filterTag === tag && { borderColor: TAG_CONFIG[tag].color, backgroundColor: TAG_CONFIG[tag].color + '15' }]}
                                     onPress={() => setFilterTag(filterTag === tag ? null : tag)}>
                                     <Ionicons name={TAG_CONFIG[tag].icon as any} size={12} color={filterTag === tag ? TAG_CONFIG[tag].color : '#6B7280'} />
+                                    <Text style={[styles.tagFilterText, filterTag === tag && { color: TAG_CONFIG[tag].color }]}>{t(tag as any)}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -320,7 +327,10 @@ const styles = StyleSheet.create({
     sidebarBlur: { flex: 1, borderRightWidth: 1, borderRightColor: 'rgba(0,212,255,0.1)' },
     sidebarContent: { flex: 1, padding: 16, backgroundColor: 'rgba(10,10,20,0.98)' },
     sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-    closeBtnSidebar: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+    closeBtnSidebar: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+    closeText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    favBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    favText: { color: '#F43F5E', fontSize: 11, fontWeight: '700' },
     sidebarTitle: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
     // 2 per row (1.4.0): six actions, each with its whole label
     quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
@@ -336,12 +346,12 @@ const styles = StyleSheet.create({
     sortText: { color: '#6B7280', fontSize: 9, fontWeight: '500' },
     sortTextActive: { color: '#00d4ff' },
     tagFilterRow: { flexDirection: 'row', gap: 4, marginBottom: 12, flexWrap: 'wrap' },
-    tagFilterChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(0,0,0,0.2)' },
+    tagFilterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(0,0,0,0.2)' },
     tagFilterActive: { borderColor: 'rgba(0,212,255,0.3)', backgroundColor: 'rgba(0,212,255,0.08)' },
     tagFilterText: { color: '#6B7280', fontSize: 10, fontWeight: '500' },
     tagFilterTextActive: { color: '#00d4ff' },
     tripList: { flex: 1 },
-    tripCard: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    tripCard: { backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     tripCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
     tripCardInfo: { flex: 1, marginRight: 8 },
     tripTitle: { color: '#E5E7EB', fontSize: 14, fontWeight: '600', marginBottom: 4 },
@@ -362,8 +372,9 @@ const styles = StyleSheet.create({
     },
     sectionFlag: { fontSize: 18 },
     sectionTitle: { flex: 1, color: '#E5E7EB', fontSize: 14, fontWeight: '700' },
-    sectionBadge: { backgroundColor: 'rgba(0,212,255,0.15)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-    sectionCount: { color: '#00d4ff', fontSize: 11, fontWeight: '700' },
+    // a country you have been to: gold, like everything "visited" (1.4.0)
+    sectionBadge: { backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+    sectionCount: { color: '#FBBF24', fontSize: 11, fontWeight: '700' },
     emptyState: { alignItems: 'center', paddingTop: 40, gap: 8 },
     emptyTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: '600' },
     emptySubtext: { color: 'rgba(255,255,255,0.25)', fontSize: 12, textAlign: 'center' },

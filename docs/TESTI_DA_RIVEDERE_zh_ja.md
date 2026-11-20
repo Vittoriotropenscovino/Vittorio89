@@ -114,3 +114,4 @@ Novità della 1.3.0
 | `castToTv` | Trasmetti su TV | 投屏到电视 | テレビに映す |
 | `showTravelLines` (testo cambiato) | Mostra rotte di viaggio | 显示旅行路线 | 旅のルートを表示 |
 | `travelLinesDesc` (testo cambiato) | Mostra sul globo le rotte dei tuoi viaggi | 在地球上显示你的旅行路线 | 地球に旅のルートを表示 |
+| `menu` | Menu | 菜单 | メニュー |
