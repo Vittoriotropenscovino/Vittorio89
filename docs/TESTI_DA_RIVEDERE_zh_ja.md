@@ -104,3 +104,13 @@ Novità della 1.3.0
 - 12月と1月は、1年間の旅のまとめが届きます。
 - 日付カレンダーを修正し、カウントがより正確になりました。
 ```
+
+## 1.4.0 verticale · Schermata principale e menu (ramo «verticale»)
+
+| Chiave | Italiano | Cinese (zh) | Giapponese (ja) |
+|---|---|---|---|
+| `routes` | Rotte | 路线 | ルート |
+| `travelRoutes` | Rotte di viaggio | 旅行路线 | 旅のルート |
+| `castToTv` | Trasmetti su TV | 投屏到电视 | テレビに映す |
+| `showTravelLines` (testo cambiato) | Mostra rotte di viaggio | 显示旅行路线 | 旅のルートを表示 |
+| `travelLinesDesc` (testo cambiato) | Mostra sul globo le rotte dei tuoi viaggi | 在地球上显示你的旅行路线 | 地球に旅のルートを表示 |

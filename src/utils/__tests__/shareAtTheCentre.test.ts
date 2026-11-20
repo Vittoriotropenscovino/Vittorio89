@@ -39,7 +39,9 @@ describe('shareCardUrl (QR on the card)', () => {
 
 describe('sharing at the centre', () => {
     it('the main screen has a labelled share button as soon as there is one country', () => {
-        expect(app).toMatch(/\{stats\.countries > 0 && \(\s*<TouchableOpacity testID="share-open"/);
+        expect(app).toMatch(/\(stats\.countries > 0 \? \(\s*<TouchableOpacity testID="share-open"/);
+        // the same button in both layouts (landscape row, portrait panel)
+        expect((app.match(/\{shareButton\(/g) || []).length).toBe(2);
         expect(app).toMatch(/testID="share-open"[\s\S]{0,400}\{t\('shareGlobe'\) as string\}/);
     });
 

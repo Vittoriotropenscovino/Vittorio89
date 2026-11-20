@@ -13,7 +13,7 @@ import path from 'path';
 // arrows ‹ ›, tapping a photo or a thumbnail, the dark backdrop that closes a
 // panel, the small ✕ that clears a search field.
 const LABEL_DEBT: Record<string, number> = {
-    'App.tsx': 5,
+    'App.tsx': 1, // the ≡ Menu button (decided with the side menu, block C)
     'src/components/CalendarView.tsx': 3,
     'src/components/CountryPickerScreen.tsx': 1, // PERMANENT: ✕ that clears the search
     'src/components/HelpGuide.tsx': 1,

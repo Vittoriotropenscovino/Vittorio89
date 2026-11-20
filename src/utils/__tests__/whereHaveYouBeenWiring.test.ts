@@ -59,7 +59,11 @@ describe('when "Where have you been?" opens', () => {
         expect(bar).toContain("openModalWithHaptic('stats')");
         expect(bar).toContain("t('statistics')");
         expect(bar).not.toMatch(/trips\.length > 0 &&/);
-        expect((bar.match(/styles\.statValue/g) || []).length).toBe(3);
+        expect((bar.match(/styles\.statValue\b(?!Gold)/g) || []).length).toBe(3);
+        // 1.4.0: the countries (what is "visited") in gold
+        expect(bar).toMatch(/flag-outline" size=\{13\} color="#FBBF24"[\s\S]{0,120}styles\.statValueGold[\s\S]{0,40}stats\.countries/);
+        // one bar for both layouts
+        expect((app.match(/\{statsBar\(/g) || []).length).toBe(2);
     });
 });
 
@@ -179,6 +183,15 @@ describe('the globe at startup', () => {
         expect(ready).toMatch(/if \(start\) \{/);
         // a trip already selected wins over the startup view
         expect(ready).toContain('!targetCoordinates');
+    });
+
+    it('1.4.0: the globe re-measures itself when its box is laid out (cold start in portrait)', () => {
+        expect(earth).toContain('<View style={styles.container} onLayout={refit}>');
+        expect(earth).toContain("window.dispatchEvent(new Event('resize'))");
+        const ready = earth.slice(earth.indexOf("if (data.type === 'ready')"), earth.indexOf("data.type === 'countryClick'"));
+        expect(ready).toContain('refit();');
+        // the page listens to that event and resizes the globe
+        expect(globe).toContain("window.addEventListener('resize',function(){if(globe)globe.width(window.innerWidth).height(window.innerHeight);});");
     });
 
     it('the globe page jumps there at once, keeping its zoom', () => {

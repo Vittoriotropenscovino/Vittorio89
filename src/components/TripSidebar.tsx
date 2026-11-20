@@ -24,6 +24,8 @@ interface Props {
     onOpenStats?: () => void;
     onOpenCalendar?: () => void;
     onOpenHelpGuide?: () => void;
+    // "Cast to TV" (Android only): moved here from the top bar in 1.4.0
+    onCastScreen?: () => void;
     homeLocation?: HomeLocation | null;
 }
 
@@ -36,7 +38,7 @@ interface CountrySection {
 
 const TripSidebar: React.FC<Props> = ({
     trips, visible, onClose, onTripSelect, onDelete,
-    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, onOpenHelpGuide, homeLocation,
+    onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, onOpenHelpGuide, onCastScreen, homeLocation,
 }) => {
     const { t } = useApp();
     const { width: screenWidth } = useWindowDimensions();
@@ -240,6 +242,12 @@ const TripSidebar: React.FC<Props> = ({
                                     <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
                                 </TouchableOpacity>
                             )}
+                            {onCastScreen && (
+                                <TouchableOpacity testID="cast-tv" style={styles.quickActionBtn} onPress={() => { onCastScreen(); onClose(); }}>
+                                    <Ionicons name="tv-outline" size={16} color="#00d4ff" />
+                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('castToTv')}</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         <View style={styles.searchContainer}>
                             <Ionicons name="search" size={16} color="#6B7280" />
@@ -314,9 +322,10 @@ const styles = StyleSheet.create({
     sidebarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
     closeBtnSidebar: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
     sidebarTitle: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
-    quickActions: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-    quickActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },
-    quickActionText: { color: '#9CA3AF', fontSize: 10, fontWeight: '500', flexShrink: 1 },
+    // 2 per row (1.4.0): six actions, each with its whole label
+    quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+    quickActionBtn: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },
+    quickActionText: { color: '#9CA3AF', fontSize: 12, fontWeight: '500', flexShrink: 1 },
     homeActionSet: { borderColor: 'rgba(255,215,0,0.2)', backgroundColor: 'rgba(255,215,0,0.06)' },
     homeActionUnset: { borderColor: 'rgba(255,215,0,0.15)', backgroundColor: 'rgba(255,215,0,0.04)' },
     searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 8, marginBottom: 10 },

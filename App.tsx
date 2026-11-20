@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Platform, Animated, Easing, BackHandler, Alert, Linking, AppState,
+  Platform, Animated, Easing, Alert, Linking, AppState, ScrollView, StyleProp, ViewStyle,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -43,6 +43,7 @@ import { clusterTrips } from './src/utils/clusterTrips';
 import { getTravelStats } from './src/utils/travelStats';
 import { getVisitedCountries } from './src/utils/visitedCountries';
 import { globeTargetFor } from './src/utils/countryPicker';
+import { useOrientation } from './src/hooks/useOrientation';
 import { countryName } from './src/utils/countries';
 import { dismissRecapYear, getYearRecap, recapCampaign, recapNoticeYear } from './src/utils/yearRecap';
 
@@ -61,6 +62,7 @@ const AppContent: React.FC = () => {
   // overlays below would otherwise sit under the system bars / camera cutout,
   // which in landscape means the left or right edge, not just top/bottom.
   const insets = useSafeAreaInsets();
+  const { isPortrait, height: winH } = useOrientation();
 
   const {
     trips, setTrips, itineraries, setItineraries, isLoading,
@@ -298,17 +300,6 @@ const AppContent: React.FC = () => {
     if (activeModal !== 'none' || selectedTrip || sidebarOpen) setCountriesResultVisible(false);
   }, [activeModal, selectedTrip, sidebarOpen]);
 
-  const handleExitApp = useCallback(() => {
-    Alert.alert(
-      t('exitApp') as string,
-      t('exitConfirm') as string,
-      [
-        { text: t('no') as string, style: 'cancel' },
-        { text: t('yes') as string, onPress: () => BackHandler.exitApp() },
-      ]
-    );
-  }, [t]);
-
   const handleCastScreen = useCallback(() => {
     if (Platform.OS === 'android') {
       Linking.sendIntent('android.settings.CAST_SETTINGS').catch(() => {
@@ -364,29 +355,137 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // ---- Main screen pieces, shared by the landscape and the portrait layout ----
+  const globeH = Math.round(winH * 0.58);
+  const showWelcome = trips.length === 0 && !countriesResultVisible;
+  const routesOn = settings.showTravelLines !== false;
+
+  // The numbers bar: ONE bar, always the same three numbers, a tap opens
+  // Statistics (written on the bar, like every button). 1.4.0: the countries,
+  // i.e. what is "visited", are in gold.
+  const statsBar = (style: StyleProp<ViewStyle>) => (
+    <TouchableOpacity
+      testID="stats-bar"
+      style={style}
+      onPress={() => openModalWithHaptic('stats')}
+      accessibilityRole="button"
+      accessibilityLabel={t('statistics') as string}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.statsRow, isPortrait && styles.statsRowPortrait]}>
+        <View style={styles.statItem}>
+          <Ionicons name="airplane" size={13} color="#00d4ff" />
+          <Text style={styles.statValue}>{stats.visitedTrips}</Text>
+          <Text style={styles.statLabel}>{stats.visitedTrips === 1 ? t('trip_s') : t('trips_p')}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Ionicons name="images-outline" size={13} color="#00d4ff" />
+          <Text style={styles.statValue}>{stats.totalMedia}</Text>
+          <Text style={styles.statLabel}>{t('media')}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Ionicons name="flag-outline" size={13} color="#FBBF24" />
+          <Text style={[styles.statValue, styles.statValueGold]}>{stats.countries}</Text>
+          <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Ionicons name="stats-chart" size={13} color="#00d4ff" />
+          <Text style={styles.statsOpenText}>{t('statistics') as string}</Text>
+          <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // "Where have you been?": always reachable from the main screen
+  const whereBeenButton = (style?: StyleProp<ViewStyle>) => (
+    <TouchableOpacity testID="wb-open" style={[styles.whereBeenButton, style]} onPress={() => setCountryPicker('normal')} accessibilityRole="button">
+      <Ionicons name="flag" size={16} color="#FBBF24" />
+      <Text style={styles.whereBeenText} numberOfLines={1}>{t('wbTitle') as string}</Text>
+    </TouchableOpacity>
+  );
+
+  // Sharing at the centre: available as soon as there is one country
+  const shareButton = (style?: StyleProp<ViewStyle>) => (stats.countries > 0 ? (
+    <TouchableOpacity testID="share-open" style={[styles.whereBeenButton, styles.shareButton, style]} onPress={handleShareGlobe} accessibilityRole="button">
+      <Ionicons name="share-social" size={16} color="#1C1300" />
+      <Text style={[styles.whereBeenText, styles.shareButtonText]} numberOfLines={1}>{t('shareGlobe') as string}</Text>
+    </TouchableOpacity>
+  ) : null);
+
+  const addTripButton = (style?: StyleProp<ViewStyle>) => (
+    <TouchableOpacity testID="Add Trip" style={[styles.addButton, style]} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
+      <Ionicons name="add" size={28} color="#fff" />
+      <Text style={styles.addButtonText}>{t('addTrip')}</Text>
+    </TouchableOpacity>
+  );
+
+  // The routes on the globe (home → trips, itineraries): on/off. Written label
+  // since 1.4.0: "Routes" in landscape, "Travel routes" in the portrait panel.
+  const routesButton = (label: string, style?: StyleProp<ViewStyle>) => (
+    <TouchableOpacity
+      testID="routes-toggle"
+      style={[styles.goldPill, !routesOn && styles.goldPillOff, style]}
+      onPress={handleToggleTravelLines}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: routesOn }}
+    >
+      <Ionicons name="git-network-outline" size={18} color={routesOn ? '#F59E0B' : '#6B7280'} />
+      <Text style={[styles.goldPillText, !routesOn && styles.goldPillTextOff]} numberOfLines={1}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  const itineraryButton = (style?: StyleProp<ViewStyle>) => (
+    <TouchableOpacity testID="itineraries-open" style={[styles.goldPill, style]} onPress={() => openModalWithHaptic('itineraryManager')} accessibilityRole="button">
+      <Ionicons name="git-merge-outline" size={18} color="#F59E0B" />
+      <Text style={styles.goldPillText} numberOfLines={1}>{t('itineraries') as string}</Text>
+    </TouchableOpacity>
+  );
+
+  const freeTripsLine = (() => {
+    if (isPremium) return null;
+    const nwc = trips.filter(tr => !tr.isWishlist).length;
+    const rem = FREE_TRIP_LIMIT - nwc;
+    if (nwc > 0 && rem > 0) {
+      return (
+        <Text style={[styles.freeTripsIndicator, isPortrait && styles.freeTripsCentered, rem <= 1 && { color: '#EF4444' }]}>
+          {String(t('freeTripsRemaining')).replace('{0}', String(rem))}
+        </Text>
+      );
+    }
+    return null;
+  })();
+
   return (
     <View style={styles.container}>
-      {/* Layer 0: Globe */}
-      <EarthGlobe
-        trips={trips}
-        clusteredPins={clusteredPins}
-        onPinClick={(trip, clusterTripList) => {
-          if (clusterTripList && clusterTripList.length > 1) {
-            setPinSelectorTrips(clusterTripList);
-            setPinSelectorVisible(true);
-          } else {
-            selectTrip(trip);
-          }
-        }}
-        targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
-        homeLocation={settings.homeLocation || null}
-        itineraries={itineraries}
-        showTravelLines={settings.showTravelLines !== false}
-        visitedCountries={visitedCountries}
-        onCountryClick={handleCountryClick}
-        flythroughStops={flythroughStops}
-        selectedTripId={selectedTrip?.id || null}
-      />
+      {/* Layer 0: Globe. Landscape: the whole screen, as before. Portrait (1.4.0):
+          the top ~58%, the panel below. Only the style changes on rotation: the
+          WebView is never remounted, so the globe does not reload. */}
+      <View style={isPortrait ? [styles.globePortrait, { height: globeH }] : StyleSheet.absoluteFill}>
+        <EarthGlobe
+          trips={trips}
+          clusteredPins={clusteredPins}
+          onPinClick={(trip, clusterTripList) => {
+            if (clusterTripList && clusterTripList.length > 1) {
+              setPinSelectorTrips(clusterTripList);
+              setPinSelectorVisible(true);
+            } else {
+              selectTrip(trip);
+            }
+          }}
+          targetCoordinates={selectedTrip ? { latitude: selectedTrip.latitude, longitude: selectedTrip.longitude } : autoFlyTarget}
+          homeLocation={settings.homeLocation || null}
+          itineraries={itineraries}
+          showTravelLines={settings.showTravelLines !== false}
+          visitedCountries={visitedCountries}
+          onCountryClick={handleCountryClick}
+          flythroughStops={flythroughStops}
+          selectedTripId={selectedTrip?.id || null}
+        />
+      </View>
 
       {/* Layer 1: UI overlay */}
       <View style={styles.uiOverlay} pointerEvents="box-none">
@@ -396,7 +495,7 @@ const AppContent: React.FC = () => {
               <Ionicons name="menu" size={28} color="#60A5FA" />
             </TouchableOpacity>
             <View>
-              <Text style={styles.logo}>{t('appName')}</Text>
+              <Text style={[styles.logo, isPortrait && styles.logoPortrait]}>{t('appName')}</Text>
               <Text style={styles.logoSubtitle}>{t('appSubtitle')}</Text>
             </View>
           </View>
@@ -405,18 +504,16 @@ const AppContent: React.FC = () => {
         {/* Offline banner */}
         <OfflineBanner />
 
-        {/* Top-right buttons */}
+        {/* Top right: the version (landscape only, no room next to the logo in
+            portrait) and the test-build tools. 1.4.0: no "Exit" button any more
+            (not needed on Android, refused by Apple); "Cast to TV" is in the menu. */}
         <View style={[styles.topRightButtons, { top: 24 + insets.top, right: 20 + insets.right }]}>
-          <TouchableOpacity style={styles.topButton} onPress={handleCastScreen}>
-            <Ionicons name="tv-outline" size={16} color="#00d4ff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.topButton, styles.exitButton]} onPress={handleExitApp} accessibilityLabel="Exit" accessibilityRole="button">
-            <Ionicons name="power" size={16} color="#EF4444" />
-          </TouchableOpacity>
-          <View style={styles.statusIndicatorInline}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{`v${Constants.expoConfig?.version ?? '1.1.0'}`}</Text>
-          </View>
+          {!isPortrait && (
+            <View style={styles.statusIndicatorInline}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>{`v${Constants.expoConfig?.version ?? '1.1.0'}`}</Text>
+            </View>
+          )}
           {/* Emulator test build only: full-size card samples for the checkpoint PNGs */}
           {FREE_ROTATION && (
             <TouchableOpacity testID="card-dev-open" style={styles.topButton} onPress={() => setCardPreviewDev(true)}>
@@ -437,72 +534,6 @@ const AppContent: React.FC = () => {
           )}
         </View>
 
-        {/* Bottom-left numbers: ONE bar, always the same three numbers, a tap opens
-            Statistics (written on the bar, like every button). Kept apart from the
-            "Where have you been?" / "Share" buttons above it. */}
-        <TouchableOpacity
-          testID="stats-bar"
-          style={[styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }]}
-          onPress={() => openModalWithHaptic('stats')}
-          accessibilityRole="button"
-          accessibilityLabel={t('statistics') as string}
-          activeOpacity={0.7}
-        >
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Ionicons name="airplane" size={13} color="#00d4ff" />
-              <Text style={styles.statValue}>{stats.visitedTrips}</Text>
-              <Text style={styles.statLabel}>{stats.visitedTrips === 1 ? t('trip_s') : t('trips_p')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="images-outline" size={13} color="#00d4ff" />
-              <Text style={styles.statValue}>{stats.totalMedia}</Text>
-              <Text style={styles.statLabel}>{t('media')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="flag-outline" size={13} color="#00d4ff" />
-              <Text style={styles.statValue}>{stats.countries}</Text>
-              <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="stats-chart" size={13} color="#00d4ff" />
-              <Text style={styles.statsOpenText}>{t('statistics') as string}</Text>
-              <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* "Where have you been?": always reachable from the main screen */}
-        <View style={[styles.mainActions, { bottom: 76 + insets.bottom, left: 20 + insets.left }]}>
-          <TouchableOpacity testID="wb-open" style={styles.whereBeenButton} onPress={() => setCountryPicker('normal')} accessibilityRole="button">
-            <Ionicons name="flag" size={16} color="#FBBF24" />
-            <Text style={styles.whereBeenText}>{t('wbTitle') as string}</Text>
-          </TouchableOpacity>
-          {/* Sharing at the centre: available as soon as there is one country */}
-          {stats.countries > 0 && (
-            <TouchableOpacity testID="share-open" style={[styles.whereBeenButton, styles.shareButton]} onPress={handleShareGlobe} accessibilityRole="button">
-              <Ionicons name="share-social" size={16} color="#1C1300" />
-              <Text style={[styles.whereBeenText, styles.shareButtonText]}>{t('shareGlobe') as string}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Welcome overlay */}
-        {trips.length === 0 && !countriesResultVisible && (
-          <View style={[styles.welcomeOverlay, { bottom: 100 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
-            <View style={styles.welcomeCard}>
-              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-              <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
-              <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
-              <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
-              <View style={styles.welcomeArrow}><Ionicons name="arrow-forward" size={16} color="rgba(0,212,255,0.5)" /></View>
-            </View>
-          </View>
-        )}
-
         {/* Year recap notice (1 Dec – 31 Jan, until closed for that year) */}
         {yearRecap && !countriesResultVisible && !recapSheetVisible && !shareSheetVisible && (
           <RecapNotice
@@ -514,36 +545,76 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {/* Add buttons */}
-        <View style={[styles.addButtonContainer, { bottom: 28 + insets.bottom, right: 20 + insets.right }]}>
-          <TouchableOpacity
-            style={[styles.travelLinesButton, settings.showTravelLines === false && styles.travelLinesButtonOff]}
-            onPress={handleToggleTravelLines}
-          >
-            <Ionicons name="git-network-outline" size={20} color={settings.showTravelLines !== false ? '#F59E0B' : '#6B7280'} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.itineraryButton} onPress={() => openModalWithHaptic('itineraryManager')}>
-            <Ionicons name="git-merge-outline" size={20} color="#F59E0B" />
-          </TouchableOpacity>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity testID="Add Trip" style={styles.addButton} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
-              <Ionicons name="add" size={28} color="#fff" />
-              <Text style={styles.addButtonText}>{t('addTrip')}</Text>
-            </TouchableOpacity>
-          </Animated.View>
-          {!isPremium && (() => {
-            const nwc = trips.filter(tr => !tr.isWishlist).length;
-            const rem = FREE_TRIP_LIMIT - nwc;
-            if (nwc > 0 && rem > 0) {
-              return (
-                <Text style={[styles.freeTripsIndicator, rem <= 1 && { color: '#EF4444' }]}>
-                  {String(t('freeTripsRemaining')).replace('{0}', String(rem))}
-                </Text>
-              );
-            }
-            return null;
-          })()}
-        </View>
+        {isPortrait ? (
+          /* Portrait: the panel under the globe, everything within thumb reach.
+             Always open: it all fits; on very small phones it scrolls. */
+          <View testID="main-panel" style={[styles.panel, { top: globeH - 24 }]}>
+            <View style={styles.panelHandle} />
+            <ScrollView
+              contentContainerStyle={[styles.panelContent, { paddingBottom: 16 + insets.bottom, paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right }]}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {showWelcome && (
+                <View style={styles.welcomeRow}>
+                  <Ionicons name="earth" size={22} color="#00d4ff" />
+                  <View style={styles.welcomeRowText}>
+                    <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
+                    <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
+                  </View>
+                </View>
+              )}
+              {statsBar(styles.statsBarPortrait)}
+              <View style={styles.panelRow}>
+                {whereBeenButton(styles.flex1)}
+                {shareButton(styles.flex1)}
+              </View>
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                {addTripButton(styles.addButtonPortrait)}
+              </Animated.View>
+              {freeTripsLine}
+              <View style={styles.panelRow}>
+                {itineraryButton(styles.flex1)}
+                {routesButton(t('travelRoutes') as string, styles.flex1)}
+              </View>
+            </ScrollView>
+          </View>
+        ) : (
+          <>
+            {statsBar([styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }])}
+
+            {/* "Where have you been?" and sharing: always reachable from the main screen */}
+            <View style={[styles.mainActions, { bottom: 76 + insets.bottom, left: 20 + insets.left }]}>
+              {whereBeenButton()}
+              {shareButton()}
+            </View>
+
+            {/* Welcome overlay */}
+            {showWelcome && (
+              <View style={[styles.welcomeOverlay, { bottom: 100 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
+                <View style={styles.welcomeCard}>
+                  <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                  <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
+                  <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
+                  <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
+                  <View style={styles.welcomeArrow}><Ionicons name="arrow-forward" size={16} color="rgba(0,212,255,0.5)" /></View>
+                </View>
+              </View>
+            )}
+
+            {/* Add buttons: "Routes", "Itineraries" (written labels, 1.4.0), "Add Trip" */}
+            <View style={[styles.addButtonContainer, { bottom: 28 + insets.bottom, right: 20 + insets.right }]}>
+              {routesButton(t('routes') as string)}
+              {itineraryButton()}
+              <View style={styles.addColumn}>
+                <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                  {addTripButton()}
+                </Animated.View>
+                {freeTripsLine}
+              </View>
+            </View>
+          </>
+        )}
       </View>
 
       <CountriesResultPanel
@@ -591,6 +662,7 @@ const AppContent: React.FC = () => {
         onOpenStats={() => openModalWithHaptic('stats')}
         onOpenCalendar={() => openModalWithHaptic('calendar')}
         onOpenHelpGuide={() => openModalWithHaptic('helpGuide')}
+        onCastScreen={Platform.OS === 'android' ? handleCastScreen : undefined}
         homeLocation={settings.homeLocation || null} />
 
       {/* Settings & screens */}
@@ -709,9 +781,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5,5,20,0.7)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)',
     borderRadius: 20, width: 36, height: 36, justifyContent: 'center', alignItems: 'center',
   },
-  exitButton: {
-    borderColor: 'rgba(239,68,68,0.2)',
-  },
   statusIndicatorInline: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(5,5,20,0.5)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)',
@@ -743,19 +812,6 @@ const styles = StyleSheet.create({
   welcomeText: { color: 'rgba(156,163,175,0.9)', fontSize: 12, lineHeight: 18 },
   welcomeArrow: { alignItems: 'flex-end', marginTop: 8 },
   addButtonContainer: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  travelLinesButton: {
-    backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
-    borderRadius: 50, width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
-    ...Platform.select({ android: { elevation: 12 } }),
-  },
-  travelLinesButtonOff: {
-    backgroundColor: 'rgba(107,114,128,0.15)', borderColor: 'rgba(107,114,128,0.3)',
-  },
-  itineraryButton: {
-    backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
-    borderRadius: 50, width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
-    ...Platform.select({ android: { elevation: 12 } }),
-  },
   addButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#00d4ff',
     borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24,
@@ -775,6 +831,44 @@ const styles = StyleSheet.create({
   shareButton: { backgroundColor: '#FBBF24', borderColor: '#FBBF24' },
   shareButtonText: { color: '#1C1300' },
   freeTripsIndicator: { color: '#F59E0B', fontSize: 11, fontWeight: '600', marginTop: 4 },
+  freeTripsCentered: { textAlign: 'center', marginTop: -2 },
+  logoPortrait: { fontSize: 22, letterSpacing: 1.5 },
+  statValueGold: { color: '#FBBF24' },
+  addColumn: { alignItems: 'center' },
+  // Routes / Itineraries: amber pills with a written label (1.4.0)
+  goldPill: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    backgroundColor: 'rgba(245,158,11,0.15)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
+    borderRadius: 999, height: 44, paddingHorizontal: 14,
+    ...Platform.select({ android: { elevation: 12 } }),
+  },
+  goldPillOff: { backgroundColor: 'rgba(107,114,128,0.15)', borderColor: 'rgba(107,114,128,0.3)' },
+  goldPillText: { color: '#F59E0B', fontSize: 13, fontWeight: '700' },
+  goldPillTextOff: { color: '#9CA3AF' },
+  // Portrait (1.4.0): globe on top, panel underneath
+  globePortrait: { position: 'absolute', top: 0, left: 0, right: 0 },
+  panel: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(8,10,24,0.97)', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: 'rgba(0,212,255,0.18)',
+    ...Platform.select({ android: { elevation: 14 } }),
+  },
+  panelHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 8 },
+  panelContent: { paddingTop: 12, gap: 12 },
+  panelRow: { flexDirection: 'row', gap: 10 },
+  flex1: { flex: 1 },
+  statsBarPortrait: {
+    backgroundColor: 'rgba(5,5,20,0.7)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 11,
+  },
+  statsRowPortrait: { justifyContent: 'space-between', gap: 6 },
+  addButtonPortrait: { justifyContent: 'center', paddingVertical: 15 },
+  welcomeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.18)',
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  welcomeRowText: { flex: 1 },
 });
 
 export default App;

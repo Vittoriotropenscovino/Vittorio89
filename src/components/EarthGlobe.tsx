@@ -162,6 +162,18 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
     );
   }, []);
 
+  // 1.4.0: the globe box changes size (portrait 58% / landscape full screen, and
+  // on rotation). The globe page sizes itself from window.innerWidth/innerHeight
+  // and its own 'resize' listener; when the WebView is laid out after the page
+  // has started (cold start in portrait) that event never comes and the globe
+  // stays black. So every time the box is laid out, and when the page is ready,
+  // the page is told to measure itself again (now and once more a moment later).
+  const refit = useCallback(() => {
+    const js = "try{window.dispatchEvent(new Event('resize'));}catch(e){}true;";
+    webViewRef.current?.injectJavaScript(js);
+    setTimeout(() => webViewRef.current?.injectJavaScript(js), 400);
+  }, []);
+
   const pinData = useCallback((pins: ClusteredPin[]) => pins.map((p) => ({
     id: p.id,
     latitude: p.latitude,
@@ -243,6 +255,7 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
         if (data.type === 'ready') {
           if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
           isReady.current = true;
+          refit();
           setGlobeReady(true);
           setLoadError(false);
           const src = pendingPins.current !== null ? pendingPins.current : clusteredPins;
@@ -316,12 +329,14 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={refit}>
       <WebView
         ref={webViewRef}
         source={webViewSource}
         style={styles.webview}
         onMessage={handleMessage}
+        // emulator test build only: lets the PC inspect the globe page (never in store builds)
+        webviewDebuggingEnabled={process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1'}
         javaScriptEnabled
         domStorageEnabled
         originWhitelist={ORIGIN_WHITELIST}
