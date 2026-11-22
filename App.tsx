@@ -56,6 +56,8 @@ const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
 const TEST_TOOLS = FREE_ROTATION || process.env.EXPO_PUBLIC_STRUMENTI_PROVA === '1';
 // Landscape main screen: width of the right dock (Routes/Itineraries over Add trip)
 const RIGHT_DOCK_W = 280;
+// Samsung Smart View (screen mirroring to a TV): its public app link
+const SAMSUNG_SMART_VIEW = 'applink://com.samsung.android.smartmirroring/launchActivity';
 // Portrait main screen: height of the title row (Menu button + logo) under the status bar
 const PORTRAIT_HEADER_H = 84;
 const TEST_DATES: (null | [number, number, number])[] = [null, [15, 12, 2026], [10, 1, 2027], [15, 6, 2027], [15, 12, 2027]];
@@ -332,11 +334,21 @@ const AppContent: React.FC = () => {
     if (activeModal !== 'none' || selectedTrip || sidebarOpen) setCountriesResultVisible(false);
   }, [activeModal, selectedTrip, sidebarOpen]);
 
-  const handleCastScreen = useCallback(() => {
-    if (Platform.OS === 'android') {
-      Linking.sendIntent('android.settings.CAST_SETTINGS').catch(() => {
-        Linking.openSettings().catch(() => {});
-      });
+  // "Cast to TV" (side menu). 1.4.0: on Samsung phones Smart View, which finds
+  // the TVs at home (Google Cast found none on the S25 Ultra, phone test 22/11);
+  // elsewhere, or if Smart View is missing or refuses, Android's own screen
+  // casting, then the wireless display settings, then the settings. Each step
+  // fails quietly into the next one: never an error on screen. No permission.
+  const handleCastScreen = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    const tries: (() => Promise<unknown>)[] = [
+      () => Linking.openURL(SAMSUNG_SMART_VIEW),
+      () => Linking.sendIntent('android.settings.CAST_SETTINGS'),
+      () => Linking.sendIntent('android.settings.WIFI_DISPLAY_SETTINGS'),
+      () => Linking.openSettings(),
+    ];
+    for (const open of tries) {
+      try { await open(); return; } catch { /* next one */ }
     }
   }, []);
 

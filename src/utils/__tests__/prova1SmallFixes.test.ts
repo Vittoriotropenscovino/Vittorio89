@@ -6,6 +6,27 @@ import { translations } from '../../i18n/translations';
 const read = (rel: string) => fs.readFileSync(path.join(__dirname, '../../..', rel), 'utf8');
 const app = read('App.tsx');
 
+describe('point 6: "Cast to TV"', () => {
+    const cast = app.slice(app.indexOf('const handleCastScreen'), app.indexOf('const handleToggleTravelLines'));
+
+    it('Samsung Smart View first, then Android casting, then wireless display, then settings', () => {
+        expect(app).toContain("const SAMSUNG_SMART_VIEW = 'applink://com.samsung.android.smartmirroring/launchActivity';");
+        const order = ['Linking.openURL(SAMSUNG_SMART_VIEW)', "'android.settings.CAST_SETTINGS'", "'android.settings.WIFI_DISPLAY_SETTINGS'", 'Linking.openSettings()'];
+        const pos = order.map((o) => cast.indexOf(o));
+        expect(pos.every((p) => p > 0)).toBe(true);
+        expect([...pos].sort((a, b) => a - b)).toEqual(pos);
+    });
+
+    it('a failure never reaches the screen: each step falls into the next one', () => {
+        expect(cast).toContain('try { await open(); return; } catch { /* next one */ }');
+        expect(cast).not.toContain('Alert');
+    });
+
+    it('no new permission or package query in the manifest config', () => {
+        expect(read('app.json')).not.toMatch(/smartmirroring/);
+    });
+});
+
 describe('point 5: small fixes', () => {
     it('"Edit" then X goes back to the open trip; saving does not', () => {
         expect(app).toContain('onDelete={handleDeleteTrip} onEdit={handleEditFromViewer} />');
