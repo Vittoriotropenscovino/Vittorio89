@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, Animated, SectionList,
+    View, Text, StyleSheet, TouchableOpacity, Animated, SectionList, ScrollView,
     TextInput, Platform, useWindowDimensions,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -44,8 +44,16 @@ const TripSidebar: React.FC<Props> = ({
     const { t } = useApp();
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const insets = useSafeAreaInsets();
-    // 1.4.0: wider in portrait (86%), as before in landscape
-    const sidebarWidth = Math.min(screenWidth * (screenHeight > screenWidth ? 0.86 : 0.78), 420);
+    // 1.4.0: portrait 86% of the screen. Landscape: two panes side by side (the
+    // buttons and filters on the left, the trips on the right), so the trips are
+    // visible at once instead of under six buttons (phone test 22/11).
+    const landscape = screenWidth > screenHeight;
+    const sidebarWidth = landscape ? Math.min(screenWidth * 0.84, 760) : Math.min(screenWidth * 0.86, 420);
+    // The quick actions: 2 per row, widths in numbers, recomputed at every
+    // rotation. A '47%' basis plus adjustsFontSizeToFit kept the sizes measured
+    // before the rotation and fell to one per row (6 rows over the trip list).
+    const controlsWidth = landscape ? CONTROLS_PANE_W : sidebarWidth - (16 + insets.left) - 16 - 1;
+    const quickW = Math.floor((controlsWidth - QUICK_GAP) / 2);
     const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
@@ -57,6 +65,8 @@ const TripSidebar: React.FC<Props> = ({
     useEffect(() => {
         if (visible) {
             setIsRendered(true);
+            // start fully hidden at the CURRENT width (it changes with the rotation)
+            slideAnim.setValue(-sidebarWidth);
             Animated.parallel([
                 Animated.spring(slideAnim, { toValue: 0, tension: 65, friction: 11, useNativeDriver: true }),
                 Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -198,6 +208,113 @@ const TripSidebar: React.FC<Props> = ({
         </View>
     );
 
+    // Buttons, search, sort and tag filters; then the trips. Portrait: one column.
+    // Landscape: two panes (see sidebarWidth).
+    const controls = (
+        <>
+            <View key={`qa-${quickW}`} style={styles.quickActions}>
+                {onOpenSettings && (
+                    <TouchableOpacity
+                        style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact, homeLocation ? styles.homeActionSet : styles.homeActionUnset]}
+                        onPress={() => { onOpenSettings(); onClose(); }}>
+                        <Ionicons name="home" size={16} color="#FFD700" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                            {homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+                {onOpenStats && (
+                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenStats(); onClose(); }}>
+                        <Ionicons name="stats-chart" size={16} color="#00d4ff" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics')}</Text>
+                    </TouchableOpacity>
+                )}
+                {onOpenCalendar && (
+                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenCalendar(); onClose(); }}>
+                        <Ionicons name="calendar" size={16} color="#00d4ff" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('calendar')}</Text>
+                    </TouchableOpacity>
+                )}
+                {onOpenSettings && (
+                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenSettings(); onClose(); }}>
+                        <Ionicons name="settings" size={16} color="#00d4ff" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('settings')}</Text>
+                    </TouchableOpacity>
+                )}
+                {onOpenHelpGuide && (
+                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenHelpGuide(); onClose(); }}>
+                        <Ionicons name="help-circle" size={16} color="#00d4ff" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
+                    </TouchableOpacity>
+                )}
+                {onCastScreen && (
+                    <TouchableOpacity testID="cast-tv" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onCastScreen(); onClose(); }}>
+                        <Ionicons name="tv-outline" size={16} color="#00d4ff" />
+                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('castToTv')}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+            <View style={styles.searchContainer}>
+                <Ionicons name="search" size={16} color="#6B7280" />
+                <TextInput style={styles.searchInput} placeholder={t('searchTrips') as string}
+                    placeholderTextColor="#6B7280" value={searchQuery} onChangeText={setSearchQuery} />
+                {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}><Ionicons name="close-circle" size={16} color="#6B7280" /></TouchableOpacity>
+                )}
+            </View>
+            <View style={styles.sortRow}>
+                {sortButtons.map((btn) => (
+                    <TouchableOpacity key={btn.mode} style={[styles.sortBtn, sortMode === btn.mode && styles.sortBtnActive]}
+                        onPress={() => setSortMode(btn.mode)}>
+                        <Ionicons name={btn.icon as any} size={12} color={sortMode === btn.mode ? '#00d4ff' : '#6B7280'} />
+                        <Text style={[styles.sortText, sortMode === btn.mode && styles.sortTextActive]}>{btn.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+            <View style={styles.tagFilterRow}>
+                <TouchableOpacity style={[styles.tagFilterChip, !filterTag && styles.tagFilterActive]}
+                    onPress={() => setFilterTag(null)}>
+                    <Text style={[styles.tagFilterText, !filterTag && styles.tagFilterTextActive]}>{t('all')}</Text>
+                </TouchableOpacity>
+                {allTags.map((tag) => (
+                    <TouchableOpacity key={tag}
+                        style={[styles.tagFilterChip, filterTag === tag && { borderColor: TAG_CONFIG[tag].color, backgroundColor: TAG_CONFIG[tag].color + '15' }]}
+                        onPress={() => setFilterTag(filterTag === tag ? null : tag)}>
+                        <Ionicons name={TAG_CONFIG[tag].icon as any} size={12} color={filterTag === tag ? TAG_CONFIG[tag].color : '#6B7280'} />
+                        <Text style={[styles.tagFilterText, filterTag === tag && { color: TAG_CONFIG[tag].color }]}>{t(tag as any)}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        </>
+    );
+
+    const tripList = sortMode === 'country' && countrySections.length > 0 ? (
+        <SectionList
+            sections={countrySections.map(section => ({
+                ...section,
+                realCount: section.data.length,
+                data: collapsedSections.has(section.title) ? [] : section.data,
+            }))}
+            renderItem={renderTrip}
+            renderSectionHeader={renderSectionHeader}
+            keyExtractor={(item) => item.id}
+            style={styles.tripList}
+            showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+            ListEmptyComponent={emptyComponent}
+        />
+    ) : (
+        <SectionList
+            sections={filteredTrips.length > 0 ? [{ title: '', data: filteredTrips }] : []}
+            renderItem={renderTrip}
+            renderSectionHeader={() => null}
+            keyExtractor={(item) => item.id}
+            style={styles.tripList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={emptyComponent}
+        />
+    );
+
     return (
         <>
             <Animated.View style={[styles.backdrop, { opacity: backdropOpacity, ...Platform.select({ android: { elevation: 100 } }) }]}>
@@ -213,105 +330,18 @@ const TripSidebar: React.FC<Props> = ({
                                 <Text style={styles.closeText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
-                        <View style={styles.quickActions}>
-                            {onOpenSettings && (
-                                <TouchableOpacity
-                                    style={[styles.quickActionBtn, homeLocation ? styles.homeActionSet : styles.homeActionUnset]}
-                                    onPress={() => { onOpenSettings(); onClose(); }}>
-                                    <Ionicons name="home" size={16} color="#FFD700" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                                        {homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                            {onOpenStats && (
-                                <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenStats(); onClose(); }}>
-                                    <Ionicons name="stats-chart" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics')}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {onOpenCalendar && (
-                                <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenCalendar(); onClose(); }}>
-                                    <Ionicons name="calendar" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('calendar')}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {onOpenSettings && (
-                                <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenSettings(); onClose(); }}>
-                                    <Ionicons name="settings" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('settings')}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {onOpenHelpGuide && (
-                                <TouchableOpacity style={styles.quickActionBtn} onPress={() => { onOpenHelpGuide(); onClose(); }}>
-                                    <Ionicons name="help-circle" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {onCastScreen && (
-                                <TouchableOpacity testID="cast-tv" style={styles.quickActionBtn} onPress={() => { onCastScreen(); onClose(); }}>
-                                    <Ionicons name="tv-outline" size={16} color="#00d4ff" />
-                                    <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('castToTv')}</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                        <View style={styles.searchContainer}>
-                            <Ionicons name="search" size={16} color="#6B7280" />
-                            <TextInput style={styles.searchInput} placeholder={t('searchTrips') as string}
-                                placeholderTextColor="#6B7280" value={searchQuery} onChangeText={setSearchQuery} />
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}><Ionicons name="close-circle" size={16} color="#6B7280" /></TouchableOpacity>
-                            )}
-                        </View>
-                        <View style={styles.sortRow}>
-                            {sortButtons.map((btn) => (
-                                <TouchableOpacity key={btn.mode} style={[styles.sortBtn, sortMode === btn.mode && styles.sortBtnActive]}
-                                    onPress={() => setSortMode(btn.mode)}>
-                                    <Ionicons name={btn.icon as any} size={12} color={sortMode === btn.mode ? '#00d4ff' : '#6B7280'} />
-                                    <Text style={[styles.sortText, sortMode === btn.mode && styles.sortTextActive]}>{btn.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        <View style={styles.tagFilterRow}>
-                            <TouchableOpacity style={[styles.tagFilterChip, !filterTag && styles.tagFilterActive]}
-                                onPress={() => setFilterTag(null)}>
-                                <Text style={[styles.tagFilterText, !filterTag && styles.tagFilterTextActive]}>{t('all')}</Text>
-                            </TouchableOpacity>
-                            {allTags.map((tag) => (
-                                <TouchableOpacity key={tag}
-                                    style={[styles.tagFilterChip, filterTag === tag && { borderColor: TAG_CONFIG[tag].color, backgroundColor: TAG_CONFIG[tag].color + '15' }]}
-                                    onPress={() => setFilterTag(filterTag === tag ? null : tag)}>
-                                    <Ionicons name={TAG_CONFIG[tag].icon as any} size={12} color={filterTag === tag ? TAG_CONFIG[tag].color : '#6B7280'} />
-                                    <Text style={[styles.tagFilterText, filterTag === tag && { color: TAG_CONFIG[tag].color }]}>{t(tag as any)}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        {sortMode === 'country' && countrySections.length > 0 ? (
-                            <SectionList
-                                sections={countrySections.map(section => ({
-                                    ...section,
-                                    realCount: section.data.length,
-                                    data: collapsedSections.has(section.title) ? [] : section.data,
-                                }))}
-                                renderItem={renderTrip}
-                                renderSectionHeader={renderSectionHeader}
-                                keyExtractor={(item) => item.id}
-                                style={styles.tripList}
-                                showsVerticalScrollIndicator={false}
-                                stickySectionHeadersEnabled={false}
-                                ListEmptyComponent={emptyComponent}
-                            />
+                        {landscape ? (
+                            <View style={styles.twoPane}>
+                                <ScrollView style={{ width: CONTROLS_PANE_W }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                    {controls}
+                                </ScrollView>
+                                <View style={styles.listPane}>{tripList}</View>
+                            </View>
                         ) : (
-                            <SectionList
-                                sections={filteredTrips.length > 0 ? [{ title: '', data: filteredTrips }] : []}
-                                renderItem={renderTrip}
-                                renderSectionHeader={() => null}
-                                keyExtractor={(item) => item.id}
-                                style={styles.tripList}
-                                showsVerticalScrollIndicator={false}
-                                ListEmptyComponent={emptyComponent}
-                            />
+                            <>
+                                {controls}
+                                {tripList}
+                            </>
                         )}
                     </View>
                 </BlurView>
@@ -319,6 +349,10 @@ const TripSidebar: React.FC<Props> = ({
         </>
     );
 };
+
+// Landscape: width of the left pane (buttons, search, filters)
+const CONTROLS_PANE_W = 290;
+const QUICK_GAP = 8;
 
 const styles = StyleSheet.create({
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50 },
@@ -332,10 +366,13 @@ const styles = StyleSheet.create({
     favBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     favText: { color: '#F43F5E', fontSize: 11, fontWeight: '700' },
     sidebarTitle: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
-    // 2 per row (1.4.0): six actions, each with its whole label
-    quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-    quickActionBtn: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },
+    // 2 per row (1.4.0): six actions, each with its whole label; width set in numbers
+    quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: QUICK_GAP, marginBottom: 14 },
+    quickActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 10, paddingVertical: 8 },
     quickActionText: { color: '#9CA3AF', fontSize: 12, fontWeight: '500', flexShrink: 1 },
+    quickActionCompact: { paddingVertical: 6 },
+    twoPane: { flex: 1, flexDirection: 'row', gap: 16 },
+    listPane: { flex: 1 },
     homeActionSet: { borderColor: 'rgba(255,215,0,0.2)', backgroundColor: 'rgba(255,215,0,0.06)' },
     homeActionUnset: { borderColor: 'rgba(255,215,0,0.15)', backgroundColor: 'rgba(255,215,0,0.04)' },
     searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, gap: 8, marginBottom: 10 },

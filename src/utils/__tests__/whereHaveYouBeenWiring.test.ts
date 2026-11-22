@@ -162,6 +162,29 @@ describe('1.4.0 prova 1 fixes: nothing overlaps, no label is cut (8 languages)',
     });
 });
 
+describe('1.4.0 prova 1 fixes: the side menu survives a rotation', () => {
+    const sidebar = read('src/components/TripSidebar.tsx');
+
+    it('quick actions: 2 per row with widths in numbers, measured again after every rotation', () => {
+        expect(sidebar).not.toContain("flexBasis: '47%'");
+        expect(sidebar).toContain('const quickW = Math.floor((controlsWidth - QUICK_GAP) / 2);');
+        expect(sidebar).toContain('<View key={`qa-${quickW}`} style={styles.quickActions}>');
+        expect((sidebar.match(/\{ width: quickW \}/g) || []).length).toBe(6);
+    });
+
+    it('landscape: two panes, the trips visible at once on the right', () => {
+        expect(sidebar).toMatch(/\{landscape \? \(\s*<View style=\{styles\.twoPane\}>/);
+        expect(sidebar).toContain('<View style={styles.listPane}>{tripList}</View>');
+        // buttons and filters written once, used by both layouts
+        expect((sidebar.match(/\{controls\}/g) || []).length).toBe(2);
+        expect((sidebar.match(/\{tripList\}/g) || []).length).toBe(2);
+    });
+
+    it('opens from fully hidden at the current width', () => {
+        expect(sidebar).toContain('slideAnim.setValue(-sidebarWidth);');
+    });
+});
+
 describe('globe: taps and small states', () => {
     it('a tap on a country tells RN its ISO code', () => {
         expect(globe).toContain('.onPolygonClick(');
