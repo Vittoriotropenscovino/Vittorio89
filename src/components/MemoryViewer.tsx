@@ -14,9 +14,10 @@ import PhotoFullscreen from './PhotoFullscreen';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SHEET_BACKGROUND } from '../utils/surfaces';
+import { formatTripDate } from '../utils/formatDate';
 
 const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
-    const { t } = useApp();
+    const { t, language } = useApp();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [fullscreenIndex, setFullscreenIndex] = useState<number | null>(null);
     const mainListRef = useRef<FlatList>(null);
@@ -42,7 +43,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 
     const handleShare = async () => {
         try {
-            const message = `${trip.title}\n${trip.locationName}\n${trip.date}${trip.notes ? '\n\n' + trip.notes : ''}\n\n— TravelSphere`;
+            const message = `${trip.title}\n${trip.locationName}\n${formatTripDate(trip.date, language)}${trip.notes ? '\n\n' + trip.notes : ''}\n\n— TravelSphere`;
             await Share.share({ message, title: trip.title });
         } catch (e) {
             console.error('Share error:', e);
@@ -175,7 +176,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                                 {trip.date ? (
                                     <>
                                         <Ionicons name="calendar" size={14} color="#00d4ff" style={{ marginLeft: 12 }} />
-                                        <Text style={styles.metaText}>{trip.date}</Text>
+                                        <Text style={styles.metaText}>{formatTripDate(trip.date, language)}</Text>
                                     </>
                                 ) : null}
                             </View>
@@ -239,7 +240,8 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
                         visible={true}
                         media={trip.media}
                         initialIndex={fullscreenIndex}
-                        onClose={() => setFullscreenIndex(null)}
+                        // back in the viewer on the photo that was open full screen
+                        onClose={(index) => { setFullscreenIndex(null); if (index !== currentIndex) goToIndex(index); }}
                     />
                 )}
             </BlurView>

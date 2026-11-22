@@ -10,6 +10,7 @@ import { useApp } from '../contexts/AppContext';
 import { useShareGlobe } from '../hooks/useShareGlobe';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
+import { formatTripDate } from '../utils/formatDate';
 
 interface Props {
     visible: boolean;
@@ -22,7 +23,7 @@ interface Props {
 const NO_MARKED: string[] = [];
 
 const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries = NO_MARKED }) => {
-    const { t, settings, updateSettings } = useApp();
+    const { t, language, settings, updateSettings } = useApp();
     const { height: screenHeight } = useWindowDimensions();
 
     // Capture + share sheet + review prompt: shared with the main-screen entry points.
@@ -162,12 +163,12 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
                             <View style={styles.dateRange}>
                                 <View style={styles.dateItem}>
                                     <Text style={styles.dateLabel}>{t('firstTrip')}</Text>
-                                    <Text style={styles.dateValue}>{stats.firstDate}</Text>
+                                    <Text style={styles.dateValue}>{formatTripDate(stats.firstDate, language)}</Text>
                                 </View>
                                 <Ionicons name="arrow-forward" size={16} color="#4B5563" />
                                 <View style={styles.dateItem}>
                                     <Text style={styles.dateLabel}>{t('lastTrip')}</Text>
-                                    <Text style={styles.dateValue}>{stats.lastDate}</Text>
+                                    <Text style={styles.dateValue}>{formatTripDate(stats.lastDate, language)}</Text>
                                 </View>
                             </View>
 

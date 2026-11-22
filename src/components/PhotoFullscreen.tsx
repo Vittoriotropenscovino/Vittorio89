@@ -22,7 +22,8 @@ interface Props {
     visible: boolean;
     media: MediaItem[];
     initialIndex: number;
-    onClose: () => void;
+    /** Called with the photo on screen, so the trip viewer can stay on it. */
+    onClose: (index: number) => void;
 }
 
 interface ZoomableImageProps {
@@ -200,7 +201,7 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
     };
 
     return (
-        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent={false} statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent={false} statusBarTranslucent hardwareAccelerated onRequestClose={() => onClose(currentIndex)}>
             <GestureHandlerRootView style={styles.container}>
                 <StatusBar hidden={!showUI} />
                 <FlatList
@@ -226,7 +227,7 @@ const PhotoFullscreen: React.FC<Props> = ({ visible, media, initialIndex, onClos
 
                 {showUI && (
                     <>
-                        <TouchableOpacity testID="photo-close" style={[styles.closeBtn, { top: 16 + insets.top, right: 16 + insets.right }]} onPress={onClose} accessibilityRole="button">
+                        <TouchableOpacity testID="photo-close" style={[styles.closeBtn, { top: 16 + insets.top, right: 16 + insets.right }]} onPress={() => onClose(currentIndex)} accessibilityRole="button">
                             <Ionicons name="close" size={22} color="#fff" />
                             <Text style={styles.closeText}>{t('close') as string}</Text>
                         </TouchableOpacity>

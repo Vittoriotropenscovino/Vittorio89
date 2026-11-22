@@ -19,6 +19,7 @@ import { MEDIA_DIR, generateThumbnail } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
+import { formatTripDate } from '../utils/formatDate';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -563,7 +564,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         disabled={!foundLocation}>
                                         <Ionicons name="calendar-outline" size={18} color="#60A5FA" />
                                         <Text style={[styles.dateButtonText, !date && { color: '#6B7280' }]}>
-                                            {date || (t('selectDate') as string)}
+                                            {date ? formatTripDate(date, language) : (t('selectDate') as string)}
                                         </Text>
                                     </TouchableOpacity>
                                 </View>

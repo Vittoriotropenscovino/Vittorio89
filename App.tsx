@@ -205,7 +205,24 @@ const AppContent: React.FC = () => {
     }
   }, [autoFlyTarget]);
 
+  // "Modifica" from an open trip: the viewer closes and the form opens. If the
+  // form is then closed without saving (X or back), go back to that same trip
+  // (1.4.0, phone test 22/11: it used to drop back to the main screen).
+  const editedFromViewer = useRef<string | null>(null);
+  const handleEditFromViewer = useCallback((trip: Trip) => {
+    editedFromViewer.current = trip.id;
+    startEditTrip(trip);
+  }, [startEditTrip]);
+  const handleFormClose = useCallback(() => {
+    const backTo = editedFromViewer.current;
+    editedFromViewer.current = null;
+    closeForm();
+    const trip = backTo ? trips.find((tr) => tr.id === backTo) : undefined;
+    if (trip) selectTrip(trip);
+  }, [closeForm, trips, selectTrip]);
+
   const handleSaveTrip = useCallback((tripData: Omit<Trip, 'id' | 'createdAt'>) => {
+    editedFromViewer.current = null;
     // A wishlist place turned into a visited trip counts against the free limit,
     // like a new trip from "+": otherwise the limit could be skipped this way.
     if (editingTrip?.isWishlist && !tripData.isWishlist) {
@@ -688,9 +705,9 @@ const AppContent: React.FC = () => {
       <SaveConfirmation visible={showSaveConfirm} message={saveMsg} onDone={hideSaveToast} />
 
       {/* Layer 2: Modals */}
-      <TripForm visible={activeModal === 'form'} onClose={closeForm} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} prefillCountry={prefillCountry} />
+      <TripForm visible={activeModal === 'form'} onClose={handleFormClose} onSave={handleSaveTrip} editTrip={editingTrip} itineraries={itineraries} prefillCountry={prefillCountry} />
       <MemoryViewer trip={selectedTrip} visible={!!selectedTrip}
-        onClose={() => selectTrip(null)} onDelete={handleDeleteTrip} onEdit={startEditTrip} />
+        onClose={() => selectTrip(null)} onDelete={handleDeleteTrip} onEdit={handleEditFromViewer} />
       <TripSidebar trips={trips} visible={sidebarOpen} onClose={() => setSidebarOpen(false)}
         onTripSelect={(trip) => selectTrip(trip)} onDelete={handleDeleteTrip}
         onToggleFavorite={toggleFavorite}

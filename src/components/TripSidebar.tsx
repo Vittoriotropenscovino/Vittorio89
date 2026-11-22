@@ -11,6 +11,7 @@ import { useApp } from '../contexts/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCountryFlag } from '../utils/countryFlags';
 import { extractCountryFromLocationName } from '../utils/geocoding';
+import { formatTripDate } from '../utils/formatDate';
 
 type SortMode = 'recent' | 'date' | 'name' | 'favorites' | 'country';
 
@@ -41,7 +42,7 @@ const TripSidebar: React.FC<Props> = ({
     trips, visible, onClose, onTripSelect, onDelete,
     onToggleFavorite, onOpenSettings, onOpenStats, onOpenCalendar, onOpenHelpGuide, onCastScreen, homeLocation,
 }) => {
-    const { t } = useApp();
+    const { t, language } = useApp();
     const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     // 1.4.0: portrait 86% of the screen. Landscape: two panes side by side (the
@@ -156,7 +157,7 @@ const TripSidebar: React.FC<Props> = ({
                 {item.date && (
                     <View style={styles.dateBadge}>
                         <Ionicons name="calendar-outline" size={10} color="#9CA3AF" />
-                        <Text style={styles.dateText}>{item.date}</Text>
+                        <Text style={styles.dateText}>{formatTripDate(item.date, language)}</Text>
                     </View>
                 )}
                 {item.tags && item.tags.length > 0 && (
