@@ -49,11 +49,13 @@ const TripSidebar: React.FC<Props> = ({
     // visible at once instead of under six buttons (phone test 22/11).
     const landscape = screenWidth > screenHeight;
     const sidebarWidth = landscape ? Math.min(screenWidth * 0.84, 760) : Math.min(screenWidth * 0.86, 420);
-    // The quick actions: 2 per row, widths in numbers, recomputed at every
-    // rotation. A '47%' basis plus adjustsFontSizeToFit kept the sizes measured
-    // before the rotation and fell to one per row (6 rows over the trip list).
-    const controlsWidth = landscape ? CONTROLS_PANE_W : sidebarWidth - (16 + insets.left) - 16 - 1;
-    const quickW = Math.floor((controlsWidth - QUICK_GAP) / 2);
+    // The quick actions: 2 per row (3 in the landscape left pane), widths in
+    // numbers, recomputed at every rotation. A '47%' basis plus
+    // adjustsFontSizeToFit kept the sizes measured before the rotation and fell
+    // to one per row (6 rows over the trip list).
+    const quickCols = landscape ? 3 : 2;
+    const controlsWidth = landscape ? Math.round(sidebarWidth * 0.6) : sidebarWidth - (16 + insets.left) - 16 - 1;
+    const quickW = Math.floor((controlsWidth - QUICK_GAP * (quickCols - 1)) / quickCols);
     const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
@@ -332,7 +334,7 @@ const TripSidebar: React.FC<Props> = ({
                         </View>
                         {landscape ? (
                             <View style={styles.twoPane}>
-                                <ScrollView style={{ width: CONTROLS_PANE_W }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                                <ScrollView style={{ width: controlsWidth, flexGrow: 0 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                                     {controls}
                                 </ScrollView>
                                 <View style={styles.listPane}>{tripList}</View>
@@ -350,8 +352,6 @@ const TripSidebar: React.FC<Props> = ({
     );
 };
 
-// Landscape: width of the left pane (buttons, search, filters)
-const CONTROLS_PANE_W = 290;
 const QUICK_GAP = 8;
 
 const styles = StyleSheet.create({

@@ -353,6 +353,13 @@ function go(countries){
 
     globe.width(window.innerWidth).height(window.innerHeight);
     window.addEventListener('resize',function(){if(globe)globe.width(window.innerWidth).height(window.innerHeight);});
+    // Start at the normal distance for this box; after a rotation, if the user had
+    // not zoomed, move to the normal distance of the new box.
+    _homeAlt=homeAltitude();globe.pointOfView({altitude:_homeAlt},0);
+    window.addEventListener('resize',function(){
+      if(!globe)return;var was=_homeAlt;_homeAlt=homeAltitude();
+      if(Math.abs(globe.pointOfView().altitude-was)<0.15)globe.pointOfView({altitude:_homeAlt},400);
+    });
 
     document.addEventListener('message',onMsg);
     window.addEventListener('message',onMsg);
@@ -374,8 +381,14 @@ function fitAltitude(){
     return 1/Math.sin(Math.min(v,h))-1;
   }catch(e){return 1.4;}
 }
-// The normal view (as at startup), never closer than the whole globe plus a margin
-function homeAltitude(){return Math.max(2.5,fitAltitude()*1.15);}
+// The normal view. Landscape: 2.5 as always. Portrait (box about as wide as tall
+// or taller): the whole globe with a margin, so it fills its box instead of
+// floating small in the middle.
+function homeAltitude(){
+  var a=window.innerWidth/Math.max(1,window.innerHeight);
+  return a<1.3?Math.max(1.2,fitAltitude()*1.15):Math.max(2.5,fitAltitude()*1.15);
+}
+var _homeAlt=2.5;
 
 function onPin(p){
   // A small state's glowing dot behaves like a tap on the country.
@@ -406,7 +419,7 @@ function handleCmd(d){
     }
     renderPins();
   }
-  else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:Math.max(1.8,fitAltitude()*1.1)},1500);
+  else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:Math.min(1.8,_homeAlt)},1500);
   else if(d.type==='setView'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},0);
   else if(d.type==='turnTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},1200);
   else if(d.type==='zoomHome'&&globe){var hp=globe.pointOfView();var ha=homeAltitude();if(hp.altitude<ha-0.05)globe.pointOfView({lat:hp.lat,lng:hp.lng,altitude:ha},1000);}

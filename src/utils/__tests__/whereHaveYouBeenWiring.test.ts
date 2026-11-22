@@ -167,7 +167,9 @@ describe('1.4.0 prova 1 fixes: the side menu survives a rotation', () => {
 
     it('quick actions: 2 per row with widths in numbers, measured again after every rotation', () => {
         expect(sidebar).not.toContain("flexBasis: '47%'");
-        expect(sidebar).toContain('const quickW = Math.floor((controlsWidth - QUICK_GAP) / 2);');
+        expect(sidebar).toContain('const quickW = Math.floor((controlsWidth - QUICK_GAP * (quickCols - 1)) / quickCols);');
+        // the left pane really is that wide (a ScrollView grows along a row otherwise)
+        expect(sidebar).toContain('<ScrollView style={{ width: controlsWidth, flexGrow: 0 }}');
         expect(sidebar).toContain('<View key={`qa-${quickW}`} style={styles.quickActions}>');
         expect((sidebar.match(/\{ width: quickW \}/g) || []).length).toBe(6);
     });
@@ -178,6 +180,10 @@ describe('1.4.0 prova 1 fixes: the side menu survives a rotation', () => {
         // buttons and filters written once, used by both layouts
         expect((sidebar.match(/\{controls\}/g) || []).length).toBe(2);
         expect((sidebar.match(/\{tripList\}/g) || []).length).toBe(2);
+    });
+
+    it('the Android back key closes the menu instead of sending the app to the background', () => {
+        expect(app).toMatch(/if \(!sidebarOpen\) return undefined;\s*const sub = BackHandler\.addEventListener\('hardwareBackPress', \(\) => \{ setSidebarOpen\(false\); return true; \}\);/);
     });
 
     it('opens from fully hidden at the current width', () => {
@@ -251,7 +257,8 @@ describe('the globe at startup', () => {
     });
 
     it('1.4.0 prova 2: flying to a trip never makes the globe wider than its box, closing the trip zooms back', () => {
-        expect(globe).toContain('altitude:Math.max(1.8,fitAltitude()*1.1)');
+        expect(globe).toContain('altitude:Math.min(1.8,_homeAlt)');
+        expect(globe).toContain('return a<1.3?Math.max(1.2,fitAltitude()*1.15):Math.max(2.5,fitAltitude()*1.15);');
         expect(globe).toContain('function fitAltitude(){');
         expect(globe).toContain("else if(d.type==='zoomHome'&&globe)");
         expect(earth).toContain("if (prevSelectedTrip.current) sendToWebView({ type: 'zoomHome' });");

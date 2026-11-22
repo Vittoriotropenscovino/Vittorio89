@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Platform, Animated, Easing, Alert, Linking, AppState, ScrollView, StyleProp, ViewStyle,
+  Platform, Animated, Easing, Alert, Linking, AppState, ScrollView, StyleProp, ViewStyle, BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -187,6 +187,15 @@ const AppContent: React.FC = () => {
     });
     return () => sub.remove();
   }, [hideNavigationBar]);
+
+  // Android back key: with the side menu open it closes the menu (the menu is not
+  // a Modal, so nobody else catches the key and the app went to the background).
+  // Everything else (trip, forms, Statistics...) is a Modal and handles back itself.
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSidebarOpen(false); return true; });
+    return () => sub.remove();
+  }, [sidebarOpen, setSidebarOpen]);
 
   // Clear autoFlyTarget after it's been consumed
   useEffect(() => {
@@ -844,7 +853,7 @@ const styles = StyleSheet.create({
   addButtonContainer: { position: 'absolute', alignItems: 'stretch', gap: 10 },
   pillRow: { flexDirection: 'row', gap: 10 },
   addButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#00d4ff',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#00d4ff',
     borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24,
     borderWidth: 1, borderColor: 'rgba(0,212,255,0.5)',
     shadowColor: '#00d4ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12,

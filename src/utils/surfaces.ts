@@ -10,8 +10,8 @@
 /** Dimmed screen behind a centred window. */
 export const MODAL_BACKDROP = 'rgba(2,3,10,0.86)';
 
-/** The window itself: almost opaque, same dark blue-grey as before. */
-export const MODAL_CARD = 'rgba(14,15,22,0.98)';
+/** The window itself: opaque, same dark blue-grey as before. */
+export const MODAL_CARD = 'rgba(14,15,22,1)';
 
 /** Full-screen sheets (trip viewer, share sheet). */
 export const SHEET_BACKGROUND = 'rgba(3,3,10,0.97)';
