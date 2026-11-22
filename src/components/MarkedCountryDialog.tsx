@@ -3,6 +3,7 @@ import { Animated, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } 
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { isoToFlag } from '../utils/countryFlags';
+import { MODAL_BACKDROP } from '../utils/surfaces';
 
 const GOLD = '#FBBF24';
 const INK = '#1C1300';
@@ -60,7 +61,7 @@ const MarkedCountryDialog: React.FC<Props> = ({ country, onAddTrip, onClose }) =
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center', padding: 24 },
     card: {
         width: 380, maxWidth: '100%', borderRadius: 22, padding: 20, gap: 14,
         backgroundColor: '#0C0C14', borderWidth: 1, borderColor: 'rgba(251,191,36,0.45)',

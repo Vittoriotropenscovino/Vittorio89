@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { worldPercentLabel } from '../utils/countries';
 import CountryMap from './CountryMap';
+import { MODAL_BACKDROP } from '../utils/surfaces';
 
 const GOLD = '#FBBF24';
 const INK = '#1C1300';
@@ -125,7 +126,7 @@ const CountriesResultPanel: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP },
     // Same family as Statistics (dark glass, rounded), with the gold "visited" accent.
     page: {
         // Opaque: the main screen must not show through the page.

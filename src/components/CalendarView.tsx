@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 interface Props {
     visible: boolean;
@@ -170,9 +171,9 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 500, width: '90%' },
-    content: { padding: 20, backgroundColor: 'rgba(15,15,20,0.85)' },
+    content: { padding: 20, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     contentCompact: { paddingVertical: 12 },
     headerCompact: { marginBottom: 4 },

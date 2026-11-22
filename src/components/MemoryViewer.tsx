@@ -13,6 +13,7 @@ import { useApp } from '../contexts/AppContext';
 import PhotoFullscreen from './PhotoFullscreen';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SHEET_BACKGROUND } from '../utils/surfaces';
 
 const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onDelete, onEdit }) => {
     const { t } = useApp();
@@ -247,7 +248,7 @@ const MemoryViewer: React.FC<MemoryViewerProps> = ({ trip, visible, onClose, onD
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(3,3,12,0.85)' },
+    overlay: { flex: 1, backgroundColor: SHEET_BACKGROUND },
     headerBar: {
         paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10,
         borderBottomWidth: 1, borderBottomColor: 'rgba(0,212,255,0.1)',

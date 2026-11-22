@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { TranslationKey } from '../i18n/translations';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP } from '../utils/surfaces';
 
 interface Props {
   visible: boolean;
@@ -147,7 +148,7 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: MODAL_BACKDROP,
     justifyContent: 'center',
     alignItems: 'center',
   },

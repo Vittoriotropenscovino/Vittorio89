@@ -21,6 +21,7 @@ import Constants from 'expo-constants';
 import { validateImportData, extractMarkedCountries } from '../utils/validateTrip';
 import { mergeCountryCodes } from '../utils/countries';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
     { code: 'it', flag: 'IT', labelKey: 'italian' },
@@ -633,9 +634,9 @@ const SettingsScreen: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 480, width: '88%', maxHeight: '92%' },
-    content: { flex: 1, padding: 24, backgroundColor: 'rgba(15,15,20,0.85)' },
+    content: { flex: 1, padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },

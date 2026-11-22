@@ -18,6 +18,7 @@ import { getDistanceKm } from '../utils/clusterTrips';
 import { MEDIA_DIR, generateThumbnail } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -805,9 +806,9 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
     blurContainer: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    formContainer: { padding: 20, backgroundColor: 'rgba(15,15,20,0.7)' },
+    formContainer: { padding: 20, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     title: { fontSize: 22, fontWeight: '700', color: '#fff' },

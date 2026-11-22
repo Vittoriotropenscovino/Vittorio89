@@ -10,6 +10,7 @@ import { YearRecap } from '../utils/yearRecap';
 import { useShareGlobe } from '../hooks/useShareGlobe';
 import ShareCard from './ShareCard';
 import ShareCardCapture from './ShareCardCapture';
+import { SHEET_BACKGROUND } from '../utils/surfaces';
 
 const GOLD = '#FBBF24';
 const INK = '#1C1300';
@@ -110,7 +111,7 @@ const ShareGlobeSheet: React.FC<Props> = ({ visible, stats, onClose, campaign = 
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(3,3,10,0.92)' },
+    overlay: { flex: 1, backgroundColor: SHEET_BACKGROUND },
     body: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, gap: 16 },
     bodyLandscape: { flexDirection: 'row', gap: 28 },
     preview: {

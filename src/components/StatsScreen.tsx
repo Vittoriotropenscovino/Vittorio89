@@ -9,6 +9,7 @@ import ShareCardCapture from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 import { useShareGlobe } from '../hooks/useShareGlobe';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 interface Props {
     visible: boolean;
@@ -200,9 +201,9 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 600, width: '92%', maxHeight: '88%' },
-    content: { padding: 24, backgroundColor: 'rgba(15,15,20,0.85)' },
+    content: { padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },

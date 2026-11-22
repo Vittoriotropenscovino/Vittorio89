@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { Trip, TAG_CONFIG } from '../types';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP } from '../utils/surfaces';
 
 interface Props {
   visible: boolean;
@@ -78,7 +79,7 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center',
+    flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center',
   },
   container: {
     backgroundColor: 'rgba(15,15,25,0.97)', borderRadius: 16,

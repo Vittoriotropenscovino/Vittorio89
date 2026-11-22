@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowD
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 interface Props {
     visible: boolean;
@@ -62,8 +63,8 @@ const PrivacyPolicy: React.FC<Props> = ({ visible, onClose }) => {
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    card: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 550, width: '90%', backgroundColor: 'rgba(15,15,20,0.95)' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
+    card: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 550, width: '90%', backgroundColor: MODAL_CARD },
     headerWrap: { paddingTop: 24, paddingHorizontal: 24 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },

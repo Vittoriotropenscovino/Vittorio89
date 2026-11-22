@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { Trip, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 interface Props {
     visible: boolean;
@@ -220,9 +221,9 @@ const ItineraryManager: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)', maxWidth: 500, width: '88%', maxHeight: '92%' },
-    content: { flex: 1, padding: 24, backgroundColor: 'rgba(15,15,20,0.85)' },
+    content: { flex: 1, padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
     closeBtn: { padding: 4 },
