@@ -507,7 +507,7 @@ const AppContent: React.FC = () => {
     if (nwc > 0 && rem > 0) {
       return (
         <Text style={[styles.freeTripsIndicator, isPortrait && styles.freeTripsCentered, rem <= 1 && { color: '#EF4444' }]}>
-          {String(t('freeTripsRemaining')).replace('{0}', String(rem))}
+          {rem === 1 ? (t('freeTripRemainingOne') as string) : String(t('freeTripsRemaining')).replace('{0}', String(rem))}
         </Text>
       );
     }

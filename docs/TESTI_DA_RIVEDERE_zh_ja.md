@@ -116,3 +116,4 @@ Novità della 1.3.0
 | `travelLinesDesc` (testo cambiato) | Mostra sul globo le rotte dei tuoi viaggi | 在地球上显示你的旅行路线 | 地球に旅のルートを表示 |
 | `menu` | Menu | 菜单 | メニュー |
 | `edit` | Modifica | 编辑 | 編集 |
+| `freeTripRemainingOne` (prova 2) | 1 viaggio gratuito rimanente | 剩余1次免费旅行 | 残り1回の無料旅行 |
