@@ -241,6 +241,28 @@ describe('the globe at startup', () => {
         expect(globe).toContain("window.addEventListener('resize',function(){if(globe)globe.width(window.innerWidth).height(window.innerHeight);});");
     });
 
+    it('1.4.0 prova 2: portrait globe between the title and a panel sitting on the bottom edge', () => {
+        expect(app).toContain('const globeTop = insets.top + PORTRAIT_HEADER_H;');
+        expect(app).toContain('const globeH = Math.max(160, winH - globeTop - panelUsed + 24);');
+        expect(app).toContain('[styles.globePortrait, { top: globeTop, height: globeH }]');
+        // the panel is as tall as its content (measured), no fixed top any more
+        expect(app).toContain("style={[styles.panel, { maxHeight: panelMax }]}");
+        expect(app).not.toContain('top: globeH - 24');
+    });
+
+    it('1.4.0 prova 2: flying to a trip never makes the globe wider than its box, closing the trip zooms back', () => {
+        expect(globe).toContain('altitude:Math.max(1.8,fitAltitude()*1.1)');
+        expect(globe).toContain('function fitAltitude(){');
+        expect(globe).toContain("else if(d.type==='zoomHome'&&globe)");
+        expect(earth).toContain("if (prevSelectedTrip.current) sendToWebView({ type: 'zoomHome' });");
+    });
+
+    it('1.4.0 prova 2: after a change of language the globe turns back to the visited countries', () => {
+        expect(app).toContain('recenterOn={settings.language}');
+        expect(earth).toContain("sendToWebView({ type: 'turnTo', lat: target.latitude, lng: target.longitude })");
+        expect(globe).toContain("else if(d.type==='turnTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},1200);");
+    });
+
     it('the globe page jumps there at once, keeping its zoom', () => {
         expect(globe).toContain("else if(d.type==='setView'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},0);");
     });

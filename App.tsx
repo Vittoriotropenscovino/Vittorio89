@@ -56,6 +56,8 @@ const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
 const TEST_TOOLS = FREE_ROTATION || process.env.EXPO_PUBLIC_STRUMENTI_PROVA === '1';
 // Landscape main screen: width of the right dock (Routes/Itineraries over Add trip)
 const RIGHT_DOCK_W = 280;
+// Portrait main screen: height of the title row (Menu button + logo) under the status bar
+const PORTRAIT_HEADER_H = 84;
 const TEST_DATES: (null | [number, number, number])[] = [null, [15, 12, 2026], [10, 1, 2027], [15, 6, 2027], [15, 12, 2027]];
 
 const AppContent: React.FC = () => {
@@ -89,6 +91,8 @@ const AppContent: React.FC = () => {
   const [flythroughStops, setFlythroughStops] = useState<{ lat: number; lng: number }[] | null>(null);
   // Auto-fly to newly saved trip
   const [autoFlyTarget, setAutoFlyTarget] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Portrait: measured height of the panel under the globe (0 = not measured yet)
+  const [panelH, setPanelH] = useState(0);
   // Pin selector popup for nearby pins
   const [pinSelectorVisible, setPinSelectorVisible] = useState(false);
   const [pinSelectorTrips, setPinSelectorTrips] = useState<Trip[]>([]);
@@ -358,7 +362,14 @@ const AppContent: React.FC = () => {
   }
 
   // ---- Main screen pieces, shared by the landscape and the portrait layout ----
-  const globeH = Math.round(winH * 0.58);
+  // Portrait (1.4.0, prova 2): the globe box starts under the title and ends
+  // where the panel begins; the panel sits on the bottom edge and is as tall as
+  // its buttons (no empty band under them), at most 60% of the screen (then it
+  // scrolls). Before the first measurement: an estimate.
+  const panelMax = Math.round(winH * 0.6);
+  const panelUsed = Math.min(panelH || Math.round(winH * 0.45), panelMax);
+  const globeTop = insets.top + PORTRAIT_HEADER_H;
+  const globeH = Math.max(160, winH - globeTop - panelUsed + 24);
   // Landscape docks (see the JSX): the right one has a fixed width, the left one
   // takes what is left, with a gap between them.
   const leftDockMax = winW - insets.left - insets.right - 40 - RIGHT_DOCK_W - 16;
@@ -468,9 +479,9 @@ const AppContent: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Layer 0: Globe. Landscape: the whole screen, as before. Portrait (1.4.0):
-          the top ~58%, the panel below. Only the style changes on rotation: the
+          between the title and the panel. Only the style changes on rotation: the
           WebView is never remounted, so the globe does not reload. */}
-      <View style={isPortrait ? [styles.globePortrait, { height: globeH }] : StyleSheet.absoluteFill}>
+      <View style={isPortrait ? [styles.globePortrait, { top: globeTop, height: globeH }] : StyleSheet.absoluteFill}>
         <EarthGlobe
           trips={trips}
           clusteredPins={clusteredPins}
@@ -490,6 +501,7 @@ const AppContent: React.FC = () => {
           onCountryClick={handleCountryClick}
           flythroughStops={flythroughStops}
           selectedTripId={selectedTrip?.id || null}
+          recenterOn={settings.language}
         />
       </View>
 
@@ -555,9 +567,14 @@ const AppContent: React.FC = () => {
         {isPortrait ? (
           /* Portrait: the panel under the globe, everything within thumb reach.
              Always open: it all fits; on very small phones it scrolls. */
-          <View testID="main-panel" style={[styles.panel, { top: globeH - 24 }]}>
+          <View
+            testID="main-panel"
+            style={[styles.panel, { maxHeight: panelMax }]}
+            onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (Math.abs(h - panelH) > 1) setPanelH(h); }}
+          >
             <View style={styles.panelHandle} />
             <ScrollView
+              style={styles.panelScroll}
               contentContainerStyle={[styles.panelContent, { paddingBottom: 16 + insets.bottom, paddingLeft: 16 + insets.left, paddingRight: 16 + insets.right }]}
               showsVerticalScrollIndicator={false}
               bounces={false}
@@ -867,6 +884,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderColor: 'rgba(0,212,255,0.18)',
     ...Platform.select({ android: { elevation: 14 } }),
   },
+  panelScroll: { flexGrow: 0 },
   panelHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 8 },
   panelContent: { paddingTop: 12, gap: 12 },
   panelRow: { flexDirection: 'row', gap: 10 },

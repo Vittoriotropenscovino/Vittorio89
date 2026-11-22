@@ -80,6 +80,8 @@ export interface EarthGlobeProps {
     onCountryClick?: (code: string) => void;
     flythroughStops?: { lat: number; lng: number }[] | null;
     selectedTripId?: string | null;
+    /** When this value changes the globe turns back to the visited countries (e.g. the language). */
+    recenterOn?: string;
 }
 
 // Trip Form Props - supports both create and edit mode

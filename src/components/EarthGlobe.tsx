@@ -95,7 +95,7 @@ const ORIGIN_WHITELIST = ['https://unpkg.com', 'https://cdn.jsdelivr.net', 'abou
 
 const READY_TIMEOUT_MS = 15000;
 
-function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops, selectedTripId }: EarthGlobeProps) {
+function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCoordinates, homeLocation, itineraries, showTravelLines, visitedCountries, flythroughStops, selectedTripId, recenterOn }: EarthGlobeProps) {
   const { t } = useApp();
   const webViewRef = useRef<WebView>(null);
   const isReady = useRef(false);
@@ -241,12 +241,28 @@ function EarthGlobe({ trips, clusteredPins, onPinClick, onCountryClick, targetCo
     }
   }, [flythroughStops, sendToWebView]);
 
-  // Clear pin selection highlight when no trip is selected
+  // Clear pin selection highlight when no trip is selected. 1.4.0: and when a
+  // trip is closed, back to the normal distance (opening it flew in close; in
+  // portrait the globe stayed bigger than its box, under "Menu").
+  const prevSelectedTrip = useRef<string | null | undefined>(selectedTripId);
   useEffect(() => {
     if (!selectedTripId && isReady.current) {
       sendToWebView({ type: 'clearSelection' });
+      if (prevSelectedTrip.current) sendToWebView({ type: 'zoomHome' });
     }
+    prevSelectedTrip.current = selectedTripId;
   }, [selectedTripId, sendToWebView]);
+
+  // 1.4.0: after a change of language (or anything passed as recenterOn) the
+  // globe turns back to the visited countries instead of staying wherever the
+  // slow automatic rotation took it. Not on the first render.
+  const prevRecenter = useRef(recenterOn);
+  useEffect(() => {
+    if (prevRecenter.current === recenterOn) return;
+    prevRecenter.current = recenterOn;
+    const target = visitedCountries ? globeTargetFor(visitedCountries) : null;
+    if (target && isReady.current) sendToWebView({ type: 'turnTo', lat: target.latitude, lng: target.longitude });
+  }, [recenterOn, visitedCountries, sendToWebView]);
 
   const handleMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {

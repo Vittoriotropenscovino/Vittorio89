@@ -364,6 +364,19 @@ function go(countries){
   }catch(e){L('INIT ERR:'+e.message);}
 }
 
+// 1.4.0: in a tall, narrow box (portrait) a fixed altitude makes the globe wider
+// than the screen. Altitude at which the whole globe just fits the box:
+function fitAltitude(){
+  try{
+    var v=((globe.camera()&&globe.camera().fov)||50)*Math.PI/360;
+    var a=window.innerWidth/Math.max(1,window.innerHeight);
+    var h=Math.atan(Math.tan(v)*a);
+    return 1/Math.sin(Math.min(v,h))-1;
+  }catch(e){return 1.4;}
+}
+// The normal view (as at startup), never closer than the whole globe plus a margin
+function homeAltitude(){return Math.max(2.5,fitAltitude()*1.15);}
+
 function onPin(p){
   // A small state's glowing dot behaves like a tap on the country.
   if(p&&p.isCountryDot&&p.countryCode){S({type:'countryClick',code:p.countryCode});return;}
@@ -393,8 +406,10 @@ function handleCmd(d){
     }
     renderPins();
   }
-  else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:1.8},1500);
+  else if(d.type==='flyTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng,altitude:Math.max(1.8,fitAltitude()*1.1)},1500);
   else if(d.type==='setView'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},0);
+  else if(d.type==='turnTo'&&globe)globe.pointOfView({lat:d.lat,lng:d.lng},1200);
+  else if(d.type==='zoomHome'&&globe){var hp=globe.pointOfView();var ha=homeAltitude();if(hp.altitude<ha-0.05)globe.pointOfView({lat:hp.lat,lng:hp.lng,altitude:ha},1000);}
   else if(d.type==='clearSelection'){_selectedPinId=null;renderPins();}
   else if(d.type==='flythrough')startFlythrough(d.stops);
   else if(d.type==='cleanup'){if(_scanAnimId)cancelAnimationFrame(_scanAnimId);if(globe){try{globe.scene().traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});}catch(ce){}}}
