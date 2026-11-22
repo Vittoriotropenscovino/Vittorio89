@@ -42,6 +42,11 @@ appId: com.travelsphere.app
 - hideKeyboard
 
 # --- Data: calendario, giorno 15 del mese corrente, Conferma ---
+# Su un telefono vero in orizzontale (384 dp di altezza) il campo e' sotto: si scorre.
+- scrollUntilVisible:
+    element:
+      id: "trip-date"
+    direction: DOWN
 - tapOn:
     id: "trip-date"
 - waitForAnimationToEnd:
@@ -54,7 +59,9 @@ appId: com.travelsphere.app
     id: "trip-date-confirm"
 - waitForAnimationToEnd:
     timeout: 2000
-- assertVisible: ".*-15$"
+# 1.4.0: la data si legge nella lingua dell'app («15 nov 2026», «Nov 15, 2026»,
+# «15. Nov. 2026»), non piu' «2026-11-15»
+- assertVisible: "(15[ .].*20[0-9]{2})|(.* 15, 20[0-9]{2})"
 - takeScreenshot: 02c-modulo-compilato-${output.orient}
 
 # --- Salva («Aggiungi Pin») ---
