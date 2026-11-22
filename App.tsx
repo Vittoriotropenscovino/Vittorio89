@@ -54,6 +54,8 @@ const FREE_ROTATION = process.env.EXPO_PUBLIC_ROTAZIONE_LIBERA === '1';
 // never the store build): a button that simulates the phone date, so the year
 // recap can be tried before December.
 const TEST_TOOLS = FREE_ROTATION || process.env.EXPO_PUBLIC_STRUMENTI_PROVA === '1';
+// Landscape main screen: width of the right dock (Routes/Itineraries over Add trip)
+const RIGHT_DOCK_W = 280;
 const TEST_DATES: (null | [number, number, number])[] = [null, [15, 12, 2026], [10, 1, 2027], [15, 6, 2027], [15, 12, 2027]];
 
 const AppContent: React.FC = () => {
@@ -62,7 +64,7 @@ const AppContent: React.FC = () => {
   // overlays below would otherwise sit under the system bars / camera cutout,
   // which in landscape means the left or right edge, not just top/bottom.
   const insets = useSafeAreaInsets();
-  const { isPortrait, height: winH } = useOrientation();
+  const { isPortrait, height: winH, width: winW } = useOrientation();
 
   const {
     trips, setTrips, itineraries, setItineraries, isLoading,
@@ -357,6 +359,9 @@ const AppContent: React.FC = () => {
 
   // ---- Main screen pieces, shared by the landscape and the portrait layout ----
   const globeH = Math.round(winH * 0.58);
+  // Landscape docks (see the JSX): the right one has a fixed width, the left one
+  // takes what is left, with a gap between them.
+  const leftDockMax = winW - insets.left - insets.right - 40 - RIGHT_DOCK_W - 16;
   const showWelcome = trips.length === 0 && !countriesResultVisible;
   const routesOn = settings.showTravelLines !== false;
 
@@ -391,9 +396,9 @@ const AppContent: React.FC = () => {
           <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
         </View>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <View style={[styles.statItem, styles.statItemShrink]}>
           <Ionicons name="stats-chart" size={13} color="#00d4ff" />
-          <Text style={styles.statsOpenText}>{t('statistics') as string}</Text>
+          <Text style={styles.statsOpenText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics') as string}</Text>
           <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
         </View>
       </View>
@@ -402,24 +407,24 @@ const AppContent: React.FC = () => {
 
   // "Where have you been?": always reachable from the main screen
   const whereBeenButton = (style?: StyleProp<ViewStyle>) => (
-    <TouchableOpacity testID="wb-open" style={[styles.whereBeenButton, style]} onPress={() => setCountryPicker('normal')} accessibilityRole="button">
+    <TouchableOpacity testID="wb-open" style={[styles.whereBeenButton, style]} onPress={() => setCountryPicker('normal')} accessibilityRole="button" accessibilityLabel={t('wbTitle') as string}>
       <Ionicons name="flag" size={16} color="#FBBF24" />
-      <Text style={styles.whereBeenText} numberOfLines={1}>{t('wbTitle') as string}</Text>
+      <Text style={styles.whereBeenText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('wbTitle') as string}</Text>
     </TouchableOpacity>
   );
 
   // Sharing at the centre: available as soon as there is one country
   const shareButton = (style?: StyleProp<ViewStyle>) => (stats.countries > 0 ? (
-    <TouchableOpacity testID="share-open" style={[styles.whereBeenButton, styles.shareButton, style]} onPress={handleShareGlobe} accessibilityRole="button">
+    <TouchableOpacity testID="share-open" style={[styles.whereBeenButton, styles.shareButton, style]} onPress={handleShareGlobe} accessibilityRole="button" accessibilityLabel={t('shareGlobe') as string}>
       <Ionicons name="share-social" size={16} color="#1C1300" />
-      <Text style={[styles.whereBeenText, styles.shareButtonText]} numberOfLines={1}>{t('shareGlobe') as string}</Text>
+      <Text style={[styles.whereBeenText, styles.shareButtonText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('shareGlobe') as string}</Text>
     </TouchableOpacity>
   ) : null);
 
   const addTripButton = (style?: StyleProp<ViewStyle>) => (
-    <TouchableOpacity testID="Add Trip" style={[styles.addButton, style]} onPress={handleAddTrip} accessibilityLabel="Add Trip" accessibilityRole="button">
+    <TouchableOpacity testID="Add Trip" style={[styles.addButton, style]} onPress={handleAddTrip} accessibilityLabel={t('addTrip') as string} accessibilityRole="button">
       <Ionicons name="add" size={28} color="#fff" />
-      <Text style={styles.addButtonText}>{t('addTrip')}</Text>
+      <Text style={styles.addButtonText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('addTrip')}</Text>
     </TouchableOpacity>
   );
 
@@ -431,17 +436,18 @@ const AppContent: React.FC = () => {
       style={[styles.goldPill, !routesOn && styles.goldPillOff, style]}
       onPress={handleToggleTravelLines}
       accessibilityRole="switch"
+      accessibilityLabel={label}
       accessibilityState={{ checked: routesOn }}
     >
       <Ionicons name="git-network-outline" size={18} color={routesOn ? '#F59E0B' : '#6B7280'} />
-      <Text style={[styles.goldPillText, !routesOn && styles.goldPillTextOff]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.goldPillText, !routesOn && styles.goldPillTextOff]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
     </TouchableOpacity>
   );
 
   const itineraryButton = (style?: StyleProp<ViewStyle>) => (
-    <TouchableOpacity testID="itineraries-open" style={[styles.goldPill, style]} onPress={() => openModalWithHaptic('itineraryManager')} accessibilityRole="button">
+    <TouchableOpacity testID="itineraries-open" style={[styles.goldPill, style]} onPress={() => openModalWithHaptic('itineraryManager')} accessibilityRole="button" accessibilityLabel={t('itineraries') as string}>
       <Ionicons name="git-merge-outline" size={18} color="#F59E0B" />
-      <Text style={styles.goldPillText} numberOfLines={1}>{t('itineraries') as string}</Text>
+      <Text style={styles.goldPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('itineraries') as string}</Text>
     </TouchableOpacity>
   );
 
@@ -566,10 +572,8 @@ const AppContent: React.FC = () => {
                 </View>
               )}
               {statsBar(styles.statsBarPortrait)}
-              <View style={styles.panelRow}>
-                {whereBeenButton(styles.flex1)}
-                {shareButton(styles.flex1)}
-              </View>
+              {whereBeenButton(styles.panelWide)}
+              {shareButton(styles.panelWide)}
               <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                 {addTripButton(styles.addButtonPortrait)}
               </Animated.View>
@@ -582,20 +586,23 @@ const AppContent: React.FC = () => {
           </View>
         ) : (
           <>
-            {statsBar([styles.statsBar, { bottom: 20 + insets.bottom, left: 20 + insets.left }])}
-
-            {/* "Where have you been?" and sharing: always reachable from the main screen */}
-            <View style={[styles.mainActions, { bottom: 76 + insets.bottom, left: 20 + insets.left }]}>
-              {whereBeenButton()}
-              {shareButton()}
+            {/* Left dock: "Where have you been?" and sharing (always reachable from
+                the main screen) over the numbers bar. 1.4.0: one column anchored to
+                the bottom, only as wide as the right dock leaves free, so nothing
+                overlaps on narrow phones or in long languages. */}
+            <View style={[styles.leftDock, { bottom: 20 + insets.bottom, left: 20 + insets.left, maxWidth: leftDockMax }]} pointerEvents="box-none">
+              <View style={styles.mainActions}>
+                {whereBeenButton(styles.shrinkable)}
+                {shareButton(styles.shrinkable)}
+              </View>
+              {statsBar(styles.statsBar)}
             </View>
 
             {/* Welcome overlay */}
             {showWelcome && (
-              <View style={[styles.welcomeOverlay, { bottom: 100 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
+              <View style={[styles.welcomeOverlay, { bottom: 160 + insets.bottom, right: 20 + insets.right }]} pointerEvents="box-none">
                 <View style={styles.welcomeCard}>
                   <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                  <View style={styles.welcomeIconRow}><Ionicons name="earth" size={28} color="#00d4ff" /></View>
                   <Text style={styles.welcomeTitle}>{t('startAdventure')}</Text>
                   <Text style={styles.welcomeText}>{t('welcomeText')}</Text>
                   <View style={styles.welcomeArrow}><Ionicons name="arrow-forward" size={16} color="rgba(0,212,255,0.5)" /></View>
@@ -603,10 +610,12 @@ const AppContent: React.FC = () => {
               </View>
             )}
 
-            {/* Add buttons: "Routes", "Itineraries" (written labels, 1.4.0), "Add Trip" */}
-            <View style={[styles.addButtonContainer, { bottom: 28 + insets.bottom, right: 20 + insets.right }]}>
-              {routesButton(t('routes') as string)}
-              {itineraryButton()}
+            {/* Right dock: "Routes" and "Itineraries" (written labels, 1.4.0) over "Add Trip" */}
+            <View style={[styles.addButtonContainer, { bottom: 20 + insets.bottom, right: 20 + insets.right, width: RIGHT_DOCK_W }]} pointerEvents="box-none">
+              <View style={styles.pillRow}>
+                {routesButton(t('routes') as string, styles.flex1)}
+                {itineraryButton(styles.flex1)}
+              </View>
               <View style={styles.addColumn}>
                 <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                   {addTripButton()}
@@ -790,30 +799,33 @@ const styles = StyleSheet.create({
   },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
   statusText: { color: 'rgba(156,163,175,0.6)', fontSize: 10, fontWeight: '500', letterSpacing: 1 },
+  leftDock: { position: 'absolute', alignItems: 'flex-start', gap: 10 },
+  shrinkable: { flexShrink: 1 },
   statsBar: {
-    position: 'absolute', bottom: 20, left: 20, backgroundColor: 'rgba(5,5,20,0.7)',
+    alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: 'rgba(5,5,20,0.7)',
     borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10,
     ...Platform.select({ android: { elevation: 12 } }),
   },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statItemShrink: { flexShrink: 1, minWidth: 0 },
   statValue: { color: '#F0F0F0', fontSize: 13, fontWeight: '700' },
   statLabel: { color: 'rgba(156,163,175,0.8)', fontSize: 11 },
   statDivider: { width: 1, height: 14, backgroundColor: 'rgba(0,212,255,0.2)' },
-  statsOpenText: { color: '#00d4ff', fontSize: 11, fontWeight: '700' },
+  statsOpenText: { color: '#00d4ff', fontSize: 11, fontWeight: '700', flexShrink: 1 },
   welcomeOverlay: { position: 'absolute', bottom: 100, right: 20, alignItems: 'flex-end' },
   welcomeCard: {
     backgroundColor: 'rgba(5,5,20,0.4)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
-    borderRadius: 16, paddingHorizontal: 20, paddingVertical: 16, maxWidth: 260,
+    borderRadius: 16, paddingHorizontal: 18, paddingVertical: 12, maxWidth: RIGHT_DOCK_W,
     overflow: 'hidden',
     ...Platform.select({ android: { elevation: 12 } }),
   },
-  welcomeIconRow: { marginBottom: 8 },
   welcomeTitle: { color: '#F0F0F0', fontSize: 16, fontWeight: '700', marginBottom: 6 },
   welcomeText: { color: 'rgba(156,163,175,0.9)', fontSize: 12, lineHeight: 18 },
   welcomeArrow: { alignItems: 'flex-end', marginTop: 8 },
-  addButtonContainer: { position: 'absolute', bottom: 28, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addButtonContainer: { position: 'absolute', alignItems: 'stretch', gap: 10 },
+  pillRow: { flexDirection: 'row', gap: 10 },
   addButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#00d4ff',
     borderRadius: 50, paddingVertical: 14, paddingHorizontal: 24,
@@ -821,22 +833,22 @@ const styles = StyleSheet.create({
     shadowColor: '#00d4ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12,
     ...Platform.select({ android: { elevation: 12 } }),
   },
-  addButtonText: { color: '#fff', fontWeight: '600' },
-  mainActions: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addButtonText: { color: '#fff', fontWeight: '600', flexShrink: 1 },
+  mainActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
   whereBeenButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(5,5,20,0.75)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.55)',
     borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8,
     ...Platform.select({ android: { elevation: 12 } }),
   },
-  whereBeenText: { color: '#FBBF24', fontSize: 13, fontWeight: '700' },
+  whereBeenText: { color: '#FBBF24', fontSize: 13, fontWeight: '700', flexShrink: 1 },
   shareButton: { backgroundColor: '#FBBF24', borderColor: '#FBBF24' },
   shareButtonText: { color: '#1C1300' },
   freeTripsIndicator: { color: '#F59E0B', fontSize: 11, fontWeight: '600', marginTop: 4 },
   freeTripsCentered: { textAlign: 'center', marginTop: -2 },
   logoPortrait: { fontSize: 22, letterSpacing: 1.5 },
   statValueGold: { color: '#FBBF24' },
-  addColumn: { alignItems: 'center' },
+  addColumn: { alignItems: 'stretch' },
   // Routes / Itineraries: amber pills with a written label (1.4.0)
   goldPill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -845,7 +857,7 @@ const styles = StyleSheet.create({
     ...Platform.select({ android: { elevation: 12 } }),
   },
   goldPillOff: { backgroundColor: 'rgba(107,114,128,0.15)', borderColor: 'rgba(107,114,128,0.3)' },
-  goldPillText: { color: '#F59E0B', fontSize: 13, fontWeight: '700' },
+  goldPillText: { color: '#F59E0B', fontSize: 13, fontWeight: '700', flexShrink: 1 },
   goldPillTextOff: { color: '#9CA3AF' },
   // Portrait (1.4.0): globe on top, panel underneath
   globePortrait: { position: 'absolute', top: 0, left: 0, right: 0 },
@@ -865,6 +877,7 @@ const styles = StyleSheet.create({
   },
   statsRowPortrait: { justifyContent: 'space-between', gap: 6 },
   addButtonPortrait: { justifyContent: 'center', paddingVertical: 15 },
+  panelWide: { justifyContent: 'center', paddingVertical: 11 },
   welcomeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: 'rgba(0,212,255,0.06)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.18)',

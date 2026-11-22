@@ -138,6 +138,30 @@ describe('1.4.0: portrait is the main mode, the phone rotates freely', () => {
     });
 });
 
+describe('1.4.0 prova 1 fixes: nothing overlaps, no label is cut (8 languages)', () => {
+    it('portrait: "Where have you been?" and "Share" one under the other, full width', () => {
+        expect(app).toContain('{whereBeenButton(styles.panelWide)}');
+        expect(app).toContain('{shareButton(styles.panelWide)}');
+        expect(app).not.toMatch(/<View style=\{styles\.panelRow\}>\s*\{whereBeenButton/);
+    });
+
+    it('landscape: a right dock of fixed width and a left dock that only gets the rest', () => {
+        expect(app).toMatch(/const RIGHT_DOCK_W = \d+;/);
+        expect(app).toContain('const leftDockMax = winW - insets.left - insets.right - 40 - RIGHT_DOCK_W - 16;');
+        expect(app).toContain('maxWidth: leftDockMax');
+        expect(app).toContain('width: RIGHT_DOCK_W');
+    });
+
+    it('the main buttons shrink their text instead of cutting it, and TalkBack reads the label once', () => {
+        for (const id of ['wb-open', 'share-open', 'itineraries-open']) {
+            expect(app).toMatch(new RegExp(`testID="${id}"[^\n]*accessibilityLabel=`));
+        }
+        expect((app.match(/numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}/g) || []).length).toBeGreaterThanOrEqual(5);
+        // the arrow of "Statistics" stays inside the bar: that item may shrink
+        expect(app).toContain('<View style={[styles.statItem, styles.statItemShrink]}>');
+    });
+});
+
 describe('globe: taps and small states', () => {
     it('a tap on a country tells RN its ISO code', () => {
         expect(globe).toContain('.onPolygonClick(');
