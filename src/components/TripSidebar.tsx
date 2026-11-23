@@ -227,25 +227,25 @@ const TripSidebar: React.FC<Props> = ({
                     </TouchableOpacity>
                 )}
                 {onOpenStats && (
-                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenStats(); onClose(); }}>
+                    <TouchableOpacity testID="quick-stats" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenStats(); onClose(); }}>
                         <Ionicons name="stats-chart" size={16} color="#00d4ff" />
                         <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenCalendar && (
-                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenCalendar(); onClose(); }}>
+                    <TouchableOpacity testID="quick-calendar" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenCalendar(); onClose(); }}>
                         <Ionicons name="calendar" size={16} color="#00d4ff" />
                         <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('calendar')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenSettings && (
-                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenSettings(); onClose(); }}>
+                    <TouchableOpacity testID="quick-settings" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenSettings(); onClose(); }}>
                         <Ionicons name="settings" size={16} color="#00d4ff" />
                         <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('settings')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenHelpGuide && (
-                    <TouchableOpacity style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenHelpGuide(); onClose(); }}>
+                    <TouchableOpacity testID="quick-help" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenHelpGuide(); onClose(); }}>
                         <Ionicons name="help-circle" size={16} color="#00d4ff" />
                         <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
                     </TouchableOpacity>

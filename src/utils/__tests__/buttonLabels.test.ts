@@ -14,7 +14,7 @@ import path from 'path';
 // panel, the small ✕ that clears a search field.
 const LABEL_DEBT: Record<string, number> = {
     // App.tsx: 0 since block B/C (Routes, Itineraries, Menu written; Exit removed)
-    'src/components/CalendarView.tsx': 3,
+    'src/components/CalendarView.tsx': 2, // PERMANENT: the month arrows ‹ ›
     'src/components/CountryPickerScreen.tsx': 1, // PERMANENT: ✕ that clears the search
     'src/components/HelpGuide.tsx': 1,
     'src/components/ItineraryManager.tsx': 4,

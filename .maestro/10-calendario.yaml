@@ -1,0 +1,38 @@
+# Calendario Viaggi (blocco G della 1.4.0).
+# Apre il calendario dal menu, controlla che si apra e si chiuda con «Chiudi»
+# scritto, e fotografa la griglia: le colonne dei giorni devono cadere
+# esattamente sotto le lettere L M M G V S D (righe dritte) e i giorni con un
+# viaggio hanno il segno in oro. Non crea e non cancella niente.
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 40000
+
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: "quick-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "calendar-view"
+- assertVisible: "Chiudi"
+# CONTROLLA A OCCHIO: colonne dritte sotto le lettere dei giorni
+- takeScreenshot: 10a-calendario-${output.orient}
+
+- tapOn:
+    id: "calendar-close"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertNotVisible:
+    id: "calendar-view"
+- assertVisible:
+    id: "stats-bar"
+- setOrientation: LANDSCAPE_LEFT

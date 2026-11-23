@@ -7,6 +7,10 @@ import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
+import { calendarCellSize, weekdayLetters } from '../utils/calendarGrid';
+
+// gold = "visited": the days with a trip, as on the main screen
+const GOLD = '#FBBF24';
 
 interface Props {
     visible: boolean;
@@ -28,6 +32,14 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
     const months = t('months') as string[];
+    // Straight columns: one whole-point column width, measured, for the weekday
+    // row and the days (src/utils/calendarGrid.ts).
+    const [gridW, setGridW] = useState(0);
+    const cell = calendarCellSize(gridW);
+    // portrait: square cells; landscape: low cells so the month fits (1.3.0)
+    const cellH = landscape ? Math.round(cell / 2) : cell;
+    // portrait: as wide as the screen minus the margins
+    const cardWidth = landscape ? undefined : Math.min(winW - 32, 500);
 
     const tripsByDate = useMemo(() => {
         const map: Record<string, Trip[]> = {};
@@ -49,7 +61,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     for (let i = 0; i < startOffset; i++) days.push(null);
     for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
-    const weekDays = language === 'en' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+    const weekDays = useMemo(() => weekdayLetters(language), [language]);
 
     const prevMonth = () => {
         if (month === 0) { setMonth(11); setYear(year - 1); }
@@ -71,12 +83,14 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, landscape && styles.contentCompact]}>
+                <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, cardWidth !== undefined && { width: cardWidth }, landscape && styles.contentCompact]}>
                         <View style={[styles.header, landscape && styles.headerCompact]}>
                             <Ionicons name="calendar" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('calendarTitle')}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#9CA3AF" />
+                            <TouchableOpacity testID="calendar-close" onPress={onClose} style={styles.closeBtn}
+                                accessibilityRole="button" accessibilityLabel={t('close') as string}>
+                                <Ionicons name="close" size={18} color="#D1D5DB" />
+                                <Text style={styles.closeBtnText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -91,20 +105,22 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                             </TouchableOpacity>
                         </View>
 
-                        {/* Weekday headers */}
-                        <View style={styles.weekRow}>
-                            {weekDays.map((d, i) => (
-                                <View key={i} style={styles.weekDayCell}>
-                                    <Text style={styles.weekDayText}>{d}</Text>
-                                </View>
-                            ))}
+                        {/* Weekday headers (measures the width of the grid) */}
+                        <View onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
+                            <View style={[styles.weekRow, { width: cell * 7 }]}>
+                                {cell > 0 && weekDays.map((d, i) => (
+                                    <View key={i} style={[styles.weekDayCell, { width: cell }]}>
+                                        <Text style={styles.weekDayText}>{d}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
 
                         {/* Days grid */}
                         <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
-                            <View style={styles.daysGrid}>
-                                {days.map((day, i) => {
-                                    if (day === null) return <View key={`e${i}`} style={[styles.dayCell, landscape && styles.dayCellCompact]} />;
+                            <View style={[styles.daysGrid, { width: cell * 7 }]}>
+                                {cell > 0 && days.map((day, i) => {
+                                    if (day === null) return <View key={`e${i}`} style={[styles.dayCell, { width: cell, height: cellH }]} />;
                                     const dateKey = getDateKey(day);
                                     const tripsOnDay = tripsByDate[dateKey] || [];
                                     const hasTrips = tripsOnDay.length > 0;
@@ -114,8 +130,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                                         <TouchableOpacity
                                             key={i}
                                             style={[
-                                                styles.dayCell,
-                                                landscape && styles.dayCellCompact,
+                                                styles.dayCell, { width: cell, height: cellH },
                                                 today && styles.todayCell,
                                                 hasTrips && styles.tripDayCell,
                                             ]}
@@ -179,26 +194,26 @@ const styles = StyleSheet.create({
     headerCompact: { marginBottom: 4 },
     monthNavCompact: { marginBottom: 6 },
     scroll: { flexGrow: 0, flexShrink: 1 },
-    dayCellCompact: { aspectRatio: 2 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
-    closeBtn: { padding: 4 },
+    closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+    closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
     monthNav: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, marginBottom: 16 },
     navBtn: { padding: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10 },
     monthText: { color: '#F0F0F0', fontSize: 18, fontWeight: '700', minWidth: 120, textAlign: 'center' },
-    weekRow: { flexDirection: 'row', marginBottom: 8 },
-    weekDayCell: { flex: 1, alignItems: 'center' },
+    weekRow: { flexDirection: 'row', marginBottom: 8, alignSelf: 'center' },
+    weekDayCell: { alignItems: 'center' },
     weekDayText: { color: '#6B7280', fontSize: 11, fontWeight: '600' },
-    daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-    dayCell: { width: `${100 / 7}%`, aspectRatio: 1.2, justifyContent: 'center', alignItems: 'center' },
+    daysGrid: { flexDirection: 'row', flexWrap: 'wrap', alignSelf: 'center' },
+    dayCell: { justifyContent: 'center', alignItems: 'center' },
     todayCell: { backgroundColor: 'rgba(0,212,255,0.1)', borderRadius: 10 },
-    tripDayCell: { backgroundColor: 'rgba(59,130,246,0.15)', borderRadius: 10 },
+    tripDayCell: { backgroundColor: 'rgba(251,191,36,0.14)', borderRadius: 10 },
     dayText: { color: '#9CA3AF', fontSize: 14 },
     todayText: { color: '#00d4ff', fontWeight: '700' },
-    tripDayText: { color: '#60A5FA', fontWeight: '700' },
-    tripDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#3B82F6', marginTop: 2 },
+    tripDayText: { color: GOLD, fontWeight: '700' },
+    tripDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: GOLD, marginTop: 2 },
     tripRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-    tripDateBadge: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(0,212,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-    tripDateText: { color: '#00d4ff', fontSize: 13, fontWeight: '700' },
+    tripDateBadge: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(251,191,36,0.14)', justifyContent: 'center', alignItems: 'center' },
+    tripDateText: { color: GOLD, fontSize: 13, fontWeight: '700' },
     tripInfo: { flex: 1 },
     tripName: { color: '#E5E7EB', fontSize: 14, fontWeight: '600' },
     tripLoc: { color: '#6B7280', fontSize: 11, marginTop: 2 },
