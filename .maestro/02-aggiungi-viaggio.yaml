@@ -82,6 +82,11 @@ appId: com.travelsphere.app
     id: "Menu"
 - waitForAnimationToEnd:
     timeout: 2000
+# 1.4.0: in orizzontale la lista e' accanto ai pulsanti e il viaggio nuovo puo'
+# essere sotto: lo si trova con «Cerca viaggi», che va in entrambi i versi.
+- tapOn: "Cerca viaggi.*"
+- inputText: "Maestro"
+- hideKeyboard
 - tapOn: "Test automatico Maestro"
 - waitForAnimationToEnd:
     timeout: 3000

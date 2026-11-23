@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, Modal, StyleSheet,
-    Alert, ActivityIndicator, ScrollView, useWindowDimensions, Platform, Switch,
+    Alert, ActivityIndicator, ScrollView, useWindowDimensions, Platform, Switch, Keyboard,
 } from 'react-native';
 
 import { Image } from 'expo-image';
@@ -17,6 +17,7 @@ import { useApp } from '../contexts/AppContext';
 import { getDistanceKm } from '../utils/clusterTrips';
 import { MEDIA_DIR, generateThumbnail } from '../services/StorageService';
 import NetInfo from '@react-native-community/netinfo';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 import { formatTripDate } from '../utils/formatDate';
@@ -28,6 +29,22 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
     const isSmallPhone = SCREEN_WIDTH < 400;
+    // 1.4.0: in portrait the form is a full page that comes up from the bottom,
+    // in landscape it stays the centred card of 1.3.0.
+    const isPortrait = SCREEN_HEIGHT >= SCREEN_WIDTH;
+    const insets = useSafeAreaInsets();
+    // The opening animation is chosen when the form opens and never changes while it
+    // is open: switching it on rotation left the form blank (content not drawn).
+    const openAnim = useRef<'slide' | 'fade'>(isPortrait ? 'slide' : 'fade');
+    if (!visible) openAnim.current = isPortrait ? 'slide' : 'fade';
+    // The Modal does not shrink when the keyboard opens: in portrait the page moves up
+    // by the keyboard height, so "Add Pin" stays in sight while typing.
+    const [keyboardH, setKeyboardH] = useState(0);
+    useEffect(() => {
+        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardH(e.endCoordinates.height));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardH(0));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
 
     const [locationQuery, setLocationQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -502,17 +519,26 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     const isEditMode = !!editTrip;
     const allTags: TripTag[] = ['sea', 'mountain', 'city', 'adventure', 'culture', 'food', 'nature', 'romantic'];
 
-    const mediaThumbSize = isSmallPhone ? 60 : 80;
+    // Portrait: photos in a grid of 3 per row, as wide as the page allows.
+    // Landscape: the horizontal strip of 1.3.0.
+    const MEDIA_GAP = 10;
+    const mediaThumbSize = isPortrait
+        ? Math.floor((SCREEN_WIDTH - 40 - 2 - 2 * MEDIA_GAP) / 3) - 1 // 40 padding, 2 border, 1 for rounding
+        : (isSmallPhone ? 60 : 80);
     const dynamicStyles = {
-        blurContainer: { width: isTablet ? SCREEN_WIDTH * 0.5 : SCREEN_WIDTH * 0.85, maxWidth: 550, minWidth: 300 },
-        scrollContent: { maxHeight: SCREEN_HEIGHT * 0.6 },
+        blurContainer: isPortrait
+            ? { width: SCREEN_WIDTH, maxWidth: SCREEN_WIDTH, minWidth: 0 }
+            : { width: isTablet ? SCREEN_WIDTH * 0.5 : SCREEN_WIDTH * 0.85, maxWidth: 550, minWidth: 300 },
+        scrollContent: isPortrait
+            ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 }
+            : { maxHeight: Math.max(160, SCREEN_HEIGHT - insets.top - insets.bottom - 190) },
         mediaItem: { width: mediaThumbSize, height: mediaThumbSize },
     };
 
     return (
-        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType="fade" transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
-            <BlurView intensity={30} tint="dark" style={styles.overlay}>
-                <View style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer]}>
+        <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType={openAnim.current} transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
+            <BlurView intensity={30} tint="dark" style={[styles.overlay, isPortrait && styles.overlayPortrait]}>
+                <View testID="trip-form" style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer, isPortrait && styles.formPortrait, isPortrait && { height: SCREEN_HEIGHT - insets.top - 8 - keyboardH, marginBottom: keyboardH }]}>
                         <View style={styles.header}>
                             <View style={styles.headerTitle}>
                                 <Ionicons name={isEditMode ? 'create' : 'location'} size={isSmallPhone ? 20 : 24} color="#60A5FA" />
@@ -520,12 +546,14 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     {isEditMode ? t('editTrip') : t('newTrip')}
                                 </Text>
                             </View>
-                            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={isSmallPhone ? 24 : 28} color="#9CA3AF" />
+                            <TouchableOpacity testID="trip-form-close" onPress={handleClose} style={styles.closeBtn}
+                                accessibilityRole="button" accessibilityLabel={t('close') as string}>
+                                <Ionicons name="close" size={18} color="#D1D5DB" />
+                                <Text style={styles.closeBtnText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={[styles.scrollContent, dynamicStyles.scrollContent]}
+                        <ScrollView style={[styles.scrollContent, dynamicStyles.scrollContent]} testID="trip-form-scroll"
                             showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                             {/* Location Search */}
                             <View style={styles.section}>
@@ -536,8 +564,12 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         onChangeText={setLocationQuery} onSubmitEditing={handleGeocode}
                                         returnKeyType="search" autoCorrect={false} />
                                     <TouchableOpacity testID="trip-location-search" style={styles.searchBtn} onPress={handleGeocode} disabled={isSearching}>
-                                        {isSearching ? <ActivityIndicator color="#fff" size="small" /> :
-                                            <Ionicons name="search" size={22} color="#fff" />}
+                                        {isSearching ? <ActivityIndicator color="#fff" size="small" /> : (
+                                            <>
+                                                <Ionicons name="search" size={18} color="#fff" />
+                                                <Text style={styles.searchBtnText}>{t('searchHome')}</Text>
+                                            </>
+                                        )}
                                     </TouchableOpacity>
                                 </View>
                                 {foundLocation && (
@@ -692,13 +724,16 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                         </Text>
                                     )}
                                     {media.length > 0 && (
-                                        <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
+                                        <ScrollView horizontal={!isPortrait} scrollEnabled={!isPortrait} style={styles.mediaPreview}
+                                            contentContainerStyle={isPortrait ? styles.mediaGrid : undefined}
+                                            showsHorizontalScrollIndicator={false}>
                                             {media.map((item, index) => (
-                                                <View key={index} style={[styles.mediaItem, dynamicStyles.mediaItem]}>
+                                                <View key={index} style={[styles.mediaItem, dynamicStyles.mediaItem, isPortrait && { marginRight: (index % 3 === 2) ? 0 : MEDIA_GAP, marginBottom: MEDIA_GAP }]}>
                                                     <Image source={{ uri: item.uri }} style={{ width: mediaThumbSize, height: mediaThumbSize }} contentFit="cover" />
-                                                    <TouchableOpacity style={styles.removeMediaBtn} onPress={() => removeMedia(index)}
-                                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                                        <Ionicons name="close" size={12} color="#fff" />
+                                                    <TouchableOpacity style={[styles.removeMediaBtn, isPortrait && styles.removeMediaBtnBig]} onPress={() => removeMedia(index)}
+                                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                        accessibilityRole="button" accessibilityLabel={t('delete') as string}>
+                                                        <Ionicons name="close" size={isPortrait ? 16 : 12} color="#fff" />
                                                     </TouchableOpacity>
                                                     {item.type === 'video' && (
                                                         <View style={styles.videoTag}><Text style={styles.videoTagText}>{t('videoTag')}</Text></View>
@@ -709,21 +744,25 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                                     )}
                                 </View>
 
-                                <TouchableOpacity
-                                    testID="trip-save"
-                                    style={[styles.submitBtn, (!foundLocation || isSaving || isProcessingMedia) && styles.submitBtnDisabled]}
-                                    onPress={handleSubmit} disabled={!foundLocation || isSaving || isProcessingMedia} activeOpacity={0.8}>
-                                    {isSaving ? <ActivityIndicator color="#fff" size="small" /> : (
-                                        <>
-                                            <Ionicons name={isEditMode ? 'checkmark' : 'pin'} size={20} color="#fff" />
-                                            <Text style={styles.submitBtnText}>
-                                                {isEditMode ? t('saveChanges') : t('addPin')}
-                                            </Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
                             </View>
                         </ScrollView>
+
+                        {/* "Add Pin" stays in sight at the bottom, outside the scroll */}
+                        <View style={[styles.footer, isPortrait && { paddingBottom: 12 + (keyboardH > 0 ? 0 : insets.bottom) }]}>
+                            <TouchableOpacity
+                                testID="trip-save"
+                                style={[styles.submitBtn, (!foundLocation || isSaving || isProcessingMedia) && styles.submitBtnDisabled]}
+                                onPress={handleSubmit} disabled={!foundLocation || isSaving || isProcessingMedia} activeOpacity={0.8}>
+                                {isSaving ? <ActivityIndicator color="#fff" size="small" /> : (
+                                    <>
+                                        <Ionicons name={isEditMode ? 'checkmark' : 'pin'} size={20} color="#fff" />
+                                        <Text style={styles.submitBtnText}>
+                                            {isEditMode ? t('saveChanges') : t('addPin')}
+                                        </Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                 </View>
 
                 {/* Media Processing Overlay */}
@@ -808,19 +847,27 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
 const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
-    blurContainer: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    overlayPortrait: { justifyContent: 'flex-end' },
+    formPortrait: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 0, paddingBottom: 0 },
+    footer: { paddingTop: 10 },
+    // no overflow: 'hidden' here: with the corners changing on rotation (square at the
+    // bottom in portrait, round in landscape) Android kept the old clip and the whole
+    // form came out blank after turning the phone. The ScrollView clips by itself.
+    blurContainer: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     formContainer: { padding: 20, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     title: { fontSize: 22, fontWeight: '700', color: '#fff' },
-    closeBtn: { padding: 8, marginRight: -8 },
+    closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+    closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
     scrollContent: { flexGrow: 0 },
     section: { marginBottom: 14 },
     label: { fontSize: 13, color: '#9CA3AF', marginBottom: 8, fontWeight: '500' },
     searchRow: { flexDirection: 'row', gap: 10 },
     input: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: '#fff', fontSize: 15 },
     notesInput: { minHeight: 70, paddingTop: 12 },
-    searchBtn: { backgroundColor: '#3B82F6', borderRadius: 12, width: 48, justifyContent: 'center', alignItems: 'center' },
+    searchBtn: { backgroundColor: '#3B82F6', borderRadius: 12, paddingHorizontal: 12, minWidth: 48, flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center' },
+    searchBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
     foundLocation: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 4 },
     foundText: { color: '#10B981', fontSize: 13, flex: 1 },
     detailsSection: { opacity: 1 },
@@ -835,12 +882,14 @@ const styles = StyleSheet.create({
     mediaPickerIcon: { backgroundColor: 'rgba(96,165,250,0.2)', padding: 6, borderRadius: 8 },
     mediaPickerText: { color: '#9CA3AF', fontSize: 13 },
     mediaPreview: { marginTop: 12 },
+    mediaGrid: { flexDirection: 'row', flexWrap: 'wrap' },
     mediaItem: { marginRight: 10, borderRadius: 10, overflow: 'hidden', position: 'relative' },
     removeMediaBtn: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(239,68,68,0.9)', borderRadius: 10, padding: 4 },
+    removeMediaBtnBig: { top: 6, right: 6, borderRadius: 14, padding: 6 },
     mediaCountLabel: { color: '#9CA3AF', fontSize: 12, marginTop: 8, marginBottom: 6, opacity: 0.7, fontWeight: '500' },
     videoTag: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
     videoTagText: { color: '#fff', fontSize: 8, fontWeight: '700' },
-    submitBtn: { backgroundColor: '#3B82F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 14, marginTop: 8 },
+    submitBtn: { backgroundColor: '#3B82F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 14 },
     submitBtnDisabled: { backgroundColor: '#374151' },
     submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
     datePickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
