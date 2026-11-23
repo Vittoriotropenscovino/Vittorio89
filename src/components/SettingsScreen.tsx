@@ -20,7 +20,8 @@ import StorageService from '../services/StorageService';
 import Constants from 'expo-constants';
 import { validateImportData, extractMarkedCountries } from '../utils/validateTrip';
 import { mergeCountryCodes } from '../utils/countries';
-import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ALL_ORIENTATIONS, useOrientation } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; labelKey: string }[] = [
@@ -63,6 +64,10 @@ const SettingsScreen: React.FC<Props> = ({
     isPremium, price, onPurchase, onRestore, onDevModeToggle, freeLimit = 3,
 }) => {
     const { t, language, setLanguage, settings, updateSettings } = useApp();
+    // 1.4.0: in portrait the window is as wide as the screen minus the margins and stays
+    // inside the safe area; landscape is unchanged.
+    const { width: winW, height: winH, isPortrait } = useOrientation();
+    const insets = useSafeAreaInsets();
     const [importing, setImporting] = useState(false);
     const [homeQuery, setHomeQuery] = useState('');
     const [searchingHome, setSearchingHome] = useState(false);
@@ -414,12 +419,14 @@ const SettingsScreen: React.FC<Props> = ({
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <BlurView intensity={30} tint="dark" style={styles.overlay}>
-                <View style={[styles.card, styles.content]}>
+                <View testID="settings-screen" style={[styles.card, styles.content, isPortrait && { width: Math.min(winW - 32, 520), maxWidth: 520, maxHeight: winH - insets.top - insets.bottom - 24 }]}>
                         <View style={styles.header}>
                             <Ionicons name="settings" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('settings')}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#9CA3AF" />
+                            <TouchableOpacity testID="settings-close" onPress={onClose} style={styles.closeBtn}
+                                accessibilityRole="button" accessibilityLabel={t('close') as string}>
+                                <Ionicons name="close" size={18} color="#D1D5DB" />
+                                <Text style={styles.closeBtnText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -447,8 +454,10 @@ const SettingsScreen: React.FC<Props> = ({
                                         <Ionicons name="home" size={18} color="#FFD700" />
                                         <Text style={styles.homeText}>{settings.homeLocation.name}</Text>
                                     </View>
-                                    <TouchableOpacity onPress={handleRemoveHome} style={styles.homeRemoveBtn}>
-                                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                                    <TouchableOpacity onPress={handleRemoveHome} style={styles.homeRemoveBtn}
+                                        accessibilityRole="button" accessibilityLabel={t('delete') as string}>
+                                        <Ionicons name="close-circle" size={18} color="#EF4444" />
+                                        <Text style={styles.homeRemoveText}>{t('delete')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
@@ -472,7 +481,10 @@ const SettingsScreen: React.FC<Props> = ({
                                     {searchingHome ? (
                                         <ActivityIndicator size="small" color="#00d4ff" />
                                     ) : (
-                                        <Ionicons name="search" size={18} color="#00d4ff" />
+                                        <>
+                                            <Ionicons name="search" size={16} color="#00d4ff" />
+                                            <Text style={styles.homeSearchText}>{t('searchHome')}</Text>
+                                        </>
                                     )}
                                 </TouchableOpacity>
                             </View>
@@ -639,7 +651,8 @@ const styles = StyleSheet.create({
     content: { flex: 1, padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
-    closeBtn: { padding: 4 },
+    closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+    closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
     scroll: { flex: 1 },
     sectionHeader: { color: '#60A5FA', fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginTop: 18, marginBottom: 10 },
     settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
@@ -660,7 +673,8 @@ const styles = StyleSheet.create({
     },
     homeInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
     homeText: { color: '#E5E7EB', fontSize: 14, fontWeight: '500', flex: 1 },
-    homeRemoveBtn: { padding: 4 },
+    homeRemoveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: 'rgba(239,68,68,0.1)' },
+    homeRemoveText: { color: '#EF4444', fontSize: 13, fontWeight: '600' },
     homeNotSet: { color: '#6B7280', fontSize: 13, fontStyle: 'italic', marginBottom: 8 },
     homeSearchRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
     homeInput: {
@@ -669,8 +683,9 @@ const styles = StyleSheet.create({
     },
     homeSearchBtn: {
         backgroundColor: 'rgba(0,212,255,0.1)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
-        borderRadius: 12, width: 44, justifyContent: 'center', alignItems: 'center',
+        borderRadius: 12, paddingHorizontal: 12, minWidth: 44, flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center',
     },
+    homeSearchText: { color: '#00d4ff', fontSize: 14, fontWeight: '600' },
     storageCard: {
         backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
         borderRadius: 12, padding: 14, marginBottom: 12,

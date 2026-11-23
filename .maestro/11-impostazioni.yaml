@@ -1,0 +1,40 @@
+# Impostazioni (blocco H della 1.4.0).
+# Apre le impostazioni dal menu, controlla lingue, posizione di casa con «Cerca»
+# scritto e la chiusura con «Chiudi» scritto. Non cambia niente.
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'LANDSCAPE_LEFT' : ORIENTATION}"
+- setOrientation: ${output.orient}
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 40000
+
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: "quick-settings"
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "settings-screen"
+- assertVisible: "Italiano"
+- assertVisible: "Chiudi"
+- takeScreenshot: 11a-impostazioni-${output.orient}
+- scrollUntilVisible:
+    element: "Cerca"
+    direction: DOWN
+- takeScreenshot: 11b-casa-${output.orient}
+
+- tapOn:
+    id: "settings-close"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertNotVisible:
+    id: "settings-screen"
+- assertVisible:
+    id: "stats-bar"
+- setOrientation: LANDSCAPE_LEFT
