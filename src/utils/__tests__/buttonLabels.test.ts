@@ -25,7 +25,6 @@ const LABEL_DEBT: Record<string, number> = {
     'src/components/PinSelector.tsx': 1,
     'src/components/PrivacyPolicy.tsx': 1,
     'src/components/SettingsScreen.tsx': 3,
-    'src/components/StatsScreen.tsx': 1,
     'src/components/TermsOfService.tsx': 1,
     'src/components/TripForm.tsx': 5, // PERMANENT: the 4 month/year arrows of the date picker, the small ✕ on a photo (removes it)
     'src/components/TripSidebar.tsx': 2, // PERMANENT: the dark backdrop that closes the menu, the ✕ that clears the search

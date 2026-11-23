@@ -8,6 +8,7 @@ import { getVisitedCountries } from '../utils/visitedCountries';
 import ShareCardCapture from './ShareCardCapture';
 import { useApp } from '../contexts/AppContext';
 import { useShareGlobe } from '../hooks/useShareGlobe';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 import { formatTripDate } from '../utils/formatDate';
@@ -24,7 +25,11 @@ const NO_MARKED: string[] = [];
 
 const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries = NO_MARKED }) => {
     const { t, language, settings, updateSettings } = useApp();
-    const { height: screenHeight } = useWindowDimensions();
+    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+    // 1.4.0: in portrait the window is 94% wide, the chart is taller and the name +
+    // "Share your globe" sit at the bottom, within thumb reach. Landscape stays as in 1.3.0.
+    const isPortrait = screenHeight >= screenWidth;
+    const insets = useSafeAreaInsets();
 
     // Capture + share sheet + review prompt: shared with the main-screen entry points.
     const { captureHostRef, sharing, share } = useShareGlobe();
@@ -81,22 +86,61 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
         return { totalPhotos, totalVideos, countries, monthCounts, maxMonth, firstDate, lastDate, favCount };
     }, [trips, travelStats]);
 
+    const shareBlock = (
+        <>
+            {/* Optional traveler name (free text, no account) */}
+            <TextInput
+                style={styles.nameInput}
+                value={name}
+                onChangeText={setName}
+                onEndEditing={persistName}
+                onBlur={persistName}
+                placeholder={t('travelerNamePlaceholder') as string}
+                placeholderTextColor="#6B7280"
+                maxLength={24}
+                returnKeyType="done"
+                autoCapitalize="words"
+            />
+
+            {/* Share your globe */}
+            <TouchableOpacity
+                testID="stats-share"
+                style={[styles.shareBtn, (sharing || noCountries) && styles.shareBtnDisabled]}
+                onPress={handleShare}
+                disabled={sharing || noCountries}
+                activeOpacity={0.85}
+            >
+                {sharing ? (
+                    <ActivityIndicator color="#1C1300" />
+                ) : (
+                    <Ionicons name="share-social" size={20} color="#1C1300" />
+                )}
+                <Text style={styles.shareBtnText}>{t('shareGlobe')}</Text>
+            </TouchableOpacity>
+            {noCountries && (
+                <Text style={styles.shareHint}>{t('shareGlobeHint')}</Text>
+            )}
+        </>
+    );
+
     const rawMonths = t('months');
     const months = Array.isArray(rawMonths) ? rawMonths : [];
 
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <View style={[styles.card, styles.content]}>
+                <View testID="stats-screen" style={[styles.card, styles.content, isPortrait && { width: '94%', maxHeight: screenHeight - insets.top - insets.bottom - 24 }]}>
                         <View style={styles.header}>
                             <Ionicons name="stats-chart" size={24} color="#00d4ff" />
                             <Text style={styles.title}>{t('statistics')}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#9CA3AF" />
+                            <TouchableOpacity testID="stats-close" onPress={onClose} style={styles.closeBtn}
+                                accessibilityRole="button" accessibilityLabel={t('close') as string}>
+                                <Ionicons name="close" size={18} color="#D1D5DB" />
+                                <Text style={styles.closeBtnText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} style={[styles.scroll, { maxHeight: screenHeight * 0.6 }]}>
+                        <ScrollView showsVerticalScrollIndicator={false} style={[styles.scroll, isPortrait ? styles.scrollPortrait : { maxHeight: screenHeight * 0.6 }]}>
                             {/* Big numbers */}
                             <View style={styles.bigNumbers}>
                                 <View style={styles.bigNumItem}>
@@ -110,42 +154,12 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
                                 </View>
                                 <View style={styles.bigNumDivider} />
                                 <View style={styles.bigNumItem}>
-                                    <Text style={styles.bigNum}>{stats.countries}</Text>
+                                    <Text testID="stats-countries" style={[styles.bigNum, styles.bigNumGold]}>{stats.countries}</Text>
                                     <Text style={styles.bigNumLabel}>{t('countriesVisited')}</Text>
                                 </View>
                             </View>
 
-                            {/* Optional traveler name (free text, no account) */}
-                            <TextInput
-                                style={styles.nameInput}
-                                value={name}
-                                onChangeText={setName}
-                                onEndEditing={persistName}
-                                onBlur={persistName}
-                                placeholder={t('travelerNamePlaceholder') as string}
-                                placeholderTextColor="#6B7280"
-                                maxLength={24}
-                                returnKeyType="done"
-                                autoCapitalize="words"
-                            />
-
-                            {/* Share your globe */}
-                            <TouchableOpacity
-                                style={[styles.shareBtn, (sharing || noCountries) && styles.shareBtnDisabled]}
-                                onPress={handleShare}
-                                disabled={sharing || noCountries}
-                                activeOpacity={0.85}
-                            >
-                                {sharing ? (
-                                    <ActivityIndicator color="#021018" />
-                                ) : (
-                                    <Ionicons name="share-social" size={20} color="#021018" />
-                                )}
-                                <Text style={styles.shareBtnText}>{t('shareGlobe')}</Text>
-                            </TouchableOpacity>
-                            {noCountries && (
-                                <Text style={styles.shareHint}>{t('shareGlobeHint')}</Text>
-                            )}
+                            {!isPortrait && shareBlock}
 
                             {/* Details row */}
                             <View style={styles.detailRow}>
@@ -174,7 +188,7 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
 
                             {/* Monthly chart */}
                             <Text style={styles.chartTitle}>{t('tripsByMonth')}</Text>
-                            <View style={styles.chart}>
+                            <View style={[styles.chart, isPortrait && { height: 160 }]}>
                                 {stats.monthCounts.map((count, i) => (
                                     <View key={i} style={styles.barCol}>
                                         <View style={styles.barContainer}>
@@ -192,6 +206,8 @@ const StatsScreen: React.FC<Props> = ({ visible, onClose, trips, markedCountries
                                 ))}
                             </View>
                         </ScrollView>
+
+                        {isPortrait && <View style={styles.footer}>{shareBlock}</View>}
                 </View>
 
                 {/* Off-screen ShareCard host — rendered (capturable) but unseen */}
@@ -207,24 +223,29 @@ const styles = StyleSheet.create({
     content: { padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
-    closeBtn: { padding: 4 },
+    closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+    closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
     scroll: {},
+    scrollPortrait: { flexGrow: 0, flexShrink: 1 },
+    footer: { paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', marginTop: 4 },
     bigNumbers: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 20 },
     bigNumItem: { alignItems: 'center' },
     bigNum: { fontSize: 36, fontWeight: '900', color: '#00d4ff' },
+    // gold = "visited", as on the main screen
+    bigNumGold: { color: '#FBBF24' },
     bigNumLabel: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
     bigNumDivider: { width: 1, height: 40, backgroundColor: 'rgba(0,212,255,0.15)' },
     nameInput: {
-        backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)',
+        backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
         borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14,
         marginBottom: 10,
     },
     shareBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-        backgroundColor: '#00d4ff', borderRadius: 14, paddingVertical: 13, marginBottom: 16,
+        backgroundColor: '#FBBF24', borderRadius: 14, paddingVertical: 13, marginBottom: 16,
     },
-    shareBtnDisabled: { backgroundColor: 'rgba(0,212,255,0.25)' },
-    shareBtnText: { color: '#021018', fontSize: 15, fontWeight: '800' },
+    shareBtnDisabled: { backgroundColor: 'rgba(251,191,36,0.25)' },
+    shareBtnText: { color: '#1C1300', fontSize: 15, fontWeight: '800' },
     shareHint: { color: '#6B7280', fontSize: 12, textAlign: 'center', marginTop: -8, marginBottom: 14 },
     detailRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 16 },
     detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
