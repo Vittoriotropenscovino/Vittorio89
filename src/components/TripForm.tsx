@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 import { formatTripDate } from '../utils/formatDate';
+import { keyboardOverlap } from '../utils/keyboardOverlap';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -37,14 +38,19 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
     // is open: switching it on rotation left the form blank (content not drawn).
     const openAnim = useRef<'slide' | 'fade'>(isPortrait ? 'slide' : 'fade');
     if (!visible) openAnim.current = isPortrait ? 'slide' : 'fade';
-    // The Modal does not shrink when the keyboard opens: in portrait the page moves up
-    // by the keyboard height, so "Add Pin" stays in sight while typing.
-    const [keyboardH, setKeyboardH] = useState(0);
+    // The Modal does not shrink when the keyboard opens: in portrait the page moves its
+    // bottom up to the keyboard's top edge, so "Add Pin" stays in sight while typing
+    // (src/utils/keyboardOverlap.ts: the height alone was not enough on Samsung).
+    const [keyboard, setKeyboard] = useState<{ height: number; screenY?: number } | null>(null);
+    const [pageH, setPageH] = useState(0);
     useEffect(() => {
-        const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardH(e.endCoordinates.height));
-        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardH(0));
+        const show = Keyboard.addListener('keyboardDidShow', (e) =>
+            setKeyboard({ height: e.endCoordinates.height, screenY: e.endCoordinates.screenY }));
+        const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(null));
         return () => { show.remove(); hide.remove(); };
     }, []);
+    const pageHeight = pageH || SCREEN_HEIGHT;
+    const keyboardH = keyboard ? keyboardOverlap(pageHeight, keyboard.height, keyboard.screenY) : 0;
 
     const [locationQuery, setLocationQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -537,8 +543,9 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} animationType={openAnim.current} transparent statusBarTranslucent hardwareAccelerated onRequestClose={handleClose}>
-            <BlurView intensity={30} tint="dark" style={[styles.overlay, isPortrait && styles.overlayPortrait]}>
-                <View testID="trip-form" style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer, isPortrait && styles.formPortrait, isPortrait && { height: SCREEN_HEIGHT - insets.top - 8 - keyboardH, marginBottom: keyboardH }]}>
+            <BlurView intensity={30} tint="dark" style={[styles.overlay, isPortrait && styles.overlayPortrait]}
+                onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
+                <View testID="trip-form" style={[styles.blurContainer, dynamicStyles.blurContainer, styles.formContainer, isPortrait && styles.formPortrait, isPortrait && { height: pageHeight - insets.top - 8 - keyboardH, marginBottom: keyboardH }]}>
                         <View style={styles.header}>
                             <View style={styles.headerTitle}>
                                 <Ionicons name={isEditMode ? 'create' : 'location'} size={isSmallPhone ? 20 : 24} color="#60A5FA" />

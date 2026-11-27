@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, useWindowDimensions, PixelRatio } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,8 @@ import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
-import { calendarCellSize, weekdayLetters } from '../utils/calendarGrid';
+import { calendarCellSize, weekdayLetters, CALENDAR_CELLS } from '../utils/calendarGrid';
+import { fitFontSize, estimateTextWidth } from '../utils/fitText';
 
 // gold = "visited": the days with a trip, as on the main screen
 const GOLD = '#FBBF24';
@@ -40,6 +41,13 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     const cellH = landscape ? Math.round(cell / 2) : cell;
     // portrait: as wide as the screen minus the margins
     const cardWidth = landscape ? undefined : Math.min(winW - 32, 500);
+    // Title on one line with any system font size (prova 3: it wrapped at 115%).
+    // Room = card content - calendar icon and gaps - the "✕ Close" button.
+    const fontScale = PixelRatio.getFontScale();
+    const contentW = (cardWidth ?? Math.min(winW * 0.9, 500)) - 2 * 20 - 2;
+    const closeW = 18 + 4 + estimateTextWidth(t('close') as string, 14, fontScale) + 24;
+    const titleRoom = contentW - 24 - 2 * 10 - closeW;
+    const titleSize = fitFontSize(t('calendarTitle') as string, titleRoom, 20, 14, fontScale);
 
     const tripsByDate = useMemo(() => {
         const map: Record<string, Trip[]> = {};
@@ -60,6 +68,9 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     const days: (number | null)[] = [];
     for (let i = 0; i < startOffset; i++) days.push(null);
     for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    // always 6 rows: the card has the same height every month, so the month arrows
+    // never move under the finger (prova 3: they jumped between 5- and 6-row months)
+    while (days.length < CALENDAR_CELLS) days.push(null);
 
     const weekDays = useMemo(() => weekdayLetters(language), [language]);
 
@@ -82,11 +93,11 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
 
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
-            <View style={styles.overlay}>
+            <View style={[styles.overlay, { paddingTop: insets.top + 12 }]}>
                 <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, cardWidth !== undefined && { width: cardWidth }, landscape && styles.contentCompact]}>
                         <View style={[styles.header, landscape && styles.headerCompact]}>
                             <Ionicons name="calendar" size={24} color="#00d4ff" />
-                            <Text style={styles.title}>{t('calendarTitle')}</Text>
+                            <Text style={[styles.title, { fontSize: titleSize }]} numberOfLines={1}>{t('calendarTitle')}</Text>
                             <TouchableOpacity testID="calendar-close" onPress={onClose} style={styles.closeBtn}
                                 accessibilityRole="button" accessibilityLabel={t('close') as string}>
                                 <Ionicons name="close" size={18} color="#D1D5DB" />
@@ -186,7 +197,8 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
 };
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'center', alignItems: 'center' },
+    // top-anchored, not centred: the month arrows stay in the same place every month
+    overlay: { flex: 1, backgroundColor: MODAL_BACKDROP, justifyContent: 'flex-start', alignItems: 'center' },
     card: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', maxWidth: 500, width: '90%' },
     content: { padding: 20, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },

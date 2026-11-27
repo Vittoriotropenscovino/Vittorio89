@@ -176,7 +176,8 @@ describe('1.4.0 prova 1 fixes: the side menu survives a rotation', () => {
 
     it('landscape: two panes, the trips visible at once on the right', () => {
         expect(sidebar).toMatch(/\{landscape \? \(\s*<View style=\{styles\.twoPane\}>/);
-        expect(sidebar).toContain('<View style={styles.listPane}>{tripList}</View>');
+        // the list pane is measured (onLayout) since the 130% font check
+        expect(sidebar).toMatch(/<View style=\{styles\.listPane\}[^\n]*>\{tripList\}<\/View>/);
         // buttons and filters written once, used by both layouts
         expect((sidebar.match(/\{controls\}/g) || []).length).toBe(2);
         expect((sidebar.match(/\{tripList\}/g) || []).length).toBe(2);

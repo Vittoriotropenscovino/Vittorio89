@@ -24,3 +24,6 @@ export function weekdayLetters(language: string): string[] {
         new Date(2024, 0, i + 1).toLocaleDateString(language, { weekday: 'narrow' }).toUpperCase()
     );
 }
+
+/** Cells in the grid: always 6 weeks, so the card has the same height every month. */
+export const CALENDAR_CELLS = 6 * 7;

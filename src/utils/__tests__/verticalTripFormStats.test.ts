@@ -17,7 +17,9 @@ describe('trip form in portrait (block E)', () => {
 
     it('the page moves up with the keyboard, so "Add Pin" stays above it', () => {
         expect(src).toMatch(/Keyboard\.addListener\('keyboardDidShow'/);
-        expect(src).toMatch(/SCREEN_HEIGHT - insets\.top - 8 - keyboardH/);
+        expect(src).toMatch(/pageHeight - insets\.top - 8 - keyboardH/);
+        // the keyboard's top edge on the screen, not only its height (Samsung, prova 3)
+        expect(src).toContain('keyboardOverlap(pageHeight, keyboard.height, keyboard.screenY)');
     });
 
     it('the scroll fills the page (flexGrow 0 of the old style must not win over flex: 1)', () => {

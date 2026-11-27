@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated, SectionList, ScrollView,
-    TextInput, Platform, useWindowDimensions,
+    TextInput, Platform, useWindowDimensions, PixelRatio,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Trip, TripTag, TAG_CONFIG, HomeLocation } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCountryFlag } from '../utils/countryFlags';
+import { fitFontSize } from '../utils/fitText';
 import { extractCountryFromLocationName } from '../utils/geocoding';
 import { formatTripDate } from '../utils/formatDate';
 
@@ -55,8 +56,29 @@ const TripSidebar: React.FC<Props> = ({
     // adjustsFontSizeToFit kept the sizes measured before the rotation and fell
     // to one per row (6 rows over the trip list).
     const quickCols = landscape ? 3 : 2;
-    const controlsWidth = landscape ? Math.round(sidebarWidth * 0.6) : sidebarWidth - (16 + insets.left) - 16 - 1;
+    // landscape: 55% buttons, 45% trips (with 60/40 the country names were cut,
+    // "Giapp…", with a 115% system font)
+    const controlsWidth = landscape ? Math.round(sidebarWidth * 0.55) : sidebarWidth - (16 + insets.left) - 16 - 1;
     const quickW = Math.floor((controlsWidth - QUICK_GAP * (quickCols - 1)) / quickCols);
+    // Quick-action labels: size computed from the room (icon 16 + gap 6 + 12 margin),
+    // not adjustsFontSizeToFit, which clipped words on Android with a large system font.
+    const fontScale = PixelRatio.getFontScale();
+    const qFont = (label: string) => fitFontSize(label, quickW - 16 - 6 - 12, 12, 9, fontScale);
+    // Country headers in the trip list: name sized from the room left by the flag, the
+    // gold count and the arrow (landscape at 130% showed "Portogall…").
+    // the list width is MEASURED: the estimate from the screen width was 70 points too
+    // wide in landscape (system bars at the side)
+    const [listPaneW, setListPaneW] = useState(0);
+    const listW = (landscape ? listPaneW : 0) || (landscape ? sidebarWidth - controlsWidth - 48 : controlsWidth);
+    const sectionRoom = listW - 2 * 12 - 2 - 22 * fontScale - 3 * 8 - (16 + 14 * fontScale) - 16;
+    const sectionFont = (title: string) => fitFontSize(title, sectionRoom, 14, 11, fontScale);
+    // the home button can say «Imposta la posizione di casa»: too long for one line, so
+    // two lines at 11 instead of an ellipsis
+    const homeLabel = (homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')) as string;
+    const homeOneLine = fitFontSize(homeLabel, quickW - 16 - 6 - 12, 12, 1, fontScale) >= 10;
+    const homeLabelLines = homeOneLine ? 1 : 2;
+    const homeTwoLineSize = fitFontSize(homeLabel, (quickW - 16 - 6 - 12) * 1.8, 11, 9, fontScale);
+    const homeLabelStyle = homeOneLine ? { fontSize: qFont(homeLabel) } : { fontSize: homeTwoLineSize, lineHeight: Math.round(homeTwoLineSize * 1.3) };
     const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
     const backdropOpacity = useRef(new Animated.Value(0)).current;
     const [isRendered, setIsRendered] = useState(false);
@@ -185,7 +207,7 @@ const TripSidebar: React.FC<Props> = ({
         return (
             <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleSection(section.title)} activeOpacity={0.7}>
                 <Text style={styles.sectionFlag}>{section.flag}</Text>
-                <Text style={styles.sectionTitle} numberOfLines={1}>{section.title}</Text>
+                <Text style={[styles.sectionTitle, { fontSize: sectionFont(section.title) }]} numberOfLines={1}>{section.title}</Text>
                 <View style={styles.sectionBadge}>
                     <Text style={styles.sectionCount}>{count}</Text>
                 </View>
@@ -221,7 +243,7 @@ const TripSidebar: React.FC<Props> = ({
                         style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact, homeLocation ? styles.homeActionSet : styles.homeActionUnset]}
                         onPress={() => { onOpenSettings(); onClose(); }}>
                         <Ionicons name="home" size={16} color="#FFD700" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        <Text style={[styles.quickActionText, homeLabelStyle]} numberOfLines={homeLabelLines}>
                             {homeLocation ? homeLocation.name.split(',')[0] : t('setHomeLocation')}
                         </Text>
                     </TouchableOpacity>
@@ -229,31 +251,31 @@ const TripSidebar: React.FC<Props> = ({
                 {onOpenStats && (
                     <TouchableOpacity testID="quick-stats" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenStats(); onClose(); }}>
                         <Ionicons name="stats-chart" size={16} color="#00d4ff" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics')}</Text>
+                        <Text style={[styles.quickActionText, { fontSize: qFont(t('statistics') as string) }]} numberOfLines={1}>{t('statistics')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenCalendar && (
                     <TouchableOpacity testID="quick-calendar" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenCalendar(); onClose(); }}>
                         <Ionicons name="calendar" size={16} color="#00d4ff" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('calendar')}</Text>
+                        <Text style={[styles.quickActionText, { fontSize: qFont(t('calendar') as string) }]} numberOfLines={1}>{t('calendar')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenSettings && (
                     <TouchableOpacity testID="quick-settings" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenSettings(); onClose(); }}>
                         <Ionicons name="settings" size={16} color="#00d4ff" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('settings')}</Text>
+                        <Text style={[styles.quickActionText, { fontSize: qFont(t('settings') as string) }]} numberOfLines={1}>{t('settings')}</Text>
                     </TouchableOpacity>
                 )}
                 {onOpenHelpGuide && (
                     <TouchableOpacity testID="quick-help" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onOpenHelpGuide(); onClose(); }}>
                         <Ionicons name="help-circle" size={16} color="#00d4ff" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('helpGuideMenuItem')}</Text>
+                        <Text style={[styles.quickActionText, { fontSize: qFont(t('helpGuideMenuItem') as string) }]} numberOfLines={1}>{t('helpGuideMenuItem')}</Text>
                     </TouchableOpacity>
                 )}
                 {onCastScreen && (
                     <TouchableOpacity testID="cast-tv" style={[styles.quickActionBtn, { width: quickW }, landscape && styles.quickActionCompact]} onPress={() => { onCastScreen(); onClose(); }}>
                         <Ionicons name="tv-outline" size={16} color="#00d4ff" />
-                        <Text style={styles.quickActionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('castToTv')}</Text>
+                        <Text style={[styles.quickActionText, { fontSize: qFont(t('castToTv') as string) }]} numberOfLines={1}>{t('castToTv')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -338,7 +360,7 @@ const TripSidebar: React.FC<Props> = ({
                                 <ScrollView style={{ width: controlsWidth, flexGrow: 0 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                                     {controls}
                                 </ScrollView>
-                                <View style={styles.listPane}>{tripList}</View>
+                                <View style={styles.listPane} onLayout={(e) => setListPaneW(e.nativeEvent.layout.width)}>{tripList}</View>
                             </View>
                         ) : (
                             <>

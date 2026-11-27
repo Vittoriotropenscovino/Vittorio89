@@ -37,3 +37,22 @@ describe('calendar of trips: weekday letters in every language', () => {
         for (const l of ['pt', 'zh', 'ja']) expect(weekdayLetters(l)).toHaveLength(7);
     });
 });
+
+describe('calendar of trips: same height every month', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', '..', 'components', 'CalendarView.tsx'), 'utf8');
+    it('the grid always has 6 rows (42 cells), even in a 4-row February', () => {
+        const { CALENDAR_CELLS } = require('../calendarGrid');
+        expect(CALENDAR_CELLS).toBe(42);
+        expect(src).toContain('while (days.length < CALENDAR_CELLS) days.push(null);');
+        // February 2027 starts on a Monday and has 28 days: 4 rows of real days
+        const first = (new Date(2027, 1, 1).getDay() + 6) % 7;
+        expect(first + 28).toBe(28);
+    });
+    it('the card is anchored at the top, so the month arrows never move', () => {
+        expect(src).toMatch(/overlay: \{[^}]*justifyContent: 'flex-start'/);
+    });
+    it('the title is on one line, sized from the room left by the Close button', () => {
+        expect(src).toContain("fitFontSize(t('calendarTitle') as string, titleRoom, 20, 14, fontScale)");
+        expect(src).toMatch(/numberOfLines=\{1\}>\{t\('calendarTitle'\)\}/);
+    });
+});

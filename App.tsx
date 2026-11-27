@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  Platform, Animated, Easing, Alert, Linking, AppState, ScrollView, StyleProp, ViewStyle, BackHandler,
+  Platform, Animated, Easing, Alert, Linking, AppState, ScrollView, StyleProp, ViewStyle, BackHandler, PixelRatio,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { estimateTextWidth } from './src/utils/fitText';
 
 import { AppProvider, useApp } from './src/contexts/AppContext';
 import EarthGlobe from './src/components/EarthGlobe';
@@ -417,6 +418,24 @@ const AppContent: React.FC = () => {
   // The numbers bar: ONE bar, always the same three numbers, a tap opens
   // Statistics (written on the bar, like every button). 1.4.0: the countries,
   // i.e. what is "visited", are in gold.
+  // "Statistics ›": its own line under the numbers, in both orientations. No
+  // adjustsFontSizeToFit: on Android it clipped the word ("Statis") with a 115% system font.
+  // Portrait routes pill: "Rotte di viaggio" only if it fits at the current system
+  // font size (at 130% it came out as "Rotte di"), otherwise the short "Rotte".
+  // Room = half the panel - icon 18 - gap 8 - padding 2×14 - border.
+  const routesLabelPortrait = estimateTextWidth(t('travelRoutes') as string, 13, PixelRatio.getFontScale())
+    <= (winW - 50) / 2 - 18 - 8 - 28 - 4
+    ? t('travelRoutes') as string
+    : t('routes') as string;
+
+  const statsOpen = (
+    <View style={[styles.statItem, styles.statItemShrink]}>
+      <Ionicons name="stats-chart" size={13} color="#00d4ff" />
+      <Text style={styles.statsOpenText} numberOfLines={1}>{t('statistics') as string}</Text>
+      <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
+    </View>
+  );
+
   const statsBar = (style: StyleProp<ViewStyle>) => (
     <TouchableOpacity
       testID="stats-bar"
@@ -426,7 +445,7 @@ const AppContent: React.FC = () => {
       accessibilityLabel={t('statistics') as string}
       activeOpacity={0.7}
     >
-      <View style={[styles.statsRow, isPortrait && styles.statsRowPortrait]}>
+      <View style={[styles.statsRow, styles.statsRowPortrait]}>
         <View style={styles.statItem}>
           <Ionicons name="airplane" size={13} color="#00d4ff" />
           <Text style={styles.statValue}>{stats.visitedTrips}</Text>
@@ -444,13 +463,8 @@ const AppContent: React.FC = () => {
           <Text style={[styles.statValue, styles.statValueGold]}>{stats.countries}</Text>
           <Text style={styles.statLabel}>{stats.countries === 1 ? t('country_s') : t('countries_p')}</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={[styles.statItem, styles.statItemShrink]}>
-          <Ionicons name="stats-chart" size={13} color="#00d4ff" />
-          <Text style={styles.statsOpenText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('statistics') as string}</Text>
-          <Ionicons name="chevron-forward" size={13} color="#00d4ff" />
-        </View>
       </View>
+      <View style={styles.statsOpenRowPortrait}>{statsOpen}</View>
     </TouchableOpacity>
   );
 
@@ -635,7 +649,7 @@ const AppContent: React.FC = () => {
               {freeTripsLine}
               <View style={styles.panelRow}>
                 {itineraryButton(styles.flex1)}
-                {routesButton(t('travelRoutes') as string, styles.flex1)}
+                {routesButton(routesLabelPortrait, styles.flex1)}
               </View>
             </ScrollView>
           </View>
@@ -931,7 +945,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5,5,20,0.7)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.15)', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 11,
   },
-  statsRowPortrait: { justifyContent: 'space-between', gap: 6 },
+  statsRowPortrait: { justifyContent: 'space-around', gap: 6 },
+  statsOpenRowPortrait: {
+    flexDirection: 'row', justifyContent: 'center', marginTop: 8, paddingTop: 8,
+    borderTopWidth: 1, borderTopColor: 'rgba(0,212,255,0.12)',
+  },
   addButtonPortrait: { justifyContent: 'center', paddingVertical: 15 },
   panelWide: { justifyContent: 'center', paddingVertical: 11 },
   welcomeRow: {
