@@ -41,7 +41,7 @@
     },
     "android": {
       "package": "com.travelsphere.app",
-      "versionCode": 42,
+      "versionCode": 43,
       "targetSdkVersion": 36,
       "compileSdkVersion": 36,
       "adaptiveIcon": {
