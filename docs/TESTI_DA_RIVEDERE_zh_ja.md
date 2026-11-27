@@ -117,3 +117,5 @@ Novità della 1.3.0
 | `menu` | Menu | 菜单 | メニュー |
 | `edit` | Modifica | 编辑 | 編集 |
 | `freeTripRemainingOne` (prova 2) | 1 viaggio gratuito rimanente | 剩余1次免费旅行 | 残り1回の無料旅行 |
+| `itineraryPlay` (blocco I) | Anima | 播放 | 再生 |
+| `itineraryRename` (blocco I) | Rinomina | 重命名 | 名前を変更 |

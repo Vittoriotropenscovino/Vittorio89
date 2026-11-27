@@ -8,7 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Trip, Itinerary } from '../types';
 import { useApp } from '../contexts/AppContext';
-import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ALL_ORIENTATIONS, useOrientation } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 
 interface Props {
@@ -27,6 +28,9 @@ const ItineraryManager: React.FC<Props> = ({
     onCreateItinerary, onDeleteItinerary, onRenameItinerary, onFlythrough,
 }) => {
     const { t } = useApp();
+    // 1.4.0: in portrait 92% of the width, inside the safe area; landscape unchanged.
+    const { height: winH, isPortrait } = useOrientation();
+    const insets = useSafeAreaInsets();
     const [newName, setNewName] = useState('');
     const [renameId, setRenameId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
@@ -82,12 +86,14 @@ const ItineraryManager: React.FC<Props> = ({
     return (
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={styles.overlay}>
-                <View style={[styles.card, styles.content]}>
+                <View testID="itinerary-manager" style={[styles.card, styles.content, isPortrait && { width: '92%', maxHeight: winH - insets.top - insets.bottom - 24 }]}>
                         <View style={styles.header}>
                             <Ionicons name="git-merge-outline" size={24} color="#F59E0B" />
-                            <Text style={styles.title}>{t('itineraries')}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                                <Ionicons name="close" size={24} color="#9CA3AF" />
+                            <Text style={styles.title} numberOfLines={1}>{t('itineraries')}</Text>
+                            <TouchableOpacity testID="itinerary-close" onPress={onClose} style={styles.closeBtn}
+                                accessibilityRole="button" accessibilityLabel={t('close') as string}>
+                                <Ionicons name="close" size={18} color="#D1D5DB" />
+                                <Text style={styles.closeBtnText}>{t('close')}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -137,32 +143,41 @@ const ItineraryManager: React.FC<Props> = ({
                                                         {itTrips.length} {t('itineraryTrips')}
                                                     </Text>
                                                 </View>
+                                            </View>
+                                            {/* written buttons (1.4.0): Play, Rename, Delete */}
+                                            <View style={styles.actionRow}>
                                                 {itTrips.length >= 2 && onFlythrough && (
                                                     <TouchableOpacity
-                                                        style={[styles.actionBtn, { backgroundColor: 'rgba(16,185,129,0.15)', borderRadius: 8 }]}
+                                                        testID={`itinerary-play-${itinerary.id}`}
+                                                        style={[styles.actionBtn, styles.actionPlay]}
                                                         onPress={() => {
                                                             const stops = itTrips.map(tr => ({ lat: tr.latitude, lng: tr.longitude }));
                                                             onFlythrough(stops);
                                                             onClose();
                                                         }}
-                                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                        accessibilityRole="button"
                                                     >
-                                                        <Ionicons name="play" size={16} color="#10B981" />
+                                                        <Ionicons name="play" size={14} color="#10B981" />
+                                                        <Text style={[styles.actionText, { color: '#10B981' }]} numberOfLines={1}>{t('itineraryPlay')}</Text>
                                                     </TouchableOpacity>
                                                 )}
                                                 <TouchableOpacity
-                                                    style={styles.actionBtn}
+                                                    testID={`itinerary-rename-${itinerary.id}`}
+                                                    style={[styles.actionBtn, styles.actionRename]}
                                                     onPress={() => handleStartRename(itinerary)}
-                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    accessibilityRole="button"
                                                 >
-                                                    <Ionicons name="pencil" size={16} color="#60A5FA" />
+                                                    <Ionicons name="pencil" size={14} color="#60A5FA" />
+                                                    <Text style={[styles.actionText, { color: '#60A5FA' }]} numberOfLines={1}>{t('itineraryRename')}</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity
-                                                    style={styles.actionBtn}
+                                                    testID={`itinerary-delete-${itinerary.id}`}
+                                                    style={[styles.actionBtn, styles.actionDelete]}
                                                     onPress={() => handleDelete(itinerary)}
-                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    accessibilityRole="button"
                                                 >
-                                                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                                                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                                                    <Text style={[styles.actionText, { color: '#EF4444' }]} numberOfLines={1}>{t('delete')}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             {itTrips.length > 0 && (
@@ -226,7 +241,8 @@ const styles = StyleSheet.create({
     content: { flex: 1, padding: 24, backgroundColor: MODAL_CARD },
     header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
     title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#F0F0F0' },
-    closeBtn: { padding: 4 },
+    closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+    closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
     createSection: { flexDirection: 'row', gap: 8, marginBottom: 16 },
     createInput: {
         flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
@@ -255,7 +271,12 @@ const styles = StyleSheet.create({
     itineraryInfo: { flex: 1 },
     itineraryName: { color: '#E5E7EB', fontSize: 15, fontWeight: '600' },
     itineraryMeta: { color: '#6B7280', fontSize: 11, marginTop: 2 },
-    actionBtn: { padding: 6 },
+    actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1 },
+    actionPlay: { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' },
+    actionRename: { backgroundColor: 'rgba(96,165,250,0.1)', borderColor: 'rgba(96,165,250,0.25)' },
+    actionDelete: { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)' },
+    actionText: { fontSize: 13, fontWeight: '600' },
     tripList: { marginTop: 10, marginLeft: 18, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: 'rgba(245,158,11,0.2)' },
     tripItem: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6, position: 'relative' },
     tripDot: {

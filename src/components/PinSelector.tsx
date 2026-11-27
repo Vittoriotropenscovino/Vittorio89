@@ -1,9 +1,11 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Trip, TAG_CONFIG } from '../types';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP } from '../utils/surfaces';
+import { useApp } from '../contexts/AppContext';
+import { formatTripDate } from '../utils/formatDate';
 
 interface Props {
   visible: boolean;
@@ -19,6 +21,11 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
     return typeof v === 'string' ? v : k;
   };
 
+  const { language } = useApp();
+  // 1.4.0: in portrait 92% wide and the list up to 60% of the screen (it was 300 high)
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height >= width;
+
   if (!visible || trips.length === 0) return null;
 
   const renderTrip = ({ item }: { item: Trip }) => (
@@ -31,7 +38,7 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
       <View style={styles.tripInfo}>
         <Text style={styles.tripTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.tripSubtitle} numberOfLines={1}>
-          {item.locationName}{item.date ? ' · ' + item.date : ''}
+          {item.locationName}{item.date ? ' · ' + formatTripDate(item.date, language) : ''}
         </Text>
         {item.tags && item.tags.length > 0 && (
           <View style={styles.tagsRow}>
@@ -53,22 +60,24 @@ export default function PinSelector({ visible, trips, onSelect, onClose, t }: Pr
   return (
     <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
-        <View style={styles.container} onStartShouldSetResponder={() => true}>
+        <View testID="pin-selector" style={[styles.container, isPortrait && { width: '92%' }]} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>
             <Ionicons name="location" size={20} color="#00d4ff" />
             <Text style={styles.headerTitle}>{ts('selectTrip')}</Text>
             <Text style={styles.headerCount}>
               {trips.length} {ts('tripsInArea')}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color="#9CA3AF" />
+            <TouchableOpacity testID="pin-selector-close" onPress={onClose} style={styles.closeBtn}
+              accessibilityRole="button" accessibilityLabel={ts('close')}>
+              <Ionicons name="close" size={18} color="#D1D5DB" />
+              <Text style={styles.closeBtnText}>{ts('close')}</Text>
             </TouchableOpacity>
           </View>
           <FlatList
             data={trips}
             renderItem={renderTrip}
             keyExtractor={(item) => item.id}
-            style={styles.list}
+            style={[styles.list, isPortrait && { maxHeight: height * 0.6 }]}
             showsVerticalScrollIndicator={false}
           />
         </View>
@@ -93,7 +102,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: '#F0F0F0', fontSize: 16, fontWeight: '600', flex: 1 },
   headerCount: { color: '#6B7280', fontSize: 12 },
-  closeBtn: { padding: 4 },
+  closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)' },
+  closeBtnText: { color: '#D1D5DB', fontSize: 13, fontWeight: '600' },
   list: { maxHeight: 300 },
   tripRow: {
     flexDirection: 'row', alignItems: 'center',

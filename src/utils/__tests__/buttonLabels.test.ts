@@ -17,12 +17,12 @@ const LABEL_DEBT: Record<string, number> = {
     'src/components/CalendarView.tsx': 2, // PERMANENT: the month arrows ‹ ›
     'src/components/CountryPickerScreen.tsx': 1, // PERMANENT: ✕ that clears the search
     'src/components/HelpGuide.tsx': 1,
-    'src/components/ItineraryManager.tsx': 4,
+    // ItineraryManager.tsx: 0 since block I (Close, Play, Rename, Delete written)
     'src/components/MemoryViewer.tsx': 2, // PERMANENT: tap on the photo (opens it full screen), tap on a thumbnail
     'src/components/OnboardingScreen.tsx': 1,
     'src/components/PaywallScreen.tsx': 1,
     'src/components/PhotoFullscreen.tsx': 1, // PERMANENT: tap on a video shows/hides the buttons
-    'src/components/PinSelector.tsx': 1,
+    // PinSelector.tsx: 0 since block I (Close written)
     'src/components/PrivacyPolicy.tsx': 1,
     // SettingsScreen.tsx: 0 since block H (Close, Search and Delete written)
     'src/components/TermsOfService.tsx': 1,
