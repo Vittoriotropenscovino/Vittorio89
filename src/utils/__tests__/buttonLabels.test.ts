@@ -19,7 +19,7 @@ const LABEL_DEBT: Record<string, number> = {
     // HelpGuide, PrivacyPolicy, TermsOfService, OnboardingScreen: 0 since block J (ReadingCard with "✕ Close", "Next" written)
     // ItineraryManager.tsx: 0 since block I (Close, Play, Rename, Delete written)
     'src/components/MemoryViewer.tsx': 2, // PERMANENT: tap on the photo (opens it full screen), tap on a thumbnail
-    'src/components/PaywallScreen.tsx': 1,
+    // PaywallScreen.tsx: 0 since block K ("✕ Close" written, layout only)
     'src/components/PhotoFullscreen.tsx': 1, // PERMANENT: tap on a video shows/hides the buttons
     // PinSelector.tsx: 0 since block I (Close written)
     // SettingsScreen.tsx: 0 since block H (Close, Search and Delete written)

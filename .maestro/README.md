@@ -83,6 +83,7 @@ adb logcat -s ReactNativeJS
 | `10-calendario.yaml` | Calendario: colonne dritte, sempre 6 righe, giorni dei viaggi in oro | ≥1 viaggio |
 | `11-impostazioni.yaml` | Impostazioni: «Chiudi», casa con «Cerca» ed «Elimina» | nessuno |
 | `12-primo-avvio-privacy-guida.yaml` | Lingua, introduzione girando il telefono, consenso privacy, informativa, Guida e Termini. **Cancella i dati: solo emulatore** | emulatore |
+| `13-paywall.yaml` | Paywall da «Aggiungi Viaggio»: acquisto e «Ripristina» sempre visibili, «✕ Chiudi». Non tocca mai l'acquisto | versione gratuita con ≥3 viaggi |
 
 ---
 

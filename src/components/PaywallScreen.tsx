@@ -6,7 +6,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { TranslationKey } from '../i18n/translations';
-import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ALL_ORIENTATIONS, useOrientation } from '../hooks/useOrientation';
 import { MODAL_BACKDROP } from '../utils/surfaces';
 
 interface Props {
@@ -21,6 +22,12 @@ interface Props {
 const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, onRestore, freeLimit }) => {
   const { t } = useApp();
   const { width: screenW } = useWindowDimensions();
+  // 1.4.0 block K, layout only (logic, price and texts unchanged): inside the safe
+  // area, 92% wide in portrait, the purchase button always visible at the bottom
+  // (outside the scroll), "✕ Close" written like every other window.
+  const { height: winH, isPortrait, isLandscape } = useOrientation();
+  const insets = useSafeAreaInsets();
+  const maxHeight = winH - insets.top - insets.bottom - 24;
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -73,11 +80,15 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
   return (
     <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.card, { maxHeight: '90%' }]}>
+        <View testID="paywall" style={[styles.card, isPortrait && styles.cardPortrait, isLandscape && styles.cardLandscape, { maxHeight }]}>
           {/* Close button */}
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color="#9CA3AF" />
-          </TouchableOpacity>
+          <View style={styles.header}>
+            <TouchableOpacity testID="paywall-close" onPress={onClose} style={styles.closeBtn}
+              accessibilityRole="button" accessibilityLabel={t('close') as string}>
+              <Ionicons name="close" size={18} color="#D1D5DB" />
+              <Text style={styles.closeBtnText} numberOfLines={1}>{t('close')}</Text>
+            </TouchableOpacity>
+          </View>
 
           {success ? (
             <View style={styles.successContainer}>
@@ -85,13 +96,15 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
               <Text style={styles.successText}>{t('paywallSuccess')}</Text>
             </View>
           ) : (
+            <>
             <ScrollView
-              contentContainerStyle={styles.content}
+              style={styles.scroll}
+              contentContainerStyle={[styles.content, isLandscape && styles.contentLandscape]}
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
               {/* Globe icon */}
-              <Ionicons name="globe-outline" size={screenW < 600 ? 44 : 48} color="#00d4ff" style={styles.globeIcon} />
+              <Ionicons name="globe-outline" size={isLandscape ? 32 : screenW < 600 ? 44 : 48} color="#00d4ff" style={[styles.globeIcon, isLandscape && styles.globeIconLandscape]} />
 
               {/* Title */}
               <Text style={styles.title}>{t('paywallTitle')}</Text>
@@ -110,10 +123,14 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
                   </View>
                 ))}
               </View>
+            </ScrollView>
 
+            {/* Purchase and restore, fixed at the bottom; side by side in landscape */}
+            <View style={[styles.footer, isLandscape && styles.footerLandscape]}>
               {/* Purchase button */}
               <TouchableOpacity
-                style={styles.purchaseButton}
+                testID="paywall-purchase"
+                style={[styles.purchaseButton, isLandscape && styles.purchaseButtonLandscape]}
                 onPress={handlePurchase}
                 disabled={purchasing || restoring}
               >
@@ -130,14 +147,15 @@ const PaywallScreen: React.FC<Props> = ({ visible, onClose, price, onPurchase, o
               </TouchableOpacity>
 
               {/* Restore */}
-              <TouchableOpacity onPress={handleRestore} disabled={purchasing || restoring} style={styles.restoreBtn}>
+              <TouchableOpacity testID="paywall-restore" onPress={handleRestore} disabled={purchasing || restoring} style={[styles.restoreBtn, isLandscape && styles.restoreBtnLandscape]}>
                 {restoring ? (
                   <ActivityIndicator color="#60A5FA" size="small" />
                 ) : (
                   <Text style={styles.restoreText}>{t('paywallRestore')}</Text>
                 )}
               </TouchableOpacity>
-            </ScrollView>
+            </View>
+            </>
           )}
         </View>
       </View>
@@ -160,22 +178,40 @@ const styles = StyleSheet.create({
     width: '90%',
     backgroundColor: 'rgba(5,5,16,0.98)',
   },
-  closeBtn: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 10,
-    padding: 4,
+  cardPortrait: { width: '92%' },
+  // landscape: wider, so the purchase button keeps whole words at 130%
+  cardLandscape: { maxWidth: 680 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingTop: 14,
+    paddingHorizontal: 14,
   },
+  closeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)' },
+  closeBtnText: { color: '#D1D5DB', fontSize: 14, fontWeight: '600' },
+  scroll: { flexGrow: 0, flexShrink: 1 },
   content: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flexGrow: 1,
     paddingHorizontal: 32,
-    paddingVertical: 24,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
+  contentLandscape: { paddingTop: 0 },
   globeIcon: {
     marginBottom: 16,
+  },
+  globeIconLandscape: { marginBottom: 6 },
+  footer: {
+    paddingHorizontal: 32,
+    paddingTop: 12,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
+  footerLandscape: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 24,
@@ -215,29 +251,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 54,
   },
+  purchaseButtonLandscape: { flex: 1.7, alignSelf: 'auto', paddingVertical: 12, paddingHorizontal: 16, minHeight: 48 },
   purchaseButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   purchaseButtonText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: 17,
     fontWeight: '700',
     color: '#fff',
   },
   restoreBtn: {
-    marginTop: 16,
+    marginTop: 8,
     padding: 8,
     minHeight: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  restoreBtnLandscape: { marginTop: 0, flex: 1 },
   restoreText: {
+    textAlign: 'center',
     fontSize: 14,
     color: '#60A5FA',
   },
   successContainer: {
-    flex: 1,
+    paddingTop: 24,
+    paddingBottom: 48,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,

@@ -1,0 +1,37 @@
+# Blocco K del verticale: il paywall si apre da «Aggiungi Viaggio» quando la
+# versione gratuita ha già 3 viaggi. Controlla che acquisto e «Ripristina» siano
+# visibili (fissi in fondo) e che «✕ Chiudi» lo chiuda.
+# NON tocca mai il pulsante d'acquisto.
+# Requisito: versione gratuita con almeno 3 viaggi (sull'emulatore: crearne uno
+# di prova e cancellarlo dopo). «Passa a Premium» nelle Impostazioni NON apre il
+# paywall: avvia subito l'acquisto, non usarlo nei flussi.
+appId: com.travelsphere.app
+---
+- launchApp
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'PORTRAIT' : ORIENTATION}"
+- evalScript: "${output.tag = (typeof TAG === 'undefined' || !TAG) ? 'x' : TAG}"
+- setOrientation: PORTRAIT
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 60000
+- tapOn:
+    id: "Add Trip"
+- extendedWaitUntil:
+    visible:
+      id: "paywall-purchase"
+    timeout: 10000
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: "paywall-purchase"
+- assertVisible:
+    id: "paywall-restore"
+- takeScreenshot: ${output.tag}-K-paywall-${output.orient}
+- tapOn:
+    id: "paywall-close"
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertNotVisible:
+    id: "paywall"
