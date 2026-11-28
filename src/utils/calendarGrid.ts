@@ -27,3 +27,15 @@ export function weekdayLetters(language: string): string[] {
 
 /** Cells in the grid: always 6 weeks, so the card has the same height every month. */
 export const CALENDAR_CELLS = 6 * 7;
+
+/**
+ * 1.4.0 block N: height of a day row in landscape. Half the column width as in
+ * 1.3.0, but never more than 1/6 of the room left under the month and the weekday
+ * letters: on a 360-point phone at 130% the sixth week (the 30 of November 2026)
+ * was cut off at the bottom. `room` 0 = not measured yet.
+ */
+export function landscapeRowHeight(cell: number, room: number): number {
+    const half = Math.round(cell / 2);
+    if (!(room > 0)) return half;
+    return Math.max(24, Math.min(half, Math.floor(room / 6)));
+}

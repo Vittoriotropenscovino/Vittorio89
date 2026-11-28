@@ -7,7 +7,7 @@ import { Trip } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
-import { calendarCellSize, weekdayLetters, CALENDAR_CELLS } from '../utils/calendarGrid';
+import { calendarCellSize, weekdayLetters, CALENDAR_CELLS, landscapeRowHeight } from '../utils/calendarGrid';
 import { fitFontSize, estimateTextWidth } from '../utils/fitText';
 
 // gold = "visited": the days with a trip, as on the main screen
@@ -38,7 +38,10 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
     const [gridW, setGridW] = useState(0);
     const cell = calendarCellSize(gridW);
     // portrait: square cells; landscape: low cells so the month fits (1.3.0)
-    const cellH = landscape ? Math.round(cell / 2) : cell;
+    // ...but all 6 weeks in sight: the room under header, month and weekday letters is measured
+    const [topH, setTopH] = useState(0);
+    const gridRoom = topH > 0 ? maxCardHeight - 2 * 12 - 2 - topH : 0;
+    const cellH = landscape ? landscapeRowHeight(cell, gridRoom) : cell;
     // portrait: as wide as the screen minus the margins
     const cardWidth = landscape ? undefined : Math.min(winW - 32, 500);
     // Title on one line with any system font size (prova 3: it wrapped at 115%).
@@ -95,6 +98,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
         <Modal supportedOrientations={ALL_ORIENTATIONS} visible={visible} transparent animationType="fade" statusBarTranslucent hardwareAccelerated onRequestClose={onClose}>
             <View style={[styles.overlay, { paddingTop: insets.top + 12 }]}>
                 <View testID="calendar-view" style={[styles.card, styles.content, { maxHeight: maxCardHeight }, cardWidth !== undefined && { width: cardWidth }, landscape && styles.contentCompact]}>
+                        <View onLayout={(e) => setTopH(e.nativeEvent.layout.height)}>
                         <View style={[styles.header, landscape && styles.headerCompact]}>
                             <Ionicons name="calendar" size={24} color="#00d4ff" />
                             <Text style={[styles.title, { fontSize: titleSize }]} numberOfLines={1}>{t('calendarTitle')}</Text>
@@ -125,6 +129,7 @@ const CalendarView: React.FC<Props> = ({ visible, onClose, trips, onTripSelect }
                                     </View>
                                 ))}
                             </View>
+                        </View>
                         </View>
 
                         {/* Days grid */}

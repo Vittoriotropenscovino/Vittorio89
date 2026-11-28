@@ -60,3 +60,19 @@ describe('save confirmation', () => {
         expect(src).toMatch(/textAlign: 'center'/);
     });
 });
+
+describe('trip form on a short screen', () => {
+    const { titleNeedsScroll } = require('../formReveal');
+    it('already in sight: the form does not move', () => {
+        expect(titleNeedsScroll(120, 70, 0, 300)).toBeNull();
+    });
+    it('under the "Add Pin" button: scrolls just enough to show it whole', () => {
+        // 360-point phone in landscape at 130%: about 165 points of form visible
+        expect(titleNeedsScroll(150, 80, 0, 165)).toBe(150 + 80 - 165 + 8);
+    });
+    it('the form asks for it right after the place is found', () => {
+        const src = read('src/components/TripForm.tsx');
+        expect(src).toMatch(/setRevealTitle\(\(n\) => n \+ 1\)/);
+        expect(src).toMatch(/ref=\{formScrollRef\}/);
+    });
+});

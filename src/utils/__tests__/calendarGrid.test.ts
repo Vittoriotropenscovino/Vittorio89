@@ -56,3 +56,18 @@ describe('calendar of trips: same height every month', () => {
         expect(src).toMatch(/numberOfLines=\{1\}>\{t\('calendarTitle'\)\}/);
     });
 });
+
+describe('landscape: all six weeks in sight', () => {
+    const { landscapeRowHeight } = require('../calendarGrid');
+    it('enough room: half the column as in 1.3.0', () => {
+        expect(landscapeRowHeight(65, 400)).toBe(33);
+    });
+    it('360-point phone at 130%: rows lower so the 6th week is not cut off', () => {
+        expect(landscapeRowHeight(65, 193)).toBe(32);
+        expect(6 * landscapeRowHeight(65, 193)).toBeLessThanOrEqual(193);
+    });
+    it('never below 24 points; not measured yet = 1.3.0 height', () => {
+        expect(landscapeRowHeight(65, 60)).toBe(24);
+        expect(landscapeRowHeight(65, 0)).toBe(33);
+    });
+});

@@ -22,6 +22,7 @@ import { ALL_ORIENTATIONS } from '../hooks/useOrientation';
 import { MODAL_BACKDROP, MODAL_CARD } from '../utils/surfaces';
 import { formatTripDate } from '../utils/formatDate';
 import { keyboardOverlap } from '../utils/keyboardOverlap';
+import { titleNeedsScroll } from '../utils/formReveal';
 
 const NOMINATIM_MIN_INTERVAL = 1100;
 
@@ -78,6 +79,20 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
 
     const lastGeocodingTime = useRef(0);
     const isSavingRef = useRef(false);
+    // 1.4.0 block N: on a short screen (landscape, large text) the title field ended up
+    // under the fixed "Add Pin" button after the search. Once the place is found the form
+    // scrolls just enough to show it; if the field is already in sight it does not move.
+    const formScrollRef = useRef<ScrollView>(null);
+    const formScrollY = useRef(0);
+    const [formScrollH, setFormScrollH] = useState(0);
+    const [detailsY, setDetailsY] = useState(0);
+    const [titleBox, setTitleBox] = useState<{ y: number; h: number } | null>(null);
+    const [revealTitle, setRevealTitle] = useState(0);
+    useEffect(() => {
+        if (!revealTitle || !titleBox || formScrollH <= 0) return;
+        const target = titleNeedsScroll(detailsY + titleBox.y, titleBox.h, formScrollY.current, formScrollH);
+        if (target !== null) formScrollRef.current?.scrollTo({ y: target, animated: true });
+    }, [revealTitle, detailsY, titleBox, formScrollH]);
 
     useEffect(() => {
         if (editTrip && visible) {
@@ -241,6 +256,7 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                     setFoundCountryCode(String((httpResult as any).countryCode || ''));
                 }
                 if (!title) setTitle(locationQuery);
+                setRevealTitle((n) => n + 1);
                 return;
             }
 
@@ -560,7 +576,9 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={[styles.scrollContent, dynamicStyles.scrollContent]} testID="trip-form-scroll"
+                        <ScrollView ref={formScrollRef} style={[styles.scrollContent, dynamicStyles.scrollContent]} testID="trip-form-scroll"
+                            onLayout={(e) => setFormScrollH(e.nativeEvent.layout.height)}
+                            onScroll={(e) => { formScrollY.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={64}
                             showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                             {/* Location Search */}
                             <View style={styles.section}>
@@ -588,8 +606,10 @@ const TripForm: React.FC<TripFormProps & { itineraries?: Itinerary[] }> = ({ vis
                             </View>
 
                             {/* Trip Details */}
-                            <View style={[styles.detailsSection, !foundLocation && styles.disabled]}>
-                                <View style={styles.section}>
+                            <View style={[styles.detailsSection, !foundLocation && styles.disabled]}
+                                onLayout={(e) => setDetailsY(e.nativeEvent.layout.y)}>
+                                <View style={styles.section}
+                                    onLayout={(e) => setTitleBox({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}>
                                     <Text style={styles.label}>{t('tripTitle')}</Text>
                                     <TextInput testID="trip-title" style={styles.input} placeholder={t('titlePlaceholder') as string}
                                         placeholderTextColor="#6B7280" value={title} onChangeText={setTitle}
