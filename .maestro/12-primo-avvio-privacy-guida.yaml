@@ -1,0 +1,109 @@
+# Blocco J del verticale: lingua, introduzione (girando il telefono resta sulla
+# stessa pagina), consenso privacy con l'informativa, Guida e Termini con «✕ Chiudi».
+#
+# ⚠️ CANCELLA TUTTI I DATI DELL'APP (clearState): SOLO SULL'EMULATORE.
+# Mai sul telefono vero: perderesti viaggi e foto.
+#   maestro --device emulator-5554 test .maestro/12-primo-avvio-privacy-guida.yaml -e ORIENTATION=PORTRAIT
+# Con TAG si distinguono gli screenshot dei giri con caratteri al 100/115/130%.
+appId: com.travelsphere.app
+---
+- launchApp:
+    clearState: true
+- evalScript: "${output.orient = (typeof ORIENTATION === 'undefined' || !ORIENTATION) ? 'PORTRAIT' : ORIENTATION}"
+- evalScript: "${output.other = output.orient === 'PORTRAIT' ? 'LANDSCAPE_LEFT' : 'PORTRAIT'}"
+- evalScript: "${output.tag = (typeof TAG === 'undefined' || !TAG) ? 'x' : TAG}"
+- setOrientation: ${output.orient}
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-lang-it"
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${output.tag}-J1-lingue-${output.orient}
+- tapOn:
+    id: "onboarding-lang-it"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${output.tag}-J2-pagina1-${output.orient}
+- tapOn:
+    id: "onboarding-next"
+- waitForAnimationToEnd:
+    timeout: 3000
+# girando il telefono deve restare sulla pagina 2
+- setOrientation: ${output.other}
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${output.tag}-J3-pagina2-ruotata-${output.other}
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "onboarding-next"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${output.tag}-J4-pagina3-${output.orient}
+- tapOn:
+    id: "onboarding-start"
+- extendedWaitUntil:
+    visible:
+      id: "gdpr-accept"
+    timeout: 10000
+- takeScreenshot: ${output.tag}-J5-consenso-${output.orient}
+- tapOn:
+    id: "gdpr-learn-more"
+- extendedWaitUntil:
+    visible:
+      id: "privacy-close"
+    timeout: 10000
+- takeScreenshot: ${output.tag}-J6-privacy-${output.orient}
+- tapOn:
+    id: "privacy-close"
+- tapOn:
+    id: "gdpr-accept"
+- extendedWaitUntil:
+    visible:
+      id: "wb-skip"
+    timeout: 20000
+- tapOn:
+    id: "wb-skip"
+- extendedWaitUntil:
+    visible:
+      id: "stats-bar"
+    timeout: 20000
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "quick-help"
+- extendedWaitUntil:
+    visible:
+      id: "help-close"
+    timeout: 10000
+- takeScreenshot: ${output.tag}-J7-guida-${output.orient}
+- tapOn:
+    id: "help-close"
+- tapOn:
+    id: "Menu"
+- waitForAnimationToEnd:
+    timeout: 3000
+- setOrientation: PORTRAIT
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "quick-settings"
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element: "Termini di Servizio"
+- tapOn: "Termini di Servizio"
+- extendedWaitUntil:
+    visible:
+      id: "terms-close"
+    timeout: 10000
+- setOrientation: ${output.orient}
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${output.tag}-J8-termini-${output.orient}
+- tapOn:
+    id: "terms-close"

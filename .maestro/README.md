@@ -80,6 +80,9 @@ adb logcat -s ReactNativeJS
 | `07-condividi-dal-globo.yaml` | Condividi dalla schermata principale (card + foglio di Android) | ≥1 paese |
 | `08-riepilogo-anno.yaml` | Riepilogo dell'anno con la data simulata | APK di prova |
 | `09-primo-avvio.yaml` | Primo avvio da zero: lingua, introduzione, privacy, 5 paesi, risultato, condivisione. **Cancella i dati: solo emulatore** | emulatore |
+| `10-calendario.yaml` | Calendario: colonne dritte, sempre 6 righe, giorni dei viaggi in oro | ≥1 viaggio |
+| `11-impostazioni.yaml` | Impostazioni: «Chiudi», casa con «Cerca» ed «Elimina» | nessuno |
+| `12-primo-avvio-privacy-guida.yaml` | Lingua, introduzione girando il telefono, consenso privacy, informativa, Guida e Termini. **Cancella i dati: solo emulatore** | emulatore |
 
 ---
 

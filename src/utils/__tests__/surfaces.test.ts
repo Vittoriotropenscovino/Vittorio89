@@ -16,8 +16,8 @@ describe('window backgrounds cover the main screen', () => {
     });
 
     const windows = [
-        'CalendarView', 'StatsScreen', 'ItineraryManager', 'SettingsScreen', 'TripForm', 'HelpGuide',
-        'PrivacyPolicy', 'TermsOfService', 'PaywallScreen', 'PinSelector', 'MemoryViewer',
+        'CalendarView', 'StatsScreen', 'ItineraryManager', 'SettingsScreen', 'TripForm', 'ReadingCard',
+        'GDPRConsent', 'PaywallScreen', 'PinSelector', 'MemoryViewer',
         'ShareGlobeSheet', 'MarkedCountryDialog', 'CountriesResultPanel',
     ];
 
@@ -29,5 +29,12 @@ describe('window backgrounds cover the main screen', () => {
         for (const m of styles.matchAll(/(overlay|content|formContainer|backdrop|card): \{[^}]*backgroundColor: 'rgba\([^)]*,\s*([0-9.]+)\)'/g)) {
             expect({ name, key: m[1], opaque: Number(m[2]) >= 0.95 }).toEqual({ name, key: m[1], opaque: true });
         }
+    });
+
+    // block J: Privacy, Terms and Guide no longer draw their own window
+    it.each(['HelpGuide', 'PrivacyPolicy', 'TermsOfService'])('%s opens inside the shared ReadingCard', (name) => {
+        const src = read(`src/components/${name}.tsx`);
+        expect(src).toMatch(/from '\.\/ReadingCard'/);
+        expect(src).not.toMatch(/<Modal/);
     });
 });

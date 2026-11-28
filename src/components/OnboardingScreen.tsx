@@ -1,13 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, Animated,
-    Dimensions, FlatList, ScrollView,
+    FlatList, ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { Language } from '../i18n/translations';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { useOrientation } from '../hooks/useOrientation';
 
 const LANGUAGE_OPTIONS: { code: Language; emoji: string; name: string }[] = [
     { code: 'it', emoji: '\u{1F1EE}\u{1F1F9}', name: 'Italiano' },
@@ -24,12 +24,27 @@ interface OnboardingProps {
     onComplete: () => void;
 }
 
+// 1.4.0 block J: the sizes come from the CURRENT window (useOrientation), not
+// from one reading at startup, so turning the phone does not break the pages.
+// Portrait: languages in a 2-column grid, each page with the picture on top and
+// the text below. Landscape: languages in one scrolling row, picture on the left
+// and text on the right (the old layout went past the screen with big fonts).
 const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
-    const { t, setLanguage, language } = useApp();
+    const { t, setLanguage } = useApp();
+    const { width: winW, isLandscape } = useOrientation();
+    const insets = useSafeAreaInsets();
     const [languageChosen, setLanguageChosen] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = useRef<FlatList>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
+
+    // after a rotation the pages get the new width: go back to the same page
+    useEffect(() => {
+        if (!languageChosen) return;
+        const id = setTimeout(() => flatListRef.current?.scrollToOffset({ offset: currentIndex * winW, animated: false }), 0);
+        return () => clearTimeout(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [winW]);
 
     const handleLanguageSelect = (lang: Language) => {
         setLanguage(lang);
@@ -38,39 +53,49 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
 
     // Language selection screen
     if (!languageChosen) {
+        // portrait 2 per row, landscape 4 per row: all 8 visible without scrolling
+        const cols = isLandscape ? 4 : 2;
+        const gridW = Math.min(winW - insets.left - insets.right - 48, isLandscape ? 760 : 520);
+        const cardW = Math.floor((gridW - 12 * (cols - 1)) / cols);
+        const cards = LANGUAGE_OPTIONS.map((lang) => (
+            <TouchableOpacity
+                key={lang.code}
+                testID={`onboarding-lang-${lang.code}`}
+                style={[styles.langCard, isLandscape && styles.langCardLandscape, { width: cardW }]}
+                onPress={() => handleLanguageSelect(lang.code)}
+                activeOpacity={0.7}
+            >
+                <Text style={isLandscape ? styles.langEmojiLandscape : styles.langEmoji}>{lang.emoji}</Text>
+                <Text style={styles.langName} numberOfLines={1}>{lang.name}</Text>
+                <View style={styles.langCodeBadge}>
+                    <Text style={styles.langCodeText}>{lang.code.toUpperCase()}</Text>
+                </View>
+            </TouchableOpacity>
+        ));
         return (
-            <View style={styles.container}>
-                <View style={styles.langHeader}>
-                    <View style={styles.langIconCircle}>
-                        <Ionicons name="language" size={36} color="#00d4ff" />
-                    </View>
+            <ScrollView
+                testID="onboarding-languages"
+                style={styles.container}
+                contentContainerStyle={[styles.langPage, {
+                    paddingTop: insets.top + 16,
+                    paddingBottom: insets.bottom + 16,
+                    paddingLeft: insets.left,
+                    paddingRight: insets.right,
+                }]}
+            >
+                <View style={[styles.langHeader, isLandscape && styles.langHeaderLandscape]}>
+                    {/* landscape with big fonts: no icon and one title line, so both rows of languages fit */}
+                    {!isLandscape && (
+                        <View style={styles.langIconCircle}>
+                            <Ionicons name="language" size={36} color="#00d4ff" />
+                        </View>
+                    )}
                     <Text style={styles.langPickerTitle}>
-                        Seleziona la tua lingua{'\n'}Select your language
+                        Seleziona la tua lingua{isLandscape ? ' · ' : '\n'}Select your language
                     </Text>
                 </View>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.langScrollContent}
-                    decelerationRate="fast"
-                    snapToInterval={132}
-                >
-                    {LANGUAGE_OPTIONS.map((lang) => (
-                        <TouchableOpacity
-                            key={lang.code}
-                            style={styles.langCard}
-                            onPress={() => handleLanguageSelect(lang.code)}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.langEmoji}>{lang.emoji}</Text>
-                            <Text style={styles.langName}>{lang.name}</Text>
-                            <View style={styles.langCodeBadge}>
-                                <Text style={styles.langCodeText}>{lang.code.toUpperCase()}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+                <View style={[styles.langGrid, isLandscape && styles.langGridLandscape, { width: gridW }]}>{cards}</View>
+            </ScrollView>
         );
     }
 
@@ -82,7 +107,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
 
     const handleNext = () => {
         if (currentIndex < slides.length - 1) {
-            flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+            flatListRef.current?.scrollToOffset({ offset: (currentIndex + 1) * winW, animated: true });
             setCurrentIndex(currentIndex + 1);
         } else {
             onComplete();
@@ -90,30 +115,43 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
     };
 
     const renderSlide = ({ item }: { item: typeof slides[0] }) => (
-        <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
-            <View style={[styles.iconCircle, { borderColor: item.color }]}>
-                <Ionicons name={item.icon as any} size={60} color={item.color} />
+        <ScrollView
+            style={{ width: winW }}
+            contentContainerStyle={[
+                styles.slide,
+                isLandscape && styles.slideLandscape,
+                { paddingLeft: 32 + insets.left, paddingRight: 32 + insets.right },
+            ]}
+            showsVerticalScrollIndicator={false}
+        >
+            <View style={[styles.iconCircle, isLandscape && styles.iconCircleLandscape, { borderColor: item.color }]}>
+                <Ionicons name={item.icon as any} size={isLandscape ? 44 : 60} color={item.color} />
             </View>
-            <Text style={styles.slideTitle}>{item.title}</Text>
-            <Text style={styles.slideText}>{item.text}</Text>
-        </View>
+            <View style={isLandscape ? styles.slideTextBoxLandscape : styles.slideTextBox}>
+                <Text style={[styles.slideTitle, isLandscape && styles.alignLeft]}>{item.title}</Text>
+                <Text style={[styles.slideText, isLandscape && styles.alignLeft]}>{item.text}</Text>
+            </View>
+        </ScrollView>
     );
 
     return (
-        <View style={styles.container}>
+        <View testID="onboarding" style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <FlatList
                 ref={flatListRef}
+                style={styles.pages}
                 data={slides}
                 renderItem={renderSlide}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
+                getItemLayout={(_, index) => ({ length: winW, offset: winW * index, index })}
+                extraData={`${winW}-${isLandscape}`}
                 onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: false }
                 )}
                 onMomentumScrollEnd={(e) => {
-                    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / winW);
                     setCurrentIndex(idx);
                 }}
                 keyExtractor={(_, i) => i.toString()}
@@ -121,7 +159,7 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
             />
 
             {/* Dots */}
-            <View style={styles.dotsRow}>
+            <View style={[styles.dotsRow, isLandscape && styles.dotsRowLandscape]}>
                 {slides.map((_, i) => (
                     <View key={i} style={[
                         styles.dot,
@@ -130,19 +168,26 @@ const OnboardingScreen: React.FC<OnboardingProps> = ({ onComplete }) => {
                 ))}
             </View>
 
-            {/* Bottom buttons */}
-            <View style={styles.bottomRow}>
+            {/* Bottom buttons, all with written labels */}
+            <View style={[
+                styles.bottomRow,
+                isLandscape && styles.bottomRowLandscape,
+                currentIndex === slides.length - 1 && styles.bottomRowCentered,
+                { paddingLeft: 40 + insets.left, paddingRight: 40 + insets.right },
+            ]}>
                 {currentIndex < slides.length - 1 ? (
                     <>
-                        <TouchableOpacity onPress={onComplete}>
+                        <TouchableOpacity testID="onboarding-skip" onPress={onComplete} style={styles.skipBtn}>
                             <Text style={styles.skipText}>{t('skip')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                            <Ionicons name="arrow-forward" size={24} color="#fff" />
+                        <TouchableOpacity testID="onboarding-next" style={styles.nextButton} onPress={handleNext}
+                            accessibilityRole="button" accessibilityLabel={t('next') as string}>
+                            <Text style={styles.nextText} numberOfLines={1}>{t('next')}</Text>
+                            <Ionicons name="arrow-forward" size={20} color="#fff" />
                         </TouchableOpacity>
                     </>
                 ) : (
-                    <TouchableOpacity style={styles.startButton} onPress={onComplete}>
+                    <TouchableOpacity testID="onboarding-start" style={[styles.startButton, isLandscape && styles.startButtonLandscape]} onPress={onComplete}>
                         <Ionicons name="rocket" size={20} color="#fff" />
                         <Text style={styles.startText}>{t('onboardingStart')}</Text>
                     </TouchableOpacity>
@@ -156,14 +201,19 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#050510',
-        justifyContent: 'center',
     },
     // Language picker styles
+    langPage: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     langHeader: {
         alignItems: 'center',
-        paddingTop: 20,
-        paddingBottom: 16,
+        paddingBottom: 20,
+        paddingHorizontal: 24,
     },
+    langHeaderLandscape: { paddingBottom: 12 },
     langIconCircle: {
         width: 72,
         height: 72,
@@ -182,15 +232,15 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 26,
     },
-    langScrollContent: {
-        paddingHorizontal: 24,
-        paddingVertical: 8,
-        gap: 12,
-        alignItems: 'center',
+    langGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        rowGap: 12,
     },
+    langGridLandscape: { rowGap: 10 },
     langCard: {
-        width: 120,
-        height: 140,
+        paddingVertical: 14,
         backgroundColor: 'rgba(0,212,255,0.04)',
         borderWidth: 1.5,
         borderColor: 'rgba(0,212,255,0.2)',
@@ -199,8 +249,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 6,
     },
+    langCardLandscape: { paddingVertical: 8, gap: 4 },
     langEmoji: {
-        fontSize: 36,
+        fontSize: 30,
+    },
+    langEmojiLandscape: {
+        fontSize: 24,
     },
     langName: {
         fontSize: 14,
@@ -220,11 +274,16 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     // Slide styles
+    pages: { flex: 1 },
     slide: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 60,
+        paddingVertical: 16,
+    },
+    slideLandscape: {
+        flexDirection: 'row',
+        gap: 32,
     },
     iconCircle: {
         width: 120,
@@ -236,6 +295,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 32,
     },
+    iconCircleLandscape: { width: 96, height: 96, borderRadius: 48, marginBottom: 0 },
+    slideTextBox: { alignItems: 'center', maxWidth: 520 },
+    slideTextBoxLandscape: { flexShrink: 1, maxWidth: 520 },
     slideTitle: {
         fontSize: 28,
         fontWeight: '800',
@@ -249,12 +311,14 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
     },
+    alignLeft: { textAlign: 'left' },
     dotsRow: {
         flexDirection: 'row',
         justifyContent: 'center',
         gap: 8,
         marginBottom: 20,
     },
+    dotsRowLandscape: { marginBottom: 10 },
     dot: {
         width: 8,
         height: 8,
@@ -269,20 +333,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 40,
         paddingBottom: 30,
+        gap: 16,
     },
+    bottomRowLandscape: { paddingBottom: 14 },
+    bottomRowCentered: { justifyContent: 'center' },
+    skipBtn: { paddingVertical: 12, paddingRight: 12 },
     skipText: {
         color: '#6B7280',
         fontSize: 16,
     },
     nextButton: {
+        flexDirection: 'row',
         backgroundColor: '#3B82F6',
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        minHeight: 52,
+        paddingHorizontal: 22,
+        borderRadius: 26,
         justifyContent: 'center',
         alignItems: 'center',
+        gap: 8,
+        flexShrink: 1,
+    },
+    nextText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
+        flexShrink: 1,
     },
     startButton: {
         flex: 1,
@@ -294,6 +370,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 10,
     },
+    startButtonLandscape: { paddingVertical: 12, maxWidth: 480 },
     startText: {
         color: '#fff',
         fontSize: 18,
