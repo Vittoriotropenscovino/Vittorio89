@@ -106,6 +106,8 @@ const AppContent: React.FC = () => {
   const [countriesResultVisible, setCountriesResultVisible] = useState(false);
   // "Add a trip here" (tap on a country marked from the list): the app's own dialog.
   const [markedDialog, setMarkedDialog] = useState<{ code: string; name: string } | null>(null);
+  // bottom edge of the title (measured: it grows with the system font), for the offline banner
+  const [headerBottom, setHeaderBottom] = useState(0);
   // "Add a trip here" from a marked country: the form starts with its name.
   const [prefillCountry, setPrefillCountry] = useState<{ code: string; name: string } | null>(null);
   // "Share your globe" sheet (preview + optional name + share), from the main
@@ -559,7 +561,8 @@ const AppContent: React.FC = () => {
 
       {/* Layer 1: UI overlay */}
       <View style={styles.uiOverlay} pointerEvents="box-none">
-        <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}>
+        <SafeAreaView style={styles.headerContainer} edges={['top', 'left']}
+          onLayout={(e) => setHeaderBottom(Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height))}>
           <View style={styles.header}>
             <TouchableOpacity testID="Menu" style={styles.hamburgerButton} onPress={() => setSidebarOpen(true)} accessibilityLabel="Menu" accessibilityRole="button">
               <Ionicons name="menu" size={24} color="#60A5FA" />
@@ -573,7 +576,7 @@ const AppContent: React.FC = () => {
         </SafeAreaView>
 
         {/* Offline banner */}
-        <OfflineBanner />
+        <OfflineBanner top={headerBottom > 0 ? headerBottom - 8 : undefined} />
 
         {/* Top right: the version (landscape only, no room next to the logo in
             portrait) and the test-build tools. 1.4.0: no "Exit" button any more

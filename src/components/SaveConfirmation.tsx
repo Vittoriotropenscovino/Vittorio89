@@ -58,10 +58,14 @@ const styles = StyleSheet.create({
         paddingVertical: 20,
         alignItems: 'center',
         gap: 8,
+        // 1.4.0 block L: a long message with a big system font wraps inside the
+        // screen instead of touching the edges
+        maxWidth: '86%',
     },
     text: {
         fontSize: 16,
         fontWeight: '700',
+        textAlign: 'center',
     },
 });
 
